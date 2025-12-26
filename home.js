@@ -1,15 +1,19 @@
 /* ===== MODERN HOME PAGE JAVASCRIPT - YUVA 2025 ===== */
 
 // --- CONFIGURATION ---
-// IMPORTANT: Replace these with your actual Supabase project URL and Anon Key
-const SUPABASE_URL = 'https://jgsrsjwmywiirtibofth.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_5KtvO0cEHfnECBoyp2CQnw_RC3_x2me';
-// Initialize Supabase client if the library is loaded
-const supabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+// Initialize Supabase client if not already initialized
+if (!window.supabaseClient && window.supabase?.createClient) {
+    const SUPABASE_URL = 'https://jgsrsjwmywiirtibofth.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_5KtvO0cEHfnECBoyp2CQnw_RC3_x2me';
+    window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
+// Use the global supabase client
+const supabaseClient = window.supabaseClient || null;
+
 
 class HomePageManager {
     constructor() {
-        if (!supabase) {
+        if (!supabaseClient) {
             console.error("Supabase client not initialized. Dynamic content (Executives, Events) will not load.");
             return;
         }
@@ -32,16 +36,31 @@ class HomePageManager {
         if (!grid) return;
 
         try {
+            // Show loading state
             if (loader) loader.style.display = 'flex';
             grid.style.display = 'none';
             if (emptyState) emptyState.style.display = 'none';
+
+            // Check if Supabase is initialized
+            if (!supabaseClient) {
+                console.error('Supabase client not initialized');
+                if (loader) loader.style.display = 'none';
+                if (emptyState) {
+                    emptyState.style.display = 'block';
+                    emptyState.innerHTML = `
+                        <i class="far fa-calendar-times"></i>
+                        <p>Unable to load events. Please refresh the page.</p>
+                    `;
+                }
+                return;
+            }
 
             // 1. Fetch recent and future events (fetch a bit more data to filter client-side)
             // We fetch events starting from "Yesterday" to catch events that started but haven't ended.
             const yesterday = new Date();
             yesterday.setDate(yesterday.getDate() - 1);
 
-            const { data: events, error } = await supabase
+            const { data: events, error } = await supabaseClient
                 .from('events')
                 .select('id, title, description, start_at, end_at, location, banner_url, status')
                 .in('status', ['upcoming', 'scheduled'])
@@ -51,6 +70,7 @@ class HomePageManager {
 
             if (error) throw error;
 
+            // Hide loading spinner
             if (loader) loader.style.display = 'none';
 
             // 2. Filter in JavaScript using End Date Logic
@@ -63,12 +83,14 @@ class HomePageManager {
                 return cutoff > now;
             }).slice(0, 3); // Take top 3
 
+            // Show empty state if no events
             if (activeEvents.length === 0) {
                 if (emptyState) emptyState.style.display = 'block';
+                grid.style.display = 'none';
                 return;
             }
 
-            // 3. Render
+            // 3. Render events
             grid.style.display = 'grid';
             grid.innerHTML = '';
 
@@ -107,8 +129,18 @@ class HomePageManager {
 
         } catch (err) {
             console.error("Error loading upcoming events:", err);
+            // Always hide loading spinner on error
             if (loader) loader.style.display = 'none';
-            if (emptyState) emptyState.style.display = 'block';
+            // Show empty state with error message
+            if (emptyState) {
+                emptyState.style.display = 'block';
+                emptyState.innerHTML = `
+                    <i class="far fa-calendar-times"></i>
+                    <p>Unable to load events. Please try again later.</p>
+                `;
+            }
+            // Hide grid on error
+            grid.style.display = 'none';
         }
     }
 
@@ -121,7 +153,7 @@ class HomePageManager {
         if (!grid) return;
 
         try {
-            const { data: allExecs, error } = await supabase
+            const { data: allExecs, error } = await supabaseClient
                 .from('executive_members')
                 .select('member_name, designation, role, photo_url, description, contact_email')
                 .order('display_order', { ascending: true, nullsFirst: false })
@@ -271,7 +303,7 @@ class HomePageManager {
                 btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Subscribing...';
                 btn.disabled = true;
 
-                const { error } = await supabase
+                const { error } = await supabaseClient
                     .from('subscriptions')
                     .insert([{ email: emailInput.value.toLowerCase().trim() }]);
 

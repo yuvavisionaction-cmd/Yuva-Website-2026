@@ -1,0 +1,1033 @@
+================================================================================
+                YUVA VIDEO PAGE & MANAGER - USER MANUAL
+                Youth United For Vision & Action
+================================================================================
+
+VERSION: 2025
+LAST UPDATED: December 26, 2025
+
+⚠️ IMPORTANT: This is a COMPLEX system with multiple components!
+Read carefully to understand how everything works together.
+
+================================================================================
+TABLE OF CONTENTS
+================================================================================
+
+1. SYSTEM OVERVIEW
+2. FILE STRUCTURE
+3. HOW THE VIDEO SYSTEM WORKS
+4. VIDEO.HTML - PUBLIC VIDEO PAGE
+5. VIDEO-CONFIG.JS - VIDEO CONFIGURATION
+6. VIDEO-MANAGER.HTML - ADMIN INTERFACE
+7. BACKEND-CODE-ENHANCED.GS - GOOGLE SHEETS BACKEND
+8. YOUTUBE API INTEGRATION
+9. HOW TO ADD VIDEOS (STEP-BY-STEP)
+10. HOW TO DELETE VIDEOS
+11. TROUBLESHOOTING
+12. RESPONSIVE DESIGN
+13. SEO & ACCESSIBILITY
+
+================================================================================
+1. SYSTEM OVERVIEW
+================================================================================
+
+The YUVA Video System is a DUAL-SOURCE video management system that displays
+YouTube videos on the public website.
+
+TWO DATA SOURCES:
+─────────────────
+1. **video-config.js** (Local File)
+   - Hardcoded video list in JavaScript
+   - Always loaded as fallback
+   - Easy to edit manually
+   - No database required
+
+2. **Google Sheets** (Cloud Database)
+   - Videos stored in Google Sheets
+   - Managed via video-manager.html
+   - Accessed via Google Apps Script API
+   - Syncs with public page
+
+HOW IT WORKS:
+─────────────
+┌─────────────────────────────────────────────────────────────┐
+│                    VIDEO SYSTEM FLOW                         │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  1. User visits Video.html                                  │
+│  2. Page loads video-config.js (local videos)              │
+│  3. Page calls YouTube API to get video details            │
+│  4. Page also tries to load from Google Sheets             │
+│  5. Videos from both sources are merged (no duplicates)     │
+│  6. Videos displayed in grid with filters                   │
+│                                                              │
+│  ADMIN WORKFLOW:                                             │
+│  1. Admin opens video-manager.html                          │
+│  2. Enters YouTube video ID                                 │
+│  3. Manager fetches video details from YouTube             │
+│  4. Admin reviews and saves to Google Sheets               │
+│  5. Public page automatically shows new video               │
+└─────────────────────────────────────────────────────────────┘
+
+================================================================================
+2. FILE STRUCTURE
+================================================================================
+
+FIVE MAIN FILES:
+
+1. Video.html (342 lines, 17,523 bytes)
+   - PUBLIC PAGE - What visitors see
+   - Displays videos in filterable grid
+   - Hero section with Ashoka Chakra
+   - Category filters (All, Vimarsh, Bharat Parv, etc.)
+   - Year filters (for Vimarsh videos)
+   - Video modal player
+
+2. video-config.js (38 lines, 2,006 bytes)
+   - CONFIGURATION FILE - Local video database
+   - Contains YouTube API key
+   - Contains hardcoded video list
+   - Fallback when Google Sheets unavailable
+
+3. media-script.js (901 lines, 31,091 bytes)
+   - SHARED JAVASCRIPT - Powers all media pages
+   - YouTube API integration
+   - Google Sheets integration
+   - Video filtering logic
+   - Modal player functionality
+
+4. video-manager.html (2,260 lines, 80,950 bytes)
+   - ADMIN INTERFACE - For adding/managing videos
+   - Add new videos by YouTube ID
+   - Preview videos before saving
+   - View all videos in Google Sheets
+   - Delete videos
+   - Sync with public page
+
+5. backend-code-enhanced.gs (572 lines, 17,425 bytes)
+   - GOOGLE APPS SCRIPT - Backend API
+   - Runs on Google's servers
+   - Stores videos in Google Sheets
+   - CRUD operations (Create, Read, Update, Delete)
+   - YouTube API enrichment
+
+ADDITIONAL FILES NEEDED:
+- /style.css (Global site styles)
+- /Mobile.css (Mobile-specific styles)
+- media-styles.css (Shared media page styles)
+- /script.js (Global site JavaScript)
+- /Images/YUVA logo.png
+
+================================================================================
+3. HOW THE VIDEO SYSTEM WORKS
+================================================================================
+
+COMPONENT INTERACTION:
+──────────────────────
+
+┌──────────────────┐
+│  Video.html      │ ← PUBLIC PAGE (what users see)
+│  (Public Page)   │
+└────────┬─────────┘
+         │
+         ├─ Loads video-config.js (local videos)
+         ├─ Calls YouTube API (get video details)
+         └─ Calls Google Sheets API (get cloud videos)
+         │
+         ▼
+┌──────────────────────────────────────────────────────────┐
+│  media-script.js                                         │
+│  - Merges videos from both sources                       │
+│  - Removes duplicates                                    │
+│  - Renders video cards                                   │
+│  - Handles filtering                                     │
+│  - Opens video modal                                     │
+└──────────────────────────────────────────────────────────┘
+
+┌──────────────────┐
+│ video-manager    │ ← ADMIN INTERFACE (for managing videos)
+│ .html            │
+└────────┬─────────┘
+         │
+         ├─ Admin enters YouTube video ID
+         ├─ Fetches video details from YouTube API
+         ├─ Shows preview to admin
+         └─ Saves to Google Sheets via backend API
+         │
+         ▼
+┌──────────────────────────────────────────────────────────┐
+│  backend-code-enhanced.gs (Google Apps Script)           │
+│  - Receives video data from manager                      │
+│  - Validates data                                        │
+│  - Enriches with YouTube API data                        │
+│  - Stores in Google Sheets                               │
+│  - Returns success/error to manager                      │
+└──────────────────────────────────────────────────────────┘
+
+┌──────────────────┐
+│  Google Sheets   │ ← CLOUD DATABASE (stores all videos)
+│  (Database)      │
+└──────────────────┘
+   Columns:
+   - ID (YouTube video ID)
+   - Category (vimarsh, bharatparv, etc.)
+   - Year (for Vimarsh videos)
+   - Title (from YouTube)
+   - Description (from YouTube)
+   - Published At (from YouTube)
+   - View Count (from YouTube)
+   - Duration (from YouTube)
+   - Thumbnail (from YouTube)
+   - Date Added (when added to system)
+
+================================================================================
+4. VIDEO.HTML - PUBLIC VIDEO PAGE
+================================================================================
+
+PAGE STRUCTURE:
+───────────────
+
+1. HERO SECTION (Lines 145-264)
+   - Ashoka Chakra SVG background
+   - Title: "Event Recordings"
+   - Description
+   - Animated particles
+
+2. FILTER BUTTONS (Lines 269-276)
+   - All Videos (default)
+   - Vimarsh
+   - Bharat Parv
+   - Seminars
+   - Workshops
+   - Interviews
+
+3. YEAR FILTERS (Lines 279-290)
+   - Only shown when "Vimarsh" is selected
+   - Years: 2017-2025
+   - Allows filtering Vimarsh by year
+
+4. VIDEO GRID (Line 293-295)
+   - Dynamically loaded from JavaScript
+   - No hardcoded videos in HTML
+   - Populated by media-script.js
+
+5. VIDEO STATS (Lines 298-331)
+   - 150+ Videos Published
+   - 50K+ Total Views
+   - 5K+ Subscribers
+   - 95% Watch Time
+
+SCRIPTS LOADED (Lines 337-339):
+1. /script.js (global sidebar)
+2. video-config.js (video configuration)
+3. media-script.js (video functionality)
+
+IMPORTANT: Videos are NOT in HTML!
+They are loaded dynamically from:
+- video-config.js (local)
+- Google Sheets (cloud)
+
+================================================================================
+5. VIDEO-CONFIG.JS - VIDEO CONFIGURATION
+================================================================================
+
+PURPOSE:
+────────
+This file contains:
+1. YouTube API credentials
+2. Hardcoded list of videos (fallback)
+
+FILE STRUCTURE:
+───────────────
+
+YOUTUBE_CONFIG (Lines 3-7):
+{
+    "API_KEY": "AIzaSyC_-iClHMdTb1TRLNtyEDFt7yHa6PZNj7M",
+    "API_URL": "https://www.googleapis.com/youtube/v3/videos",
+    "CHANNEL_ID": "UCouikXeZNp7TgoCfBveZqMA"
+}
+
+⚠️ IMPORTANT: This API key is PUBLIC and has usage limits!
+If you exceed limits, videos won't load.
+
+VIDEO_CONFIG (Lines 9-34):
+Array of video objects, each with:
+- id: YouTube video ID (e.g., "iXWy7QQQers")
+- category: "vimarsh", "bharatparv", "seminars", etc.
+- year: "2023" (for Vimarsh videos)
+- title: Video title
+- description: Video description
+- publishedAt: ISO date string
+
+EXAMPLE VIDEO ENTRY:
+{
+    "id": "iXWy7QQQers",
+    "category": "vimarsh",
+    "year": "2023",
+    "title": "Vimarsh'23 Day - 2 | Common Session | Adv. Monika Arora...",
+    "description": "Youth United for Vision and Action (YUVA)...",
+    "publishedAt": "2023-10-15T00:25:24Z"
+}
+
+CURRENTLY CONFIGURED VIDEOS: 3
+- All are Vimarsh 2023 videos
+- All from YUVA Delhi YouTube channel
+
+HOW TO ADD VIDEO MANUALLY:
+───────────────────────────
+1. Open video-config.js
+2. Add new object to VIDEO_CONFIG array:
+   {
+       "id": "YOUR_VIDEO_ID",
+       "category": "vimarsh",
+       "year": "2024",
+       "title": "Your Video Title",
+       "description": "Your description",
+       "publishedAt": "2024-01-01T00:00:00Z"
+   }
+3. Save file
+4. Refresh Video.html
+
+⚠️ EASIER METHOD: Use video-manager.html instead!
+
+================================================================================
+6. VIDEO-MANAGER.HTML - ADMIN INTERFACE
+================================================================================
+
+PURPOSE:
+────────
+Web-based interface for administrators to:
+- Add new videos to Google Sheets
+- Preview videos before adding
+- View all videos in system
+- Delete videos
+- Sync changes to public page
+
+ACCESS:
+───────
+URL: /Media/video-manager.html
+⚠️ This page should be password-protected or restricted!
+
+PAGE SECTIONS:
+──────────────
+
+1. ADD NEW VIDEO CARD (Left side)
+   - YouTube Video ID input
+   - Category dropdown (vimarsh, bharatparv, etc.)
+   - Year input (for Vimarsh)
+   - "Fetch Video Details" button
+   - Video preview area
+   - "Add to Library" button
+
+2. SYNC VIDEOS CARD (Right side)
+   - "Sync from Google Sheets" button
+   - Shows success/error messages
+   - Triggers localStorage event for public page
+
+3. CURRENT VIDEOS LIST (Full width)
+   - Grid of all videos in Google Sheets
+   - Each video shows:
+     • Video ID
+     • Category badge
+     • Title
+     • Delete button
+     • View on YouTube button
+
+HOW TO USE:
+───────────
+
+STEP 1: Get YouTube Video ID
+   - Go to YouTube video
+   - Copy ID from URL
+   - Example: https://youtube.com/watch?v=iXWy7QQQers
+   - ID is: iXWy7QQQers
+
+STEP 2: Enter Video ID
+   - Paste ID in "YouTube Video ID" field
+
+STEP 3: Select Category
+   - Choose from dropdown:
+     • vimarsh
+     • bharatparv
+     • seminars
+     • workshops
+     • interviews
+
+STEP 4: Enter Year (if Vimarsh)
+   - Only for Vimarsh category
+   - Enter year (2017-2025)
+
+STEP 5: Fetch Details
+   - Click "Fetch Video Details"
+   - Manager calls YouTube API
+   - Shows video preview with:
+     • Thumbnail
+     • Title
+     • Views
+     • Duration
+
+STEP 6: Review and Add
+   - Check if video details are correct
+   - Click "Add to Library"
+   - Video saved to Google Sheets
+   - Success message appears
+
+STEP 7: Sync (Optional)
+   - Click "Sync from Google Sheets"
+   - Refreshes video list
+   - Public page updates automatically
+
+FEATURES:
+─────────
+
+✓ Real-time YouTube preview
+✓ Automatic data enrichment
+✓ Duplicate detection
+✓ Input validation
+✓ Error handling
+✓ Success/error notifications
+✓ Responsive design
+✓ India-themed colors
+
+================================================================================
+7. BACKEND-CODE-ENHANCED.GS - GOOGLE SHEETS BACKEND
+================================================================================
+
+PURPOSE:
+────────
+Google Apps Script that runs on Google's servers to:
+- Store videos in Google Sheets
+- Validate video data
+- Enrich with YouTube API data
+- Handle CRUD operations
+- Provide API for video-manager.html
+
+DEPLOYMENT:
+───────────
+This script is deployed as a Google Apps Script Web App.
+Web App URL: https://script.google.com/macros/s/AKfycbz.../exec
+
+CONFIGURATION (Lines 8-9):
+──────────────────────────
+SHEET_ID = '1izpfxULfr8vCa_GNnyKVizknd1fWSAF6VDDk0WZXk6Y'
+SHEET_NAME = 'Videos'
+
+⚠️ IMPORTANT: Replace SHEET_ID with your own Google Sheet ID!
+
+GOOGLE SHEET STRUCTURE:
+───────────────────────
+The script creates a sheet with these columns:
+1. ID - YouTube video ID
+2. Category - vimarsh, bharatparv, etc.
+3. Year - For Vimarsh videos
+4. Title - From YouTube
+5. Description - From YouTube
+6. Published At - From YouTube
+7. View Count - From YouTube
+8. Duration - Formatted (e.g., "5:23")
+9. Thumbnail - Image URL
+10. Date Added - When added to system
+
+MAIN FUNCTIONS:
+───────────────
+
+1. setupSheet() (Lines 106-136)
+   - Creates sheet structure
+   - Adds headers
+   - Formats header row
+   - Freezes header row
+
+2. addVideo(videoData) (Lines 141-220)
+   - Validates input data
+   - Checks for duplicates
+   - Enriches with YouTube API data
+   - Adds row to sheet
+   - Returns success/error
+
+3. getAllVideos() (Lines 225-258)
+   - Reads all videos from sheet
+   - Returns array of video objects
+   - Filters out empty rows
+
+4. updateVideo(videoId, videoData) (Lines 263-318)
+   - Finds video by ID
+   - Updates video data
+   - Returns success/error
+
+5. deleteVideo(videoId) (Lines 323-362)
+   - Finds video by ID
+   - Deletes row from sheet
+   - Returns success/error
+
+6. generateVideoConfig() (Lines 367-406)
+   - Generates video-config.js format
+   - Returns all videos as config object
+
+7. healthCheck() (Lines 411-431)
+   - Checks if service is running
+   - Returns sheet info
+
+API ENDPOINTS:
+──────────────
+
+GET REQUESTS (doGet function):
+- ?action=getVideos - Get all videos
+- ?action=getConfig - Get video config
+- ?action=health - Health check
+- ?action=setup - Setup sheet
+- ?action=addVideo&videoData={...} - Add video
+- ?action=deleteVideo&videoId=ID - Delete video
+
+POST REQUESTS (doPost function):
+- action: "addVideo" - Add new video
+- action: "updateVideo" - Update video
+- action: "deleteVideo" - Delete video
+
+VALIDATION RULES:
+─────────────────
+- Video ID: Required, non-empty string
+- Category: Required, must be valid category
+- Year: For Vimarsh, must be 2017-2025
+- Title: Enriched from YouTube
+- Description: Enriched from YouTube
+
+ERROR HANDLING:
+───────────────
+- Invalid data: Returns error message
+- Duplicate video: Returns duplicate error
+- YouTube API failure: Uses original data
+- Sheet access error: Returns error message
+
+================================================================================
+8. YOUTUBE API INTEGRATION
+================================================================================
+
+The system uses YouTube Data API v3 to fetch video details.
+
+API KEY:
+────────
+AIzaSyC_-iClHMdTb1TRLNtyEDFt7yHa6PZNj7M
+
+⚠️ WARNING: This key is PUBLIC and has daily quota limits!
+Daily Quota: 10,000 units
+Cost per video fetch: ~3 units
+Max videos per day: ~3,300
+
+API ENDPOINT:
+─────────────
+https://www.googleapis.com/youtube/v3/videos
+
+PARAMETERS:
+───────────
+- part: snippet,statistics,contentDetails
+- id: YouTube video ID
+- key: API key
+
+DATA FETCHED:
+─────────────
+From YouTube API response:
+1. snippet.title - Video title
+2. snippet.description - Video description
+3. snippet.publishedAt - Publication date
+4. snippet.thumbnails - Thumbnail images
+5. statistics.viewCount - View count
+6. contentDetails.duration - Video duration (ISO 8601)
+
+DURATION FORMATTING:
+────────────────────
+YouTube returns: "PT5M23S" (ISO 8601)
+System converts to: "5:23"
+
+Example conversions:
+- PT1H30M15S → 1:30:15
+- PT45M → 45:00
+- PT2M30S → 2:30
+
+QUOTA MANAGEMENT:
+─────────────────
+To avoid exceeding quota:
+1. Cache video data in Google Sheets
+2. Use local video-config.js as fallback
+3. Only fetch new videos when adding
+4. Don't refresh all videos daily
+
+================================================================================
+9. HOW TO ADD VIDEOS (STEP-BY-STEP)
+================================================================================
+
+METHOD 1: Using Video Manager (RECOMMENDED)
+────────────────────────────────────────────
+
+STEP 1: Open Video Manager
+   URL: /Media/video-manager.html
+
+STEP 2: Get YouTube Video ID
+   - Go to YouTube video you want to add
+   - Copy video ID from URL
+   - Example URL: https://www.youtube.com/watch?v=iXWy7QQQers
+   - Video ID: iXWy7QQQers
+
+STEP 3: Enter Video Details
+   - Paste video ID in "YouTube Video ID" field
+   - Select category from dropdown
+   - If Vimarsh: Enter year (2017-2025)
+
+STEP 4: Fetch Preview
+   - Click "Fetch Video Details" button
+   - Wait for YouTube API response
+   - Preview appears showing:
+     • Thumbnail
+     • Title
+     • Description
+     • Views
+     • Duration
+
+STEP 5: Review and Add
+   - Check if details are correct
+   - Click "Add to Library" button
+   - Wait for success message
+   - Video is now in Google Sheets
+
+STEP 6: Verify on Public Page
+   - Go to /Media/Video.html
+   - Refresh page
+   - New video should appear in grid
+   - Try filtering by category
+
+METHOD 2: Manual Edit (ADVANCED)
+─────────────────────────────────
+
+STEP 1: Open video-config.js
+
+STEP 2: Add video object to VIDEO_CONFIG array:
+{
+    "id": "YOUR_VIDEO_ID",
+    "category": "vimarsh",
+    "year": "2024",
+    "title": "Your Video Title",
+    "description": "Your description",
+    "publishedAt": "2024-01-01T00:00:00Z"
+}
+
+STEP 3: Save file
+
+STEP 4: Refresh Video.html
+
+⚠️ NOTE: Manual edits only affect local file, not Google Sheets!
+
+METHOD 3: Direct Google Sheets Edit (NOT RECOMMENDED)
+──────────────────────────────────────────────────────
+
+STEP 1: Open Google Sheet
+   URL: https://docs.google.com/spreadsheets/d/SHEET_ID
+
+STEP 2: Add new row with columns:
+   - ID: YouTube video ID
+   - Category: vimarsh, bharatparv, etc.
+   - Year: 2023 (if applicable)
+   - Title: Video title
+   - Description: Video description
+   - Published At: ISO date
+   - View Count: Number
+   - Duration: Formatted (5:23)
+   - Thumbnail: URL
+   - Date Added: ISO date
+
+STEP 3: Save
+
+⚠️ WARNING: Manual edits bypass validation!
+Use video manager instead.
+
+================================================================================
+10. HOW TO DELETE VIDEOS
+================================================================================
+
+METHOD 1: Using Video Manager (RECOMMENDED)
+────────────────────────────────────────────
+
+STEP 1: Open Video Manager
+   URL: /Media/video-manager.html
+
+STEP 2: Find Video
+   - Scroll through "Current Videos in Library"
+   - Find video you want to delete
+
+STEP 3: Delete
+   - Click red "Delete" button
+   - Confirm deletion
+   - Video removed from Google Sheets
+
+STEP 4: Verify
+   - Video disappears from manager
+   - Refresh public page
+   - Video no longer appears
+
+METHOD 2: Direct Google Sheets (ADVANCED)
+──────────────────────────────────────────
+
+STEP 1: Open Google Sheet
+
+STEP 2: Find video row
+
+STEP 3: Right-click row number
+
+STEP 4: Select "Delete row"
+
+STEP 5: Save
+
+METHOD 3: Edit video-config.js (LOCAL ONLY)
+────────────────────────────────────────────
+
+STEP 1: Open video-config.js
+
+STEP 2: Remove video object from VIDEO_CONFIG array
+
+STEP 3: Save file
+
+⚠️ NOTE: This only removes from local file, not Google Sheets!
+
+================================================================================
+11. TROUBLESHOOTING
+================================================================================
+
+ISSUE 1: Videos not loading on public page
+───────────────────────────────────────────
+SYMPTOMS:
+- Video grid is empty
+- "No videos available" message
+- Loading spinner never stops
+
+SOLUTIONS:
+1. Check if video-config.js loaded:
+   - Open browser console (F12)
+   - Type: window.VIDEO_CONFIG
+   - Should show array of videos
+
+2. Check if YouTube API key is valid:
+   - Open browser console
+   - Look for API errors
+   - Check quota limits
+
+3. Check if Google Sheets API is accessible:
+   - Open browser console
+   - Look for CORS errors
+   - Check Web App URL
+
+4. Verify media-script.js loaded:
+   - Check browser console for errors
+   - Verify file path is correct
+
+5. Clear browser cache:
+   - Hard refresh (Ctrl+Shift+R)
+   - Clear cache and cookies
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 2: Video manager can't fetch video details
+─────────────────────────────────────────────────
+SYMPTOMS:
+- "Fetch Video Details" button does nothing
+- Error message appears
+- Preview doesn't show
+
+SOLUTIONS:
+1. Check YouTube video ID:
+   - Must be exactly 11 characters
+   - No spaces or special characters
+   - Example: iXWy7QQQers
+
+2. Check YouTube API quota:
+   - May have exceeded daily limit
+   - Wait 24 hours for reset
+   - Check Google Cloud Console
+
+3. Check internet connection:
+   - Video manager needs internet
+   - YouTube API requires connection
+
+4. Check browser console:
+   - Look for JavaScript errors
+   - Check network tab for failed requests
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 3: Can't add video to library
+────────────────────────────────────
+SYMPTOMS:
+- "Add to Library" button doesn't work
+- Error message appears
+- Video not saved
+
+SOLUTIONS:
+1. Check if video already exists:
+   - Duplicate videos are rejected
+   - Check "Current Videos" list
+
+2. Check category selection:
+   - Must select a valid category
+   - Can't be empty
+
+3. Check year for Vimarsh videos:
+   - Must be 2017-2025
+   - Must be a number
+
+4. Check Google Sheets access:
+   - Sheet ID must be correct
+   - Sheet must be accessible
+   - Web App must be deployed
+
+5. Check backend script:
+   - Verify backend-code-enhanced.gs is deployed
+   - Check Apps Script logs
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 4: Videos not syncing between manager and public page
+────────────────────────────────────────────────────────────
+SYMPTOMS:
+- Video added in manager
+- Doesn't appear on public page
+- Or vice versa
+
+SOLUTIONS:
+1. Click "Sync from Google Sheets" in manager
+
+2. Refresh public page (Ctrl+Shift+R)
+
+3. Check if both pages use same data source:
+   - Manager: Google Sheets only
+   - Public page: Both sources
+
+4. Clear browser cache on both pages
+
+5. Check localStorage:
+   - Open console
+   - Type: localStorage.clear()
+   - Refresh page
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 5: Filter buttons not working
+────────────────────────────────────
+SYMPTOMS:
+- Clicking filter does nothing
+- Videos don't filter
+- All videos always show
+
+SOLUTIONS:
+1. Check if media-script.js loaded:
+   - Open browser console
+   - Look for JavaScript errors
+
+2. Check data-category attributes:
+   - Videos must have correct category
+   - Case-sensitive (lowercase)
+
+3. Check data-filter attributes:
+   - Filter buttons must have correct values
+   - Must match video categories
+
+4. Refresh page:
+   - Hard refresh (Ctrl+Shift+R)
+
+5. Check browser console:
+   - Look for filterVideoCards errors
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 6: Year filters not showing
+──────────────────────────────────
+SYMPTOMS:
+- Click "Vimarsh" filter
+- Year filters don't appear
+
+SOLUTIONS:
+1. Check if Vimarsh filter is selected:
+   - Year filters only show for Vimarsh
+
+2. Check yearFilters element:
+   - Must have id="yearFilters"
+   - Check HTML line 279
+
+3. Check JavaScript:
+   - Verify initializeVideo() function
+   - Check media-script.js lines 236-241
+
+4. Refresh page
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 7: Video modal not opening
+─────────────────────────────────
+SYMPTOMS:
+- Click video thumbnail
+- Modal doesn't open
+- Video doesn't play
+
+SOLUTIONS:
+1. Check if modal HTML exists:
+   - Created dynamically by JavaScript
+   - Check browser console
+
+2. Check video ID:
+   - Must be valid YouTube ID
+   - Check data-video-id attribute
+
+3. Check setupVideoModal() function:
+   - Verify media-script.js lines 569-594
+
+4. Check browser popup blocker:
+   - May block modal
+   - Allow popups for site
+
+5. Refresh page
+
+================================================================================
+12. RESPONSIVE DESIGN
+================================================================================
+
+The video page is fully responsive across all devices:
+
+DESKTOP (1920px+):
+- Full hero section with large text
+- Video grid: 3 columns
+- Filter buttons: Full width
+- Year filters: Horizontal row
+- Video stats: 4 columns
+- Sidebar visible by default
+
+LAPTOP (1024px - 1920px):
+- Slightly reduced spacing
+- Video grid: 2-3 columns
+- Filter buttons: Full width
+- Year filters: Horizontal row
+- Video stats: 4 columns (may wrap)
+
+TABLET (768px - 1024px):
+- Reduced font sizes
+- Video grid: 2 columns
+- Filter buttons: Wrap to 2 rows
+- Year filters: Wrap to 2 rows
+- Video stats: 2 columns
+- Sidebar collapsible
+
+MOBILE LANDSCAPE (600px - 768px):
+- Single column layout
+- Video grid: 1-2 columns
+- Filter buttons: Stack vertically
+- Year filters: Stack vertically
+- Video stats: 2 columns
+- Compact hero section
+
+MOBILE PORTRAIT (< 600px):
+- Single column layout
+- Video grid: 1 column, full width
+- Filter buttons: Stack vertically
+- Year filters: Stack vertically
+- Video stats: 1 column, stacked
+- Compact hero section
+- Hamburger menu
+- Touch-optimized buttons (min 44x44px)
+
+VIDEO MANAGER RESPONSIVE:
+- Desktop: 2-column grid for cards
+- Tablet: 1-column grid
+- Mobile: 1-column, stacked buttons
+- Video list: 3 → 2 → 1 columns
+
+================================================================================
+13. SEO & ACCESSIBILITY
+================================================================================
+
+SEO FEATURES:
+─────────────
+✓ Title: "YUVA India - Video Recordings"
+✓ Bing verification tag
+✓ Favicon (YUVA logo)
+✓ Semantic HTML structure
+✓ Descriptive headings (h1)
+✓ Video titles from YouTube
+✓ Video descriptions from YouTube
+
+RECOMMENDED IMPROVEMENTS:
+- Add meta description
+- Add Open Graph tags for social sharing
+- Add Twitter Card tags
+- Add structured data (VideoObject schema)
+- Add canonical URL
+- Add video sitemap
+
+ACCESSIBILITY FEATURES:
+───────────────────────
+✓ Keyboard navigation (Tab, Enter, Escape)
+✓ ARIA labels on buttons
+✓ Semantic HTML (header, section, main)
+✓ SVG has aria-hidden="true" and role="img"
+✓ Touch targets: minimum 44x44px
+✓ Focus indicators visible
+✓ Logical heading hierarchy (h1, h3)
+✓ Sufficient color contrast
+✓ Video titles as alt text
+✓ Modal can be closed with Escape key
+
+RECOMMENDED IMPROVEMENTS:
+- Add ARIA labels to filter buttons
+- Add skip-to-content link
+- Add ARIA live region for filter updates
+- Add keyboard shortcuts for video player
+- Test with screen readers
+
+PERFORMANCE OPTIMIZATIONS:
+──────────────────────────
+✓ Lazy loading for video thumbnails
+✓ YouTube API caching in Google Sheets
+✓ Local fallback (video-config.js)
+✓ Minimal JavaScript
+✓ CSS animations (hardware accelerated)
+✓ Shared CSS and JS files (cached)
+✓ SVG graphics (scalable, small size)
+
+RECOMMENDED IMPROVEMENTS:
+- Minify CSS and JavaScript
+- Compress video thumbnails
+- Use WebP format for thumbnails
+- Implement service worker
+- Add preload for critical resources
+- Use CDN for static assets
+
+================================================================================
+END OF USER MANUAL
+================================================================================
+
+QUICK REFERENCE:
+────────────────
+
+ADD VIDEO:
+1. Open video-manager.html
+2. Enter YouTube video ID
+3. Select category
+4. Click "Fetch Video Details"
+5. Click "Add to Library"
+
+DELETE VIDEO:
+1. Open video-manager.html
+2. Find video in list
+3. Click "Delete" button
+
+VIEW VIDEOS:
+1. Open Video.html
+2. Use filter buttons
+3. Click video to play
+
+TROUBLESHOOT:
+1. Check browser console (F12)
+2. Verify API keys
+3. Check Google Sheets access
+4. Clear cache and refresh
+
+For technical support or questions, contact:
+YUVA Technical Team
+Email: tech@yuva.ind.in
+
+Last Updated: December 26, 2025
+Version: 2025.1

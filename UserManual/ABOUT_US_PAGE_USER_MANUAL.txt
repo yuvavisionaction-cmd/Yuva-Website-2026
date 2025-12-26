@@ -1,0 +1,626 @@
+================================================================================
+                    YUVA ABOUT US PAGE - USER MANUAL
+                    Youth United For Vision & Action
+================================================================================
+
+VERSION: 2025
+LAST UPDATED: December 25, 2025
+
+================================================================================
+TABLE OF CONTENTS
+================================================================================
+
+1. OVERVIEW
+2. FILE STRUCTURE
+3. EXTERNAL DEPENDENCIES
+4. PAGE SECTIONS
+5. DYNAMIC FEATURES
+6. HOW TO MODIFY CONTENT
+7. TROUBLESHOOTING
+8. RESPONSIVE DESIGN
+9. SEO & ACCESSIBILITY
+
+================================================================================
+1. OVERVIEW
+================================================================================
+
+The YUVA About Us Page provides comprehensive information about the organization,
+its mission, objectives, values, and impact.
+
+KEY FEATURES:
+✓ Modern tricolor (India flag) themed design
+✓ Fully responsive (mobile, tablet, desktop)
+✓ Animated elements and smooth transitions
+✓ SEO optimized with structured data
+✓ Flash notification system
+✓ Animated statistics counters
+✓ Interactive cards with hover effects
+✓ Comprehensive organization information
+
+================================================================================
+2. FILE STRUCTURE
+================================================================================
+
+THREE MAIN FILES:
+
+1. AboutUs.html (578 lines)
+   - Main HTML structure and content
+   - All page sections and layout
+   - SEO meta tags and structured data
+
+2. style.css (1,766 lines)
+   - All styling and visual design
+   - Tricolor theme colors
+   - Animations and effects
+   - Flash notification styles
+
+3. script.js (334 lines)
+   - Flash notification system
+   - Interactive animations
+   - Counter animations
+   - Event handlers
+
+ADDITIONAL FILES NEEDED:
+- /style.css (Global site styles - header, sidebar)
+- /Mobile.css (Responsive adjustments)
+- /script.js (Global site JavaScript - sidebar, navigation)
+- /Images/YUVA logo.png
+
+================================================================================
+3. EXTERNAL DEPENDENCIES
+================================================================================
+
+The page requires these external libraries:
+
+1. GOOGLE FONTS
+   Fonts: Inter (300-800), Poppins (300-800)
+   CDN: https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap
+   Purpose: Typography
+
+2. FONT AWESOME (v6.4.0)
+   CDN: https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css
+   Purpose: All icons on the page
+
+⚠️ WARNING: If any library fails to load, icons and fonts will not display correctly!
+
+================================================================================
+4. PAGE SECTIONS
+================================================================================
+
+The page has 7 main sections from top to bottom:
+
+┌──────────────────────────────────────────────────────────────┐
+│ 1. HEADER (Fixed at top)                                     │
+│    - YUVA logo                                                │
+│    - Page title: "About Us"                                  │
+│    - Hamburger menu (mobile)                                 │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ 2. SIDEBAR NAVIGATION (Same as home page)                    │
+│    - Collapsible navigation menu                             │
+│    - All site sections accessible                            │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ 3. HERO SECTION                                               │
+│    - Animated particle background                            │
+│    - Tricolor gradient                                        │
+│    - Hero badge: "Empowering Youth"                          │
+│    - Main title: "About YUVA"                                │
+│    - Description paragraph                                    │
+│    - Impact statistics (3 cards):                            │
+│      • 10,000+ Active Members                                │
+│      • 25+ States & UTs                                      │
+│      • 200+ Events Organized                                 │
+│                                                               │
+│    ANIMATIONS:                                                │
+│    - Floating particle background (20s loop)                 │
+│    - Pulsing hero badge (2.5s loop)                          │
+│    - Hover effect on impact cards (lift up 6px)             │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ 4. ABOUT YUVA SECTION (Main Content Card)                    │
+│    - Large elevated card with shadow                         │
+│    - Navy blue top border (6px)                              │
+│    - University icon (80px circle)                           │
+│    - Section title: "About YUVA"                             │
+│    - Subtitle: "Youth United for Vision and Action"          │
+│    - 5 paragraphs of content:                                │
+│      1. Youth's role in society                              │
+│      2. Need for youth empowerment                           │
+│      3. YUVA's establishment (2016)                          │
+│      4. Expansion and reach                                  │
+│      5. Requirements to join                                 │
+│                                                               │
+│    KEY INFORMATION:                                           │
+│    - Founded: 2016                                            │
+│    - Reach: 1 lakh+ students, academics, professionals       │
+│    - Institutions: JMI, AU, AIIMS, DU, GGSIPU, IIT-D, etc.  │
+│    - Requirements: Honesty, commitment, positive approach    │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ 5. OBJECTIVES OF YUVA (10 Objective Cards)                   │
+│    Grid layout with numbered cards:                          │
+│                                                               │
+│    01. Youth Enthusiasm Support                              │
+│        - Support young people's enthusiasm                   │
+│        - Provide venue for meaningful activism               │
+│                                                               │
+│    02. Academic Platform                                      │
+│        - Platform for academic, cultural, social activities  │
+│        - Within Delhi academic institutions                  │
+│                                                               │
+│    03. Leadership Development                                 │
+│        - Learning activities and leadership opportunities    │
+│        - Explore hobbies and interests                       │
+│                                                               │
+│    04. Ideas Exchange Forum                                   │
+│        - Shared forum for conversation                       │
+│        - Exchange of ideas among youth                       │
+│                                                               │
+│    05. Research Transformation                                │
+│        - Redesign research environment                       │
+│        - Transform methodology and philosophy                │
+│                                                               │
+│    06. Global Community Interaction                           │
+│        - Build understanding and connections                 │
+│        - Develop empathy and global interaction skills       │
+│                                                               │
+│    07. Character Development                                  │
+│        - Individual character development                    │
+│        - Result in social awakening                          │
+│                                                               │
+│    08. Bhartiya Education Foundation                          │
+│        - Based on ancient literature and knowledge           │
+│        - Wisdom from seers, saints, and sages                │
+│                                                               │
+│    09. Indigenous Knowledge Systems                           │
+│        - Restore indigenous knowledge systems                │
+│        - Provide self-sufficiency in livelihoods             │
+│                                                               │
+│    10. Genuine Education Restoration                          │
+│        - Replace bondage of ignorance                        │
+│        - Achieve consciousness and happiness                 │
+│                                                               │
+│    CARD DESIGN:                                               │
+│    - White background with glassmorphism                     │
+│    - Large number badge (01-10)                              │
+│    - Tricolor theme applied via nth-child                    │
+│    - Hover: lift up 8px + scale 1.02                        │
+│    - Click: pulse animation                                  │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ 6. CORE VALUES (6 Value Cards)                               │
+│    Grid layout with icon cards:                              │
+│                                                               │
+│    1. Integrity (Shield icon)                                │
+│       - Highest standards of honesty                         │
+│       - Ethical conduct                                      │
+│                                                               │
+│    2. Innovation (Lightbulb icon)                            │
+│       - Creative thinking                                    │
+│       - Innovative solutions                                 │
+│                                                               │
+│    3. Leadership (Crown icon)                                │
+│       - Develop leadership qualities                         │
+│       - Inspire positive change                              │
+│                                                               │
+│    4. Service (Helping hands icon)                           │
+│       - Serve communities                                    │
+│       - Contribute to national development                   │
+│                                                               │
+│    5. Collaboration (Users icon)                             │
+│       - Power of teamwork                                    │
+│       - Collective action                                    │
+│                                                               │
+│    6. Excellence (Star icon)                                 │
+│       - Strive for excellence                                │
+│       - High standards                                       │
+│                                                               │
+│    TRICOLOR THEME:                                            │
+│    - Card 1, 4: Saffron gradient icon                       │
+│    - Card 2, 5: Navy gradient icon                          │
+│    - Card 3, 6: Green gradient icon                         │
+│                                                               │
+│    ANIMATIONS:                                                │
+│    - Hover: lift up 8px + scale 1.02                        │
+│    - Click: pulse animation                                  │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ 7. OUR IMPACT (Statistics Section)                           │
+│    4 stat cards with animated counters:                      │
+│                                                               │
+│    - Active Members: 5,000 (counts from 0 to 5000)          │
+│    - States & UTs: 14 (counts from 0 to 14)                 │
+│    - Events Organized: 100 (counts from 0 to 100)           │
+│    - Years of Impact: 9 (counts from 0 to 9)                │
+│                                                               │
+│    COUNTER ANIMATION:                                         │
+│    - Triggers when section becomes visible (IntersectionObserver)│
+│    - Duration: 2 seconds                                     │
+│    - Smooth counting animation (60fps)                       │
+│    - Numbers formatted with commas                           │
+│                                                               │
+│    TRICOLOR THEME:                                            │
+│    - Card 1: Saffron gradient                                │
+│    - Card 2: White/Navy gradient                             │
+│    - Card 3: Green gradient                                  │
+│    - Card 4: Saffron gradient                                │
+│                                                               │
+│    GLASSMORPHISM EFFECT:                                      │
+│    - Semi-transparent background                             │
+│    - Backdrop blur (12px)                                    │
+│    - Subtle border                                           │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ 8. CALL TO ACTION                                             │
+│    - Heading: "Join Our Mission"                            │
+│    - Description paragraph                                    │
+│    - Two buttons:                                             │
+│      • "Join YUVA" → /GetInvolve/Fellowship.html             │
+│      • "Support Us" → /Donate/Donate.html                    │
+│                                                               │
+│    BUTTON STYLES:                                             │
+│    - Primary: Saffron gradient with icon                     │
+│    - Secondary: White with border                            │
+│    - Hover: lift up + scale                                  │
+│    - Click: pulse animation                                  │
+└──────────────────────────────────────────────────────────────┘
+
+================================================================================
+5. DYNAMIC FEATURES
+================================================================================
+
+FEATURE 1: FLASH NOTIFICATION SYSTEM
+─────────────────────────────────────
+Purpose: Display toast notifications to users
+Location: Top-right corner of screen
+
+HOW IT WORKS:
+1. System initializes on page load
+2. Creates flash container if not exists
+3. Shows notification with icon, title, message
+4. Auto-removes after duration (default 5 seconds)
+5. User can manually close with X button
+
+NOTIFICATION TYPES:
+- Success (Green): Checkmark icon
+- Error (Red): X icon
+- Warning (Orange): Exclamation icon
+- Info (Blue): Info icon
+
+USAGE IN CODE:
+aboutPageManager.showSuccess('Title', 'Message');
+aboutPageManager.showError('Title', 'Message');
+aboutPageManager.showWarning('Title', 'Message');
+aboutPageManager.showInfo('Title', 'Message');
+
+DEFAULT BEHAVIOR:
+- Page load: Shows "Page Ready" info notification
+- Duration: Info (4s), Warning (5s), Success (6s), Error (8s)
+- ESC key: Clears all info notifications
+
+──────────────────────────────────────────────────────────────
+
+FEATURE 2: ANIMATED STATISTICS COUNTERS
+────────────────────────────────────────
+Purpose: Animate numbers from 0 to target value
+Location: "Our Impact" section
+
+HOW IT WORKS:
+1. Counters have data-target attribute with final number
+2. IntersectionObserver watches when section becomes visible
+3. When 50% visible, animation triggers
+4. Numbers count up from 0 to target over 2 seconds
+5. Updates at 60fps for smooth animation
+6. Each counter animates only once
+
+EXAMPLE:
+<div class="stat-number" data-target="5000">0</div>
+Result: Counts from 0 to 5,000 over 2 seconds
+
+──────────────────────────────────────────────────────────────
+
+FEATURE 3: INTERACTIVE CARD ANIMATIONS
+───────────────────────────────────────
+Purpose: Provide visual feedback on user interaction
+
+IMPACT CARDS (Hero section):
+- Hover: Lift up 6px (CSS)
+- Click: Pulse animation (JavaScript)
+
+OBJECTIVE CARDS:
+- Hover: Lift up 8px + scale 1.02
+- Leave: Return to normal
+- Click: Pulse animation
+
+VALUE CARDS:
+- Hover: Lift up 8px + scale 1.02
+- Leave: Return to normal
+- Click: Pulse animation
+
+CTA BUTTONS:
+- Click: Pulse animation (0.3s)
+
+──────────────────────────────────────────────────────────────
+
+FEATURE 4: SCROLL-TRIGGERED ANIMATIONS
+───────────────────────────────────────
+Purpose: Animate elements as they enter viewport
+
+ANIMATIONS:
+- About YUVA card: fadeInUp (0.8s delay 0.2s)
+- Objective cards: fadeInUp (staggered 0.1s each)
+- Value cards: fadeInUp (staggered 0.1s each)
+- Stat cards: fadeInUp (staggered 0.1s each)
+- CTA card: fadeInUp (0.8s delay 0.5s)
+
+EFFECT:
+- Elements fade in from bottom
+- Smooth upward movement
+- Creates professional, polished feel
+
+================================================================================
+6. HOW TO MODIFY CONTENT
+================================================================================
+
+CHANGE HERO TITLE:
+──────────────────
+File: AboutUs.html (Lines 280-283)
+<h1 class="hero-title">
+    <span class="hero-title-line">About</span>
+    <span class="hero-title-line hero-title-accent">YUVA</span>
+</h1>
+
+──────────────────────────────────────────────────────────────
+
+CHANGE HERO DESCRIPTION:
+─────────────────────────
+File: AboutUs.html (Lines 284-288)
+<p class="hero-description">
+    [Your new description here]
+</p>
+
+──────────────────────────────────────────────────────────────
+
+CHANGE IMPACT NUMBERS (Hero):
+──────────────────────────────
+File: AboutUs.html (Lines 296, 305, 314)
+<span class="about-impact-number">10,000+</span>
+<span class="about-impact-number">25+</span>
+<span class="about-impact-number">200+</span>
+
+──────────────────────────────────────────────────────────────
+
+CHANGE ABOUT YUVA CONTENT:
+───────────────────────────
+File: AboutUs.html (Lines 333-359)
+Edit the 5 paragraphs inside .about-yuva-content
+
+──────────────────────────────────────────────────────────────
+
+ADD/REMOVE OBJECTIVE CARDS:
+────────────────────────────
+File: AboutUs.html (Lines 371-453)
+Copy/paste/modify .objective-card divs
+Each card has:
+- .objective-number (01-10)
+- .objective-content (h3 + p)
+
+──────────────────────────────────────────────────────────────
+
+ADD/REMOVE VALUE CARDS:
+────────────────────────
+File: AboutUs.html (Lines 465-507)
+Copy/paste/modify .value-card divs
+Each card has:
+- .value-icon (Font Awesome icon)
+- h3 (title)
+- p (description)
+
+──────────────────────────────────────────────────────────────
+
+CHANGE STATISTICS NUMBERS:
+───────────────────────────
+File: AboutUs.html (Lines 523, 530, 537, 544)
+<div class="stat-number" data-target="5000">0</div>
+<div class="stat-number" data-target="14">0</div>
+<div class="stat-number" data-target="100">0</div>
+<div class="stat-number" data-target="9">0</div>
+
+Change data-target to your desired number.
+Initial "0" is what shows before animation.
+
+──────────────────────────────────────────────────────────────
+
+CHANGE COLORS:
+──────────────
+File: style.css (Lines 4-67)
+Modify CSS variables in :root
+Example:
+--saffron-primary: #FF9933;
+--navy-chakra: #000080;
+--green-primary: #138808;
+
+──────────────────────────────────────────────────────────────
+
+CHANGE NOTIFICATION DURATIONS:
+───────────────────────────────
+File: script.js (Lines 84-97)
+showError: 8000ms (8 seconds)
+showSuccess: 6000ms (6 seconds)
+showWarning: 5000ms (5 seconds)
+showInfo: 4000ms (4 seconds)
+
+Change the numbers to adjust duration.
+
+================================================================================
+7. TROUBLESHOOTING
+================================================================================
+
+ISSUE 1: Flash notifications not appearing
+───────────────────────────────────────────
+SOLUTION:
+1. Check browser console for JavaScript errors
+2. Verify script.js is loaded (line 575)
+3. Check if flash-container div exists
+4. Verify Font Awesome is loaded (for icons)
+5. Try hard refresh (Ctrl+Shift+R)
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 2: Statistics counters not animating
+───────────────────────────────────────────
+SOLUTION:
+1. Check if data-target attribute is set correctly
+2. Verify IntersectionObserver is supported (modern browsers)
+3. Scroll down to stats section (animation triggers on visibility)
+4. Check browser console for errors
+5. Verify script.js is loaded
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 3: Styles not loading / Page looks broken
+────────────────────────────────────────────────
+SOLUTION:
+1. Check if style.css is linked (line 154)
+2. Check if /style.css is linked (line 153)
+3. Check if /Mobile.css is linked (line 155)
+4. Clear browser cache
+5. Check browser console for 404 errors
+6. Verify file paths are correct
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 4: Icons not showing
+───────────────────────────
+SOLUTION:
+1. Check if Font Awesome CDN is loaded (line 150)
+2. Verify internet connection
+3. Check if ad blocker is blocking CDN
+4. Try different CDN URL
+5. Check browser console for errors
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 5: Hover effects not working
+───────────────────────────────────
+SOLUTION:
+1. Check if CSS is loaded correctly
+2. Verify browser supports :hover (all modern browsers do)
+3. On mobile, tap instead of hover
+4. Check if JavaScript is enabled
+5. Clear browser cache
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 6: Animations not smooth
+───────────────────────────────
+SOLUTION:
+1. Check browser performance (close other tabs)
+2. Verify hardware acceleration is enabled
+3. Check if prefers-reduced-motion is set (accessibility)
+4. Update browser to latest version
+5. Check GPU drivers
+
+================================================================================
+8. RESPONSIVE DESIGN
+================================================================================
+
+The page is fully responsive across all devices:
+
+DESKTOP (1920px+):
+- Full hero section with large text
+- 3-column objective grid
+- 3-column value grid
+- 4-column stats grid
+- Sidebar visible by default
+
+LAPTOP (1024px - 1920px):
+- Slightly reduced spacing
+- 2-3 column grids
+- Sidebar visible
+
+TABLET (768px - 1024px):
+- 2-column grids
+- Reduced font sizes
+- Sidebar collapsible
+- Smaller impact cards
+
+MOBILE LANDSCAPE (600px - 768px):
+- 1-2 column grids
+- Smaller hero text
+- Sidebar hidden by default
+- Stacked impact cards
+
+MOBILE PORTRAIT (< 600px):
+- Single column layout
+- Stacked all cards
+- Hamburger menu
+- Touch-optimized buttons
+- Reduced padding
+
+BREAKPOINTS IN CSS:
+@media (max-width: 1024px) - Tablets
+@media (max-width: 768px) - Mobile landscape
+@media (max-width: 600px) - Mobile portrait
+@media (max-width: 480px) - Small phones
+
+================================================================================
+9. SEO & ACCESSIBILITY
+================================================================================
+
+SEO FEATURES:
+─────────────
+✓ Title: "About YUVA — Youth United For Vision & Action"
+✓ Meta description (comprehensive)
+✓ Keywords (50+ relevant terms)
+✓ Open Graph tags (Facebook sharing)
+✓ Twitter Card tags
+✓ Structured data:
+  - Organization schema
+  - Website schema
+  - WebPage schema
+  - FAQ schema (3 questions)
+  - Breadcrumb schema
+✓ Canonical URL
+✓ Bing verification
+✓ Content Security Policy (upgrade insecure requests)
+
+ACCESSIBILITY FEATURES:
+───────────────────────
+✓ Keyboard navigation (Tab, ESC, Enter)
+✓ ARIA labels on buttons
+✓ Semantic HTML (header, main, section)
+✓ Color contrast: 7:1 ratio
+✓ Screen reader friendly
+✓ Alt text on images
+✓ Touch targets: minimum 44x44px
+✓ Focus indicators visible
+✓ Logical heading hierarchy (h1, h2, h3)
+
+PERFORMANCE OPTIMIZATIONS:
+──────────────────────────
+✓ Preconnect to Google Fonts
+✓ Font display: swap
+✓ IntersectionObserver for animations
+✓ CSS animations (hardware accelerated)
+✓ Minimal JavaScript
+✓ No external dependencies except fonts/icons
+
+================================================================================
+END OF USER MANUAL
+================================================================================
+
+For technical support or questions, contact:
+YUVA Technical Team
+Email: tech@yuva.ind.in
+
+Last Updated: December 25, 2025
+Version: 2025.1

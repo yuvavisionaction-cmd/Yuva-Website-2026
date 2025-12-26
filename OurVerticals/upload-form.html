@@ -496,7 +496,7 @@
         // --- 1. Initialize Supabase ---
         const SUPABASE_URL = 'https://jgsrsjwmywiirtibofth.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_5KtvO0cEHfnECBoyp2CQnw_RC3_x2me';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         // --- 2. DOM Elements ---
         const uploadContainer = document.getElementById('upload-container');
@@ -527,15 +527,20 @@
 
         // --- 4. MAIN SCRIPT: ON PAGE LOAD ---
         document.addEventListener('DOMContentLoaded', async () => {
-            const { data: { session }, error } = await supabase.auth.getSession();
-            if (!session) {
+            // Get email from URL parameter
+            const urlParams = new URLSearchParams(window.location.search);
+            const verifiedEmail = urlParams.get('email');
+
+            if (!verifiedEmail) {
+                // No email in URL, redirect to login
                 window.location.href = 'photo-upload.html';
                 return;
             }
-            currentUserEmail = session.user.email;
+
+            currentUserEmail = verifiedEmail;
             uploadContainer.style.display = 'block';
 
-            const { data: accessData, error: accessError } = await supabase
+            const { data: accessData, error: accessError } = await supabaseClient
                 .from('vertical_access')
                 .select('vertical_name')
                 .eq('email', currentUserEmail);
@@ -579,7 +584,7 @@
             manageGridLoading.style.display = 'block';
             manageGrid.innerHTML = '';
 
-            const { data, error } = await supabase
+            const { data, error } = await supabaseClient
                 .from('vertical_events')
                 .select('id, event_name, event_date, image_url, vertical_name')
                 .in('vertical_name', verticalNames)
@@ -642,16 +647,16 @@
                 // 1. Upload to Storage
                 const fileExt = file.name.split('.').pop();
                 const fileName = `${verticalName}/${Date.now()}.${fileExt}`;
-                const { data: uploadData, error: uploadError } = await supabase.storage.from(STORAGE_BUCKET).upload(fileName, file);
+                const { data: uploadData, error: uploadError } = await supabaseClient.storage.from(STORAGE_BUCKET).upload(fileName, file);
                 if (uploadError) throw uploadError;
 
                 // 2. Get Public URL
-                const { data: publicUrlData } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(fileName);
+                const { data: publicUrlData } = supabaseClient.storage.from(STORAGE_BUCKET).getPublicUrl(fileName);
                 const imageUrl = publicUrlData.publicUrl;
 
                 // 3. Insert into 'vertical_events' table
                 const eventRecord = { event_name: eventName, event_date: eventDate, event_location: eventLocation, vertical_name: verticalName, image_url: imageUrl, uploaded_by: currentUserEmail };
-                const { data: insertData, error: insertError } = await supabase.from('vertical_events').insert(eventRecord).select().single();
+                const { data: insertData, error: insertError } = await supabaseClient.from('vertical_events').insert(eventRecord).select().single();
                 if (insertError) throw new Error(`Database error: ${insertError.message}.`);
 
                 // 4. Success
@@ -706,13 +711,13 @@
 
             try {
                 // 1. Delete from Storage
-                const { error: storageError } = await supabase.storage
+                const { error: storageError } = await supabaseClient.storage
                     .from(STORAGE_BUCKET)
                     .remove([path]);
                 if (storageError) throw new Error(`Storage Error: ${storageError.message}`);
 
                 // 2. Delete from Database
-                const { error: dbError } = await supabase
+                const { error: dbError } = await supabaseClient
                     .from('vertical_events')
                     .delete()
                     .eq('id', id);
@@ -741,7 +746,7 @@
 
         // --- 12. LOGOUT BUTTON ---
         logoutBtn.addEventListener('click', async () => {
-            await supabase.auth.signOut();
+            await supabaseClient.auth.signOut();
             window.location.href = 'photo-upload.html';
         });
 

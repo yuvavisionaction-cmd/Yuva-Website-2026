@@ -191,7 +191,7 @@
         // --- Initialize Supabase ---
         const SUPABASE_URL = 'https://jgsrsjwmywiirtibofth.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_5KtvO0cEHfnECBoyp2CQnw_RC3_x2me';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         // --- Fetch and Display Gallery Images ---
         document.addEventListener('DOMContentLoaded', async () => {
@@ -203,7 +203,7 @@
             if (!verticalName) return;
 
             // Fetch images for THIS vertical
-            const { data: images, error } = await supabase
+            const { data: images, error } = await supabaseClient
                 .from('vertical_events')
                 .select('image_url, event_name, event_date, event_location')
                 .eq('vertical_name', verticalName)

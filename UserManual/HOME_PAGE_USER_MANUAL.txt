@@ -1,0 +1,510 @@
+================================================================================
+                    YUVA HOME PAGE - USER MANUAL
+                    Youth United For Vision & Action
+================================================================================
+
+VERSION: 2025
+LAST UPDATED: December 25, 2025
+
+================================================================================
+TABLE OF CONTENTS
+================================================================================
+
+1. OVERVIEW
+2. FILE STRUCTURE
+3. EXTERNAL DEPENDENCIES
+4. PAGE SECTIONS
+5. DYNAMIC FEATURES
+6. DATABASE SETUP (SUPABASE)
+7. HOW TO MODIFY CONTENT
+8. TROUBLESHOOTING
+9. RESPONSIVE DESIGN
+10. SEO & ACCESSIBILITY
+
+================================================================================
+1. OVERVIEW
+================================================================================
+
+The YUVA Home Page is the main landing page for the organization website.
+
+KEY FEATURES:
+✓ Modern tricolor (India flag) themed design
+✓ Fully responsive (mobile, tablet, desktop)
+✓ Dynamic content from Supabase database
+✓ Animated elements and smooth transitions
+✓ SEO optimized with structured data
+✓ Newsletter subscription with email validation
+✓ Live event loading system
+✓ Photo gallery integration
+✓ Statistics dashboard
+
+================================================================================
+2. FILE STRUCTURE
+================================================================================
+
+THREE MAIN FILES:
+
+1. home.html (726 lines)
+   - Main HTML structure and content
+   - All page sections and layout
+
+2. home.css (4,153 lines)
+   - All styling and visual design
+   - Tricolor theme colors
+   - Animations and effects
+
+3. home.js (936 lines)
+   - All interactive functionality
+   - Database connections
+   - Dynamic content loading
+
+ADDITIONAL FILES NEEDED:
+- style.css (Global site styles)
+- Mobile.css (Responsive adjustments)
+- script.js (Global site JavaScript)
+- Images/YUVA logo.png
+
+================================================================================
+3. EXTERNAL DEPENDENCIES
+================================================================================
+
+The page requires these external libraries:
+
+1. SUPABASE JS (v2)
+   CDN: https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2
+   Purpose: Database connection for events, subscriptions
+
+2. FONT AWESOME (v6.4.0)
+   CDN: https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css
+   Purpose: All icons on the page
+
+3. MAILCHECK.JS (v1.1.1)
+   CDN: https://cdnjs.cloudflare.com/ajax/libs/mailcheck/1.1.1/mailcheck.min.js
+   Purpose: Email typo detection for newsletter
+
+4. GOOGLE FONTS
+   Fonts: Inter (300-800), Poppins (300-800)
+   Purpose: Typography
+
+⚠️ WARNING: If any library fails to load, features will not work!
+
+================================================================================
+4. PAGE SECTIONS
+================================================================================
+
+The page has 11 main sections from top to bottom:
+
+┌──────────────────────────────────────────────────────────────┐
+│ 1. HEADER (Fixed at top)                                     │
+│    - YUVA logo                                                │
+│    - Page title                                               │
+│    - Hamburger menu (mobile)                                 │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ 2. SIDEBAR NAVIGATION (Collapsible)                          │
+│    - Home                                                     │
+│    - About (dropdown)                                         │
+│    - Our Initiatives (dropdown)                               │
+│    - Our Verticals (dropdown)                                 │
+│    - Our Activities                                           │
+│    - Media (dropdown)                                         │
+│    - Events (dropdown)                                        │
+│    - Gallery                                                  │
+│    - Blog                                                     │
+│    - Get Involved (dropdown)                                  │
+│    - Donate                                                   │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ 3. HERO SECTION                                               │
+│    - Animated Ashoka Chakra background                       │
+│    - Tricolor gradient                                        │
+│    - Main title: "Empowering Youth of Bharat"                │
+│    - Impact statistics:                                       │
+│      • 100,000+ Students & Professionals                     │
+│      • 15+ Partner Institutions                              │
+│      • 500+ Events Organized                                 │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ 4. WHY CHOOSE YUVA? (6 Feature Cards)                        │
+│    1. Community Driven                                        │
+│    2. Academic Excellence                                     │
+│    3. Rich Events                                             │
+│    4. Networking                                              │
+│    5. Innovation                                              │
+│    6. Social Impact                                           │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ 5. YUVA SNAPSHOT (Live Statistics)                           │
+│    - Total Colleges (from Google Apps Script)                │
+│    - Total Members (from Google Apps Script)                 │
+│    - Active Units (from Google Apps Script)                  │
+│    - Last Sync (timestamp)                                   │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ 6. GLIMPSES OF YUVA (Photo Gallery Preview)                  │
+│    - 10 photos from recent events                            │
+│    - Loaded from /Gallary/images.json                        │
+│    - "View Full Gallery" button                              │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ 7. EXPLORE YUVA (Quick Links - 8 Cards)                      │
+│    - About Us                                                 │
+│    - Vimarsh 2025                                            │
+│    - Upcoming Events                                          │
+│    - Join Us                                                  │
+│    - Gallery                                                  │
+│    - Support Us                                               │
+│    - Bharat Parv                                             │
+│    - Medico YUVA                                             │
+│    - Tech YUVA                                                │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ 8. UPCOMING EVENTS (Dynamic from Supabase)                   │
+│    - Shows top 3 upcoming events                             │
+│    - Each card shows:                                         │
+│      • Event banner image                                     │
+│      • Date badge (day + month)                              │
+│      • Event title                                            │
+│      • Time and location                                      │
+│      • Description (3 lines max)                             │
+│    - "View All Events" button                                │
+│                                                               │
+│    STATES:                                                    │
+│    - Loading spinner (while fetching)                        │
+│    - Event cards (if events exist)                           │
+│    - Empty state: "No upcoming events. Stay tuned!"          │
+│    - Error state: "Unable to load events"                    │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ 9. OUR PARTNERS (Infinite Scrolling Slider)                  │
+│    - IIT Delhi, Delhi University, JNU, etc.                  │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ 10. NEWSLETTER SUBSCRIPTION                                   │
+│     - Email input with typo detection                        │
+│     - Subscribe button                                        │
+│     - Saves to Supabase 'subscriptions' table                │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ 11. CALL TO ACTION                                            │
+│     - "Join YUVA" button                                      │
+│     - "Support Us" button                                     │
+└──────────────────────────────────────────────────────────────┘
+
+================================================================================
+5. DYNAMIC FEATURES
+================================================================================
+
+FEATURE 1: UPCOMING EVENTS LOADING
+──────────────────────────────────
+Source: Supabase database → 'events' table
+
+HOW IT WORKS:
+1. Page loads → Shows loading spinner
+2. Fetches events from Supabase
+   - Filters: status = 'upcoming' or 'scheduled'
+   - Only future events (based on end_at or start_at)
+   - Sorted by start date
+   - Limit: 10 events, displays top 3
+3. If 0 events → Shows empty state
+4. If events exist → Renders event cards
+5. Hides loading spinner
+
+ERROR HANDLING:
+- Supabase not loaded → "Unable to load events. Refresh page"
+- Database error → "Unable to load events. Try again later"
+- No events → "No upcoming events at the moment. Stay tuned!"
+
+──────────────────────────────────────────────────────────────
+
+FEATURE 2: LIVE STATISTICS
+──────────────────────────
+Source: Google Apps Script Web App
+
+HOW IT WORKS:
+1. Fetches data from Google Apps Script API
+2. Receives: total_colleges, total_members, active_units
+3. Animates numbers from 0 to target value (1200ms)
+4. Updates "Last Sync" with current time
+5. On error → Shows "N/A"
+
+──────────────────────────────────────────────────────────────
+
+FEATURE 3: PHOTO GALLERY
+─────────────────────────
+Source: /Gallary/images.json
+
+HOW IT WORKS:
+1. Fetches images.json file
+2. Extracts 5 photos from Vimarsh 2024
+3. Extracts 5 photos from Vimarsh 2023
+4. Excludes logo images
+5. Creates masonry grid with lazy loading
+6. On error → Shows error message
+
+──────────────────────────────────────────────────────────────
+
+FEATURE 4: NEWSLETTER SUBSCRIPTION
+───────────────────────────────────
+Source: Supabase database → 'subscriptions' table
+Library: Mailcheck.js
+
+HOW IT WORKS:
+1. User types email
+2. Mailcheck.js detects typos in real-time
+   Example: "gmial.com" → suggests "gmail.com"
+3. User can click suggestion to auto-correct
+4. On submit:
+   - Validates email
+   - Saves to Supabase
+   - Checks for duplicates
+   - Shows success/error notification
+
+ERROR MESSAGES:
+- Invalid email → "Please enter a valid email address"
+- Already subscribed → "You are already subscribed!"
+- Database error → "Subscription Failed. Try again later"
+
+SUCCESS MESSAGE:
+- "Subscribed! Thanks for joining our community."
+
+================================================================================
+6. DATABASE SETUP (SUPABASE)
+================================================================================
+
+CONFIGURATION:
+URL: https://jgsrsjwmywiirtibofth.supabase.co
+Anon Key: sb_publishable_5KtvO0cEHfnECBoyp2CQnw********
+
+TABLES USED:
+
+┌─────────────────────────────────────────────────────────────┐
+│ TABLE 1: events                                              │
+├─────────────────────────────────────────────────────────────┤
+│ Columns:                                                     │
+│ - id (unique identifier)                                     │
+│ - title (event name)                                         │
+│ - description (event details)                                │
+│ - start_at (start date/time)                                 │
+│ - end_at (end date/time)                                     │
+│ - location (venue, optional)                                 │
+│ - banner_url (event image URL, optional)                     │
+│ - status ('upcoming', 'scheduled', 'completed', etc.)        │
+│                                                              │
+│ REQUIRED PERMISSIONS:                                        │
+│ - SELECT permission for anon role                            │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ TABLE 2: subscriptions                                       │
+├─────────────────────────────────────────────────────────────┤
+│ Columns:                                                     │
+│ - email (subscriber email, unique)                           │
+│                                                              │
+│ REQUIRED PERMISSIONS:                                        │
+│ - INSERT permission for anon role                            │
+│                                                              │
+│ CONSTRAINT:                                                  │
+│ - Unique email (prevents duplicates)                         │
+└─────────────────────────────────────────────────────────────┘
+
+TO CHANGE SUPABASE CREDENTIALS:
+File: home.js (Lines 6-7)
+const SUPABASE_URL = 'your-url';
+const SUPABASE_ANON_KEY = 'your-key';
+
+================================================================================
+7. HOW TO MODIFY CONTENT
+================================================================================
+
+CHANGE HERO TITLE:
+──────────────────
+File: home.html (Lines 387-390)
+<h1 class="hero-title">
+    <span class="hero-title-line">Empowering</span>
+    <span class="hero-title-line hero-title-accent">Youth of Bharat</span>
+</h1>
+
+──────────────────────────────────────────────────────────────
+
+CHANGE HERO DESCRIPTION:
+─────────────────────────
+File: home.html (Lines 391-395)
+<p class="hero-description">
+    [Your new description here]
+</p>
+
+──────────────────────────────────────────────────────────────
+
+CHANGE IMPACT NUMBERS:
+──────────────────────
+File: home.html (Lines 403, 412, 421)
+<span class="home-impact-number">100,000+</span>
+<span class="home-impact-number">15+</span>
+<span class="home-impact-number">500+</span>
+
+──────────────────────────────────────────────────────────────
+
+ADD/REMOVE FEATURE CARDS:
+──────────────────────────
+File: home.html (Lines 438-483)
+Copy/paste/modify .feature-card divs
+
+──────────────────────────────────────────────────────────────
+
+CHANGE COLORS:
+──────────────
+File: home.css (Lines 6-62)
+Modify CSS variables in :root
+Example:
+--saffron-primary: #FF9933;
+--navy-chakra: #000080;
+--green-primary: #138808;
+
+──────────────────────────────────────────────────────────────
+
+CHANGE GOOGLE APPS SCRIPT URL:
+───────────────────────────────
+File: home.js
+Search for: "script.google.com"
+Replace with your URL
+
+================================================================================
+8. TROUBLESHOOTING
+================================================================================
+
+ISSUE 1: Events keep loading forever (spinner doesn't stop)
+────────────────────────────────────────────────────────────
+SOLUTION:
+1. Open browser console (F12)
+2. Check for error: "Supabase client not initialized"
+3. If yes:
+   - Hard refresh page (Ctrl+Shift+R)
+   - Check internet connection
+   - Verify Supabase CDN is not blocked
+4. If no error but still loading:
+   - Check if events table exists in Supabase
+   - Verify table has SELECT permission for anon role
+   - Check if any events have status 'upcoming' or 'scheduled'
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 2: Styles not loading / Page looks broken
+────────────────────────────────────────────────
+SOLUTION:
+1. Check if home.css is linked in home.html (line 153)
+2. Check if style.css is linked (line 152)
+3. Check if Mobile.css is linked (line 154)
+4. Clear browser cache
+5. Check browser console for 404 errors
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 3: Newsletter subscription not working
+─────────────────────────────────────────────
+SOLUTION:
+1. Check if Mailcheck.js loaded (line 721)
+2. Check if Supabase client initialized
+3. Verify 'subscriptions' table exists
+4. Check table has INSERT permission for anon role
+5. Look for error in console
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 4: Gallery photos not showing
+────────────────────────────────────
+SOLUTION:
+1. Check if /Gallary/images.json exists
+2. Verify JSON structure is correct
+3. Check image URLs are valid
+4. Look for CORS errors in console
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 5: Statistics showing 0 or "N/A"
+───────────────────────────────────────
+SOLUTION:
+1. Check Google Apps Script URL
+2. Verify API endpoint is accessible
+3. Check if API returns correct JSON format
+4. Look for network errors in console
+
+================================================================================
+9. RESPONSIVE DESIGN
+================================================================================
+
+The page is fully responsive across all devices:
+
+DESKTOP (1920px+):
+- Full hero section with large text
+- 3-column event grid
+- 3-column feature grid
+- Sidebar visible by default
+
+LAPTOP (1024px - 1920px):
+- Slightly reduced spacing
+- 2-3 column grids
+- Sidebar visible
+
+TABLET (768px - 1024px):
+- 2-column grids
+- Reduced font sizes
+- Sidebar collapsible
+
+MOBILE LANDSCAPE (600px - 768px):
+- 1-2 column grids
+- Smaller hero text
+- Sidebar hidden by default
+
+MOBILE PORTRAIT (< 600px):
+- Single column layout
+- Stacked impact cards
+- Hamburger menu
+- Touch-optimized buttons
+
+================================================================================
+10. SEO & ACCESSIBILITY
+================================================================================
+
+SEO FEATURES:
+─────────────
+✓ Title: "YUVA — Youth United For Vision & Action"
+✓ Meta description (150 characters)
+✓ Keywords (50+ relevant terms)
+✓ Open Graph tags (Facebook sharing)
+✓ Twitter Card tags
+✓ Structured data (Organization, FAQ, Events, Breadcrumb)
+✓ Canonical URL
+✓ Bing verification
+
+ACCESSIBILITY FEATURES:
+───────────────────────
+✓ Keyboard navigation (Tab, ESC, Enter)
+✓ ARIA labels on buttons
+✓ Semantic HTML (header, main, section, nav)
+✓ Color contrast: 7:1 ratio
+✓ prefers-reduced-motion support
+✓ Screen reader friendly
+✓ Alt text on all images
+✓ Touch targets: minimum 44x44px
+
+================================================================================
+END OF USER MANUAL
+================================================================================
+
+For technical support or questions, contact:
+YUVA Technical Team
+Email: tech@yuva.ind.in
+
+Last Updated: December 25, 2025
+Version: 2025.1

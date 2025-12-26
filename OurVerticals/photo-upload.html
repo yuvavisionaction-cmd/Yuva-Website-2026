@@ -158,23 +158,6 @@
             color: var(--navy-dark);
             display: block;
         }
-
-        /* --- NEW STYLE FOR FORGOT PASSWORD LINK --- */
-        .forgot-password {
-            text-align: right;
-            margin-top: 10px;
-        }
-
-        .forgot-password a {
-            font-size: 0.9rem;
-            color: var(--color-primary);
-            text-decoration: none;
-            cursor: pointer;
-        }
-
-        .forgot-password a:hover {
-            text-decoration: underline;
-        }
     </style>
 </head>
 
@@ -188,18 +171,6 @@
                 <input type="email" id="email" placeholder="your@example.com" required>
             </div>
             <button id="verifyEmailBtn">Verify Email</button>
-        </div>
-
-        <div id="passwordSection" style="display: none;">
-            <div class="form-group">
-                <label for="password">Enter your password:</label>
-                <input type="password" id="password" placeholder="********" required>
-            </div>
-
-            <div class="form-group forgot-password">
-                <a id="forgotPasswordLink">Forgot Password?</a>
-            </div>
-            <button id="loginBtn">Login</button>
         </div>
 
         <div id="securityKeySection" style="display: none;">
@@ -218,21 +189,17 @@
         // --- 1. Initialize Supabase ---
         const SUPABASE_URL = 'https://jgsrsjwmywiirtibofth.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_5KtvO0cEHfnECBoyp2CQnw_RC3_x2me';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         // --- 2. Get DOM Elements ---
         const emailInput = document.getElementById('email');
         const verifyEmailBtn = document.getElementById('verifyEmailBtn');
-        const passwordInput = document.getElementById('password');
-        const loginBtn = document.getElementById('loginBtn');
         const securityKeyInput = document.getElementById('securityKey');
         const verifySecurityKeyBtn = document.getElementById('verifySecurityKeyBtn');
 
         const emailVerificationSection = document.getElementById('emailVerificationSection');
-        const passwordSection = document.getElementById('passwordSection');
         const securityKeySection = document.getElementById('securityKeySection');
         const messageDiv = document.getElementById('message');
-        const forgotPasswordLink = document.getElementById('forgotPasswordLink');
 
         let verifiedEmail = ''; // Store the email
 
@@ -243,7 +210,7 @@
                 showMessage('Please enter an email address.', 'error'); return;
             }
             showMessage('Verifying email...', 'info');
-            const { data: is_authorized, error: rpcError } = await supabase
+            const { data: is_authorized, error: rpcError } = await supabaseClient
                 .rpc('check_vertical_admin', { user_email: email });
 
             if (rpcError) {
@@ -254,85 +221,83 @@
             if (is_authorized) {
                 verifiedEmail = email;
                 emailVerificationSection.style.display = 'none';
-                passwordSection.style.display = 'block';
-                showMessage('Email verified! Please enter your password.', 'success');
+                securityKeySection.style.display = 'block';
+                showMessage('Email verified! Please enter your security key.', 'success');
             } else {
                 showMessage('Email not authorized for uploads.', 'error');
             }
         });
 
-        // --- 4. Step 2: Login with Password ---
-        loginBtn.addEventListener('click', async () => {
-            const password = passwordInput.value;
-            if (!password) {
-                showMessage('Please enter your password.', 'error'); return;
-            }
-            showMessage('Logging in...', 'info');
-            const { data, error } = await supabase.auth.signInWithPassword({
-                email: verifiedEmail,
-                password: password,
-            });
-
-            if (error) {
-                console.error('Login error:', error);
-                showMessage('Login failed. Please check your password.', 'error');
-                return;
-            }
-            if (data.session) {
-                passwordSection.style.display = 'none';
-                securityKeySection.style.display = 'block';
-                showMessage('Login successful! Please enter your security key.', 'success');
-            }
-        });
-
-        // --- 5. Handle Forgot Password Click (UPDATED) ---
-        forgotPasswordLink.addEventListener('click', async () => {
-            if (!verifiedEmail) {
-                showMessage('Please verify your email address first.', 'error');
-                return;
-            }
-
-            showMessage('Sending password reset link...', 'info');
-
-            // ** THIS IS THE CHANGE **
-            // We now tell Supabase to redirect to 'password-reset.html'
-            // NEW CORRECT LINE
-            const redirectURL = window.location.origin + '/OurVerticals/password-reset.html';
-
-            const { data, error } = await supabase.auth.resetPasswordForEmail(verifiedEmail, {
-                redirectTo: redirectURL,
-            });
-
-            if (error) {
-                console.error('Error sending reset link:', error);
-                showMessage(`Error: ${error.message}`, 'error');
-            } else {
-                showMessage('Password reset link sent to your email!', 'success');
-            }
-        });
-
-        // --- 6. Step 3: Verify Security Key ---
+        // --- 4. Step 2: Verify Security Key ---
         verifySecurityKeyBtn.addEventListener('click', async () => {
             const securityKey = securityKeyInput.value.trim();
             if (!securityKey) {
                 showMessage('Please enter your security key.', 'error'); return;
             }
             showMessage('Verifying security key...', 'info');
-            const { data, error } = await supabase
+
+            // DEBUG: Log what we're searching for
+            console.log('=== SECURITY KEY VERIFICATION DEBUG ===');
+            console.log('Email being checked:', verifiedEmail);
+            console.log('Security key entered:', securityKey);
+
+            // FIRST: Check what's actually in the table
+            console.log('--- Step 1: Checking ALL security keys in database ---');
+            const { data: allKeys, error: allKeysError } = await supabaseClient
                 .from('security_keys')
-                .select('id')
+                .select('*');
+
+            console.log('All security keys in database:', allKeys);
+            console.log('Error fetching all keys:', allKeysError);
+
+            // SECOND: Check by email only
+            console.log('--- Step 2: Checking keys for this email only ---');
+            const { data: emailKeys, error: emailError } = await supabaseClient
+                .from('security_keys')
+                .select('*')
+                .eq('email', verifiedEmail);
+
+            console.log('Keys for email', verifiedEmail, ':', emailKeys);
+            console.log('Error fetching by email:', emailError);
+
+            // THIRD: Try the full query
+            console.log('--- Step 3: Checking with both email AND security key ---');
+            const { data, error } = await supabaseClient
+                .from('security_keys')
+                .select('id, email, security_key')
                 .eq('email', verifiedEmail)
                 .eq('security_key', securityKey);
 
+            // DEBUG: Log the response
+            console.log('Database response:', { data, error });
+
             if (error) {
                 console.error('Error verifying security key:', error);
-                showMessage('Error during key verification.', 'error');
+                showMessage('Error during key verification: ' + error.message, 'error');
                 return;
             }
+
+            // DEBUG: Check what we got back
+            console.log('Number of matches found:', data ? data.length : 0);
+
             if (data && data.length > 0) {
-                window.location.href = 'upload-form.html';
+                console.log('✅ Security key verified! Redirecting...');
+                // Pass the verified email as URL parameter
+                window.location.href = `upload-form.html?email=${encodeURIComponent(verifiedEmail)}`;
             } else {
-                showMessage('Invalid security key.', 'error');
+                console.log('❌ No matching security key found');
+                console.log('Possible issues:');
+                console.log('1. Email in database:', verifiedEmail);
+                console.log('2. Security key entered:', securityKey);
+                console.log('3. Check if this combination exists in security_keys table');
+
+                // Show what we found
+                if (allKeys && allKeys.length > 0) {
+                    console.log('4. Available emails in security_keys:', allKeys.map(k => k.email));
+                    console.log('5. Available keys:', allKeys.map(k => ({ email: k.email, key: k.security_key })));
+                }
+
+                showMessage('Invalid security key. Check console for details.', 'error');
             }
         });
 

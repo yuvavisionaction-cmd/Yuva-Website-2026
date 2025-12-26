@@ -1,0 +1,1347 @@
+================================================================================
+            YUVA PHOTO GALLERY PAGE - COMPREHENSIVE USER MANUAL
+                    Youth United For Vision & Action
+================================================================================
+
+VERSION: 2025
+LAST UPDATED: December 26, 2025
+
+================================================================================
+TABLE OF CONTENTS
+================================================================================
+────────────────
+1. Overview
+2. File Structure
+3. Dependencies
+4. Supabase Storage Integration
+5. Page Sections
+6. Dynamic Features
+7. Filter System
+8. Admin Upload System
+9. How to Add Photos
+10. How to Modify Content
+11. Troubleshooting
+12. Responsive Design
+13. SEO & Accessibility
+
+================================================================================
+1. OVERVIEW
+================================================================================
+
+The Photo Gallery page is a modern, high-performance image gallery system that
+displays 4000+ photos from YUVA India's events and activities. It features:
+
+✓ Supabase Storage integration (cloud-based)
+✓ Lazy loading masonry layout
+✓ Event and year-based filtering
+✓ Infinite scroll with Intersection Observer
+✓ Progress bar for image loading
+✓ Admin upload interface with authentication
+✓ Flash notification system
+✓ Responsive grid layout
+✓ Ashoka Chakra hero animation
+
+KEY FEATURES:
+─────────────
+- 4,000+ photos across 10+ events
+- Fast lazy loading (60 images per batch)
+- Dynamic category and year filters
+- Masonry grid layout (auto-fit columns)
+- Admin panel for uploads and management
+- Secure 2-step authentication
+- Real-time photo count display
+- Back-to-top button
+- Mobile-optimized interface
+
+TECHNOLOGY STACK:
+─────────────────
+- Frontend: HTML5, CSS3, Vanilla JavaScript
+- Storage: Supabase Storage (gallery_photos bucket)
+- Database: Supabase (security_keys, vertical_access tables)
+- Authentication: Custom RPC function (check_vertical_admin)
+- CDN: Supabase CDN for image delivery
+- Icons: Font Awesome 6.4.0
+- Fonts: Google Fonts (Inter, Poppins)
+
+================================================================================
+2. FILE STRUCTURE
+================================================================================
+
+MAIN FILES:
+───────────
+/Gallary/
+├── photo.html                  (Public gallery page - 301 lines)
+├── photo-admin.html            (Admin upload interface - 837 lines)
+├── photos.js                   (Gallery logic - 552 lines)
+├── photos.css                  (Gallery styles - 32,715 bytes)
+├── supabase-setup.sql          (Database setup script - 179 lines)
+└── images.json                 (Legacy fallback data - 32,901 bytes)
+
+DEPENDENCIES:
+─────────────
+/style.css                      (Global styles)
+/Mobile.css                     (Mobile responsive styles)
+/script.js                      (Global JavaScript, sidebar)
+
+SUPABASE STORAGE STRUCTURE:
+───────────────────────────
+gallery_photos/
+└── photos/
+    ├── vimarsh/
+    │   ├── 2024/
+    │   │   ├── image1.jpg
+    │   │   ├── image2.jpg
+    │   │   └── ...
+    │   ├── 2023/
+    │   └── 2022/
+    ├── samarpan/
+    │   ├── 2024/
+    │   └── 2023/
+    ├── bharatparv/
+    │   ├── 2024/
+    │   └── 2023/
+    ├── events/
+    │   ├── 2024/
+    │   └── 2023/
+    └── activities/
+        ├── 2024/
+        └── 2023/
+
+FILE DESCRIPTIONS:
+──────────────────
+photo.html:
+- Main public-facing gallery page
+- Hero section with Ashoka Chakra animation
+- Filter chips for events and years
+- Masonry grid container
+- Meta information display
+- Back-to-top button
+
+photo-admin.html:
+- Secure admin upload interface
+- 2-step authentication (email + security key)
+- Multi-file upload form
+- Photo management grid
+- Delete functionality
+- Progress tracking
+
+photos.js:
+- PhotoGalleryManager class
+- Supabase Storage integration
+- Lazy loading logic
+- Filter management
+- Intersection Observer for infinite scroll
+- Flash notification system
+- Image load progress tracking
+
+photos.css:
+- Modern India-themed color palette
+- Masonry grid layout
+- Filter chip styles
+- Card animations
+- Progress bar styles
+- Responsive breakpoints
+
+supabase-setup.sql:
+- Storage bucket creation
+- RLS policies
+- Helper functions
+- Monitoring queries
+- Sample data insertion
+
+================================================================================
+3. DEPENDENCIES
+================================================================================
+
+EXTERNAL LIBRARIES:
+───────────────────
+1. Supabase JS Client (v2)
+   CDN: https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2
+   Purpose: Storage API, database queries, authentication
+
+2. Font Awesome 6.4.0
+   CDN: https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css
+   Purpose: Icons (images, calendar, filter, upload, etc.)
+
+3. Google Fonts
+   Fonts: Inter (300-800), Poppins (300-800)
+   Purpose: Typography
+
+SUPABASE CONFIGURATION:
+───────────────────────
+URL: https://jgsrsjwmywiirtibofth.supabase.co
+Anon Key: sb_publishable_5KtvO0cEHfnECBoyp2CQnw_RC3_x2me
+Bucket: gallery_photos
+Public Access: YES (read-only for anonymous users)
+
+⚠️ SECURITY NOTE:
+The Supabase anon key is public and safe to expose in client-side code.
+Row Level Security (RLS) policies protect sensitive data.
+Write access requires authentication via security_keys table.
+
+BROWSER APIS USED:
+──────────────────
+- Intersection Observer API (infinite scroll)
+- requestIdleCallback (performance optimization)
+- FileReader API (image preview)
+- Fetch API (Supabase requests)
+- localStorage (session management)
+
+================================================================================
+4. SUPABASE STORAGE INTEGRATION
+================================================================================
+
+STORAGE BUCKET:
+───────────────
+Name: gallery_photos
+Public: YES
+File Size Limit: 5 MB per image
+Allowed MIME Types: image/jpeg, image/png, image/webp
+
+FOLDER STRUCTURE:
+─────────────────
+photos/
+├── {category}/
+│   └── {year}/
+│       └── {timestamp}_{random}.{ext}
+
+CATEGORIES:
+───────────
+1. vimarsh       → Vimarsh
+2. samarpan      → Samarpan
+3. bharatparv    → Bharat Parv
+4. events        → Events
+5. activities    → Activities
+
+YEARS:
+──────
+Range: 2019 - 2025 (current year)
+Format: 4-digit year (e.g., 2024)
+
+FILE NAMING CONVENTION:
+───────────────────────
+Format: {timestamp}_{random}.{ext}
+Example: 1703587200000_a3b5c7d9e.jpg
+
+Components:
+- timestamp: Date.now() (milliseconds since epoch)
+- random: Math.random().toString(36).substr(2, 9)
+- ext: jpg, jpeg, png, or webp
+
+PUBLIC URL FORMAT:
+──────────────────
+https://jgsrsjwmywiirtibofth.supabase.co/storage/v1/object/public/gallery_photos/photos/{category}/{year}/{filename}
+
+Example:
+https://jgsrsjwmywiirtibofth.supabase.co/storage/v1/object/public/gallery_photos/photos/vimarsh/2024/1703587200000_a3b5c7d9e.jpg
+
+STORAGE POLICIES:
+─────────────────
+1. Public Read Access:
+   - Policy: "Public read access for gallery photos"
+   - Allows: Anonymous SELECT on storage.objects
+   - Condition: bucket_id = 'gallery_photos'
+
+2. Authenticated Upload:
+   - Policy: "Authenticated users can upload photos"
+   - Allows: INSERT for authenticated users
+   - Condition: bucket_id = 'gallery_photos'
+
+3. Authenticated Delete:
+   - Policy: "Authenticated users can delete photos"
+   - Allows: DELETE for authenticated users
+   - Condition: bucket_id = 'gallery_photos'
+
+DATABASE TABLES:
+────────────────
+
+The Photo Gallery Admin system uses the same authentication as Unit Registration
+(via Google Apps Script Backend):
+
+1. admin_users (Authentication & Authorization)
+   - email (text, primary key)
+   - password_hash (text)
+   - role (text) - super_admin, zone_convener, mentor, viewer
+   - zone (text)
+   - college_id (integer, foreign key)
+   - full_name (text)
+   - created_at (timestamp)
+
+2. gallery_photos (Storage Bucket)
+   - photos/{category}/{year}/{filename}
+
+AUTHENTICATION BACKEND:
+───────────────────────
+- Type: Google Apps Script Web App
+- Action: auth
+- Method: login
+- Logic: Verifies email/password against admin_users table
+- Session: Client-side (localStorage 'photo_admin_session')
+
+AUTHORIZATION LEVELS:
+─────────────────────
+- super_admin: Full access to all galleries
+- zone_convener: Access to zone-specific galleries
+- mentor: Access to college-specific galleries
+- viewer: Read-only access (no upload)
+
+================================================================================
+5. PAGE SECTIONS
+================================================================================
+
+┌──────────────────────────────────────────────────────────────┐
+│ SECTION 1: HEADER (Lines 19-27)                             │
+├──────────────────────────────────────────────────────────────┤
+│ Components:                                                   │
+│ - YUVA logo (left)                                           │
+│ - "YUVA" heading                                             │
+│ - "Photo Gallery" page title (center)                       │
+│                                                               │
+│ Styling:                                                      │
+│ - Fixed position at top                                      │
+│ - White background with shadow                               │
+│ - Flexbox layout                                             │
+│ - Z-index: 1000                                              │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ SECTION 2: SIDEBAR (Lines 36-128)                           │
+├──────────────────────────────────────────────────────────────┤
+│ Navigation Links:                                             │
+│ - Home                                                        │
+│ - About (dropdown)                                           │
+│   • About Us                                                 │
+│   • Who is Who                                               │
+│ - Our Initiatives (dropdown)                                 │
+│ - Our Verticals (dropdown)                                   │
+│ - Our Activities (dropdown)                                  │
+│ - Media (dropdown)                                           │
+│ - Events (dropdown)                                          │
+│ - Gallery (dropdown) ⭐ CURRENT                              │
+│ - Blog (dropdown)                                            │
+│ - Get Involved (dropdown)                                    │
+│ - Donate                                                      │
+│                                                               │
+│ Toggle Buttons:                                               │
+│ - Desktop: .toggle-btn (☰)                                   │
+│ - Mobile: .hamburger-menu (3 bars)                          │
+│                                                               │
+│ Managed by: /script.js                                       │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ SECTION 3: HERO SECTION (Lines 132-269)                     │
+├──────────────────────────────────────────────────────────────┤
+│ Background Elements:                                          │
+│ - Animated particles (.hero-particles)                      │
+│ - Rotating Ashoka Chakra SVG (.hero-chakra-bg)              │
+│   • 24 spokes with circles                                   │
+│   • Continuous rotation animation                            │
+│   • Navy blue color                                          │
+│                                                               │
+│ Content:                                                      │
+│ - Badge: "Modern Photo Experience"                          │
+│ - Title: "Photo Gallery"                                    │
+│ - Accent: "Curated Events & Memories"                       │
+│ - Description: "Browse 4000+ photos from YUVA's landmark    │
+│                 events with fast filters and smooth          │
+│                 scrolling."                                  │
+│                                                               │
+│ Impact Statistics:                                            │
+│ ┌─────────────┬─────────────┬─────────────┐                │
+│ │  4,000+     │     10      │    Fast     │                │
+│ │  Photos     │   Events    │ Lazy Loading│                │
+│ └─────────────┴─────────────┴─────────────┘                │
+│                                                               │
+│ Icons: fa-images, fa-calendar-alt, fa-bolt                  │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ SECTION 4: FILTERS (Lines 273-276)                          │
+├──────────────────────────────────────────────────────────────┤
+│ Primary Filters (#eventFilters):                             │
+│ - Event category chips (dynamically generated)              │
+│ - Examples: Vimarsh, Samarpan, Bharat Parv, Events,         │
+│             Activities                                       │
+│ - Click to select event                                      │
+│ - Active state highlighting                                  │
+│                                                               │
+│ Secondary Filters (#yearFilters):                            │
+│ - Year chips (dynamically generated based on event)         │
+│ - "All Years" option                                         │
+│ - Years from 2019-2025                                       │
+│ - Sorted descending (newest first)                          │
+│ - Only visible when event is selected                       │
+│                                                               │
+│ Styling:                                                      │
+│ - Chip buttons with rounded corners                         │
+│ - Hover effects                                              │
+│ - Active state: Primary color background                    │
+│ - Flexbox layout with wrapping                              │
+│                                                               │
+│ Managed by: photos.js renderEventChips(), renderYearChips() │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ SECTION 5: META INFORMATION (Lines 278-282)                 │
+├──────────────────────────────────────────────────────────────┤
+│ Photo Count Display:                                          │
+│ - Format: "{shown} of {total} photos"                       │
+│ - Example: "60 of 250 photos"                               │
+│ - Updates in real-time as images load                       │
+│                                                               │
+│ Active Filters Display:                                       │
+│ - Shows current selection                                    │
+│ - Format: "{Event} · {Year}"                                │
+│ - Example: "Vimarsh · 2024"                                 │
+│ - Or: "No event selected"                                   │
+│                                                               │
+│ Progress Bar (dynamically injected):                          │
+│ - Appears during first batch load                           │
+│ - Shows percentage of images loaded                         │
+│ - Auto-hides when complete                                   │
+│ - Green gradient fill                                        │
+│                                                               │
+│ Visibility:                                                   │
+│ - Hidden until event is selected                            │
+│ - Becomes visible after first filter selection              │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ SECTION 6: MASONRY GRID (Lines 284-286)                     │
+├──────────────────────────────────────────────────────────────┤
+│ Container: #masonry                                           │
+│                                                               │
+│ Layout:                                                       │
+│ - CSS columns (auto-fit)                                     │
+│ - Column width: 300px minimum                                │
+│ - Gap: 20px                                                  │
+│ - Responsive column count                                    │
+│                                                               │
+│ Card Structure:                                               │
+│ <article class="card" data-item-id="{id}">                  │
+│   <img class="card__img"                                     │
+│        src="{supabase_url}"                                  │
+│        alt="{event} {year} Photo"                            │
+│        loading="lazy"                                        │
+│        decoding="async"                                      │
+│        style="aspect-ratio: 4 / 3">                          │
+│ </article>                                                    │
+│                                                               │
+│ Features:                                                     │
+│ - Lazy loading (loading="lazy")                             │
+│ - Async decoding (decoding="async")                         │
+│ - Fixed aspect ratio (4:3)                                   │
+│ - Fade-in animation on load                                  │
+│ - Error handling (removes failed images)                    │
+│                                                               │
+│ States:                                                       │
+│ 1. Empty: "Please Select an Event" message                  │
+│ 2. No Images: "No Images Available" message                 │
+│ 3. Loading: Images appear in batches of 60                  │
+│ 4. Loaded: .loaded class added for animation                │
+│                                                               │
+│ Managed by: photos.js createCard(), loadNextPage()          │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ SECTION 7: INFINITE SCROLL SENTINEL (Line 288)              │
+├──────────────────────────────────────────────────────────────┤
+│ Element: #sentinel                                            │
+│ Purpose: Trigger point for loading more images              │
+│                                                               │
+│ How It Works:                                                 │
+│ 1. Invisible div at bottom of grid                          │
+│ 2. Intersection Observer watches this element               │
+│ 3. When visible in viewport, loads next batch               │
+│ 4. Root margin: 1000px (loads before user reaches bottom)   │
+│                                                               │
+│ Managed by: photos.js setupIntersectionObserver()           │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ SECTION 8: BACK TO TOP BUTTON (Line 292)                    │
+├──────────────────────────────────────────────────────────────┤
+│ Element: #backToTop                                          │
+│ Icon: ↑ (up arrow)                                           │
+│                                                               │
+│ Behavior:                                                     │
+│ - Hidden by default                                          │
+│ - Appears when scrolled > 600px                             │
+│ - Smooth scroll to top on click                             │
+│ - Fixed position (bottom-right)                             │
+│ - Circular button with shadow                                │
+│                                                               │
+│ Styling:                                                      │
+│ - Background: Primary color gradient                         │
+│ - Color: White                                               │
+│ - Size: 50x50px                                              │
+│ - Border-radius: 50%                                         │
+│ - Z-index: 999                                               │
+│                                                               │
+│ Managed by: photos.js setupScrollHandler()                  │
+└──────────────────────────────────────────────────────────────┘
+
+================================================================================
+6. DYNAMIC FEATURES
+================================================================================
+
+FEATURE 1: LAZY LOADING MASONRY GRID
+─────────────────────────────────────
+Managed by: photos.js PhotoGalleryManager class
+
+HOW IT WORKS:
+1. User selects event filter
+2. System fetches folder structure from Supabase Storage
+3. Generates photo items array with public URLs
+4. Loads first 60 images
+5. Intersection Observer triggers next batch when sentinel is visible
+6. Process repeats until all images loaded
+
+PERFORMANCE OPTIMIZATIONS:
+- Lazy loading attribute (native browser support)
+- Async image decoding
+- requestIdleCallback for non-critical work
+- Batch rendering (60 images at a time)
+- Progress tracking for first batch only
+- Failed images automatically removed
+
+CODE LOCATION:
+File: photos.js
+Functions: loadPhotosFromStorage(), loadNextPage(), createCard()
+Lines: 143-466
+
+──────────────────────────────────────────────────────────────
+
+FEATURE 2: DYNAMIC FILTER SYSTEM
+─────────────────────────────────
+Managed by: photos.js
+
+EVENT FILTERS:
+- Dynamically populated from storage folders
+- Automatically detects available categories
+- Alphabetically sorted
+- Click to activate
+- Only one event active at a time
+
+YEAR FILTERS:
+- Dynamically populated based on selected event
+- Shows only years that have photos for that event
+- "All Years" option to show all
+- Descending order (newest first)
+- Hidden until event is selected
+
+FILTER FLOW:
+1. Page loads → Fetch all folders from storage
+2. Build events array from category folders
+3. Render event chips
+4. User clicks event → Fetch year folders for that event
+5. Render year chips
+6. User clicks year (or "All Years")
+7. Filter photos and render grid
+
+CODE LOCATION:
+File: photos.js
+Functions: renderEventChips(), renderYearChips(), onEventChange(), onYearChange()
+Lines: 263-329
+
+──────────────────────────────────────────────────────────────
+
+FEATURE 3: PROGRESS BAR
+───────────────────────
+Managed by: photos.js
+
+DISPLAYS:
+- Only for first batch of images (60 images)
+- Shows percentage loaded
+- Green gradient fill
+- Auto-hides when complete
+
+CALCULATION:
+- Tracks image load events
+- Increments counter on each successful load
+- Updates width: (loaded / total) * 100%
+- Hides after 500ms delay when 100%
+
+CODE LOCATION:
+File: photos.js
+Functions: handleImageLoadAttempt(), updateProgressBar()
+Lines: 468-486
+
+──────────────────────────────────────────────────────────────
+
+FEATURE 4: FLASH NOTIFICATIONS
+───────────────────────────────
+Managed by: photos.js
+
+NOTIFICATION TYPES:
+- Success (green, checkmark icon)
+- Error (red, X icon)
+- Warning (yellow, exclamation icon)
+- Info (blue, info icon)
+
+FEATURES:
+- Auto-dismiss after 4-8 seconds (varies by type)
+- Manual close button
+- Slide-in animation
+- Multiple notifications stack
+- Escape key to clear info notifications
+
+TRIGGERED BY:
+- Gallery initialized
+- Photos loaded
+- Filter applied
+- Image load failed
+- Storage errors
+
+CODE LOCATION:
+File: photos.js
+Functions: showFlashNotification(), showError(), showSuccess(), showWarning(), showInfo()
+Lines: 67-100
+
+──────────────────────────────────────────────────────────────
+
+FEATURE 5: INTERSECTION OBSERVER
+─────────────────────────────────
+Managed by: photos.js
+
+PURPOSE:
+- Infinite scroll implementation
+- Loads next batch when user scrolls near bottom
+
+CONFIGURATION:
+- Root: viewport
+- Root margin: 1000px 0px (loads 1000px before reaching sentinel)
+- Threshold: default
+
+BEHAVIOR:
+1. Observer watches #sentinel element
+2. When sentinel enters viewport (+ 1000px margin)
+3. Triggers loadNextPage()
+4. Loads next 60 images
+5. Repeats until all images loaded
+
+CODE LOCATION:
+File: photos.js
+Function: setupIntersectionObserver()
+Lines: 489-497
+
+──────────────────────────────────────────────────────────────
+
+FEATURE 6: ERROR HANDLING
+──────────────────────────
+Managed by: photos.js
+
+IMAGE LOAD ERRORS:
+- Automatically removes failed image cards
+- Updates photo count
+- Shows warning notification (once per unique URL)
+- Tracks failed images to prevent duplicate warnings
+
+STORAGE ERRORS:
+- Falls back to empty dataset
+- Shows error notification
+- Provides user-friendly error messages
+
+NETWORK ERRORS:
+- Catches fetch failures
+- Shows flash notification
+- Logs to console for debugging
+
+CODE LOCATION:
+File: photos.js
+Functions: removeFailedCard(), generateFallbackDataset()
+Lines: 431-442, 253-259
+
+================================================================================
+7. FILTER SYSTEM
+================================================================================
+
+FILTER HIERARCHY:
+─────────────────
+Level 1: Event Category (Required)
+Level 2: Year (Optional)
+
+FILTER FLOW:
+────────────
+┌─────────────────────────────────────────────────────────────┐
+│ 1. Page Load                                                 │
+│    ↓                                                         │
+│ 2. Fetch all category folders from storage                  │
+│    ↓                                                         │
+│ 3. Render event chips (Vimarsh, Samarpan, etc.)            │
+│    ↓                                                         │
+│ 4. User clicks event chip                                   │
+│    ↓                                                         │
+│ 5. Fetch year folders for that event                        │
+│    ↓                                                         │
+│ 6. Render year chips (2024, 2023, etc.)                    │
+│    ↓                                                         │
+│ 7. User clicks year chip (or "All Years")                  │
+│    ↓                                                         │
+│ 8. Filter photos array                                       │
+│    ↓                                                         │
+│ 9. Render filtered photos in grid                           │
+└─────────────────────────────────────────────────────────────┘
+
+FILTER LOGIC:
+─────────────
+Event Filter:
+- Matches: item.event === activeEvent
+- Required: YES
+
+Year Filter:
+- Matches: item.year === activeYear
+- Required: NO (if null, shows all years)
+- Only applies if event has year folders
+
+COMBINED LOGIC:
+if (item.event !== activeEvent) return false;
+if (activeYear !== null && item.year !== activeYear) return false;
+return true;
+
+FILTER STATES:
+──────────────
+State 1: No event selected
+- Display: "Please Select an Event" message
+- Year filters: Hidden
+- Grid: Empty
+
+State 2: Event selected, no year filter
+- Display: All photos from that event
+- Year filters: Visible with "All Years" active
+- Grid: All photos from event
+
+State 3: Event and year selected
+- Display: Photos from that event and year
+- Year filters: Visible with specific year active
+- Grid: Filtered photos
+
+RESET FILTERS:
+──────────────
+To reset filters:
+1. Refresh page, OR
+2. Click different event chip (resets year to null)
+
+================================================================================
+8. ADMIN UPLOAD SYSTEM
+================================================================================
+
+ACCESS URL:
+───────────
+/Gallary/photo-admin.html
+
+AUTHENTICATION FLOW:
+────────────────────
+AUTHENTICATION FLOW:
+────────────────────
+┌─────────────────────────────────────────────────────────────┐
+│ STEP 1: Login Form                                           │
+│ ──────────────────                                           │
+│ 1. User enters Email and Password                            │
+│ 2. Click "Login" button                                      │
+│                                                               │
+│ STEP 2: Backend Authentication                               │
+│ ──────────────────────────────                               │
+│ 1. System calls Google Apps Script (GAS) API                 │
+│ 2. Params: action=auth, method=login                         │
+│ 3. GAS validates against `admin_users` table                 │
+│ 4. If VALID: Returns user object (id, role, etc.)            │
+│ 5. If INVALID: Returns error "Invalid credentials"           │
+│                                                               │
+│ STEP 3: Session Management                                   │
+│ ──────────────────────────                                   │
+│ 1. Response stored in localStorage ('photo_admin_session')   │
+│ 2. CurrentUser state updated in memory                       │
+│ 3. Login screen hidden, Admin dashboard shown                │
+└─────────────────────────────────────────────────────────────┘
+
+ADMIN INTERFACE SECTIONS:
+─────────────────────────
+1. Header
+   - Title: "Photo Gallery Admin"
+   - "View Public Gallery" button
+   - "Logout" button
+
+2. Upload Section
+   - Category dropdown (5 options)
+   - Year dropdown (2019-2025)
+   - Multi-file input (drag & drop)
+   - Progress bar
+   - Upload button
+
+3. Manage Section
+   - Filter by category dropdown
+   - Filter by year dropdown
+   - Photo grid with delete buttons
+   - Photo count display
+
+UPLOAD FORM FIELDS:
+───────────────────
+Field 1: Category *
+- Type: Dropdown
+- Options:
+  • vimarsh
+  • samarpan
+  • bharatparv
+  • events
+  • activities
+- Required: YES
+
+Field 2: Year *
+- Type: Dropdown
+- Options: 2019-2025 (current year)
+- Required: YES
+
+Field 3: Images *
+- Type: File input (multiple)
+- Accept: image/jpeg, image/png, image/webp
+- Max size: 5 MB per image
+- Required: YES (at least 1 image)
+
+UPLOAD PROCESS:
+───────────────
+1. Select category and year
+2. Click file input or drag & drop images
+3. File label updates: "{count} image(s) selected"
+4. Click "Upload Images" button
+5. For each file:
+   a. Generate unique filename
+   b. Upload to: photos/{category}/{year}/{filename}
+   c. Update progress bar
+6. Show success message: "Successfully uploaded {count} of {total} images!"
+7. Reset form
+8. Reload photos if filters match
+
+FILE NAMING:
+────────────
+Format: {timestamp}_{random}.{ext}
+Example: 1703587200000_a3b5c7d9e.jpg
+
+Code:
+const fileExt = file.name.split('.').pop();
+const fileName = `photos/${category}/${year}/${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+
+MANAGE PHOTOS:
+──────────────
+1. Select category filter (optional)
+2. Select year filter (optional)
+3. Photos load in grid
+4. Each photo shows:
+   - Thumbnail image
+   - Filename (truncated)
+   - Upload date
+   - Delete button (red trash icon)
+5. Click delete button
+6. Confirm deletion
+7. Photo removed from storage
+8. Grid refreshes
+
+DELETE CONFIRMATION:
+────────────────────
+Message: "Are you sure you want to delete this photo? This action cannot be undone."
+Buttons: OK, Cancel
+
+LOGOUT:
+───────
+Click "Logout" button → Redirects to login screen
+
+================================================================================
+9. HOW TO ADD PHOTOS
+================================================================================
+
+METHOD 1: USING ADMIN PANEL (RECOMMENDED)
+──────────────────────────────────────────
+STEP 1: Access Admin Panel
+1. Go to: /Gallary/photo-admin.html
+2. Enter your email address
+3. Enter your password
+4. Click "Login"
+5. Wait for "Signing in..." to complete
+
+STEP 2: Upload Photos
+1. Select category from dropdown
+   - Vimarsh
+   - Samarpan
+   - Bharat Parv
+   - General Events
+   - Activities
+
+2. Select year from dropdown
+   - 2019-2025
+
+3. Click "Click to select images or drag & drop"
+   - Select multiple images (Ctrl+Click or Shift+Click)
+   - Or drag and drop files onto the area
+   - Supported formats: JPG, PNG, WebP
+   - Max size: 5 MB per image
+
+4. Click "Upload Images" button
+   - Progress bar shows upload status
+   - Wait for success message
+   - Photos automatically appear in gallery
+
+STEP 3: Verify Upload
+1. Click "View Public Gallery" button
+2. Select the event you uploaded to
+3. Select the year (if applicable)
+4. Verify photos appear in grid
+
+──────────────────────────────────────────────────────────────
+
+METHOD 2: USING SUPABASE DASHBOARD
+───────────────────────────────────
+STEP 1: Access Supabase Dashboard
+1. Go to: https://supabase.com/dashboard
+2. Login to your account
+3. Select your project
+4. Navigate to Storage → gallery_photos
+
+STEP 2: Navigate to Folder
+1. Click "photos" folder
+2. Click category folder (e.g., "vimarsh")
+3. Click year folder (e.g., "2024")
+   - If year folder doesn't exist, create it
+
+STEP 3: Upload Files
+1. Click "Upload file" button
+2. Select images from your computer
+3. Wait for upload to complete
+4. Files appear in folder list
+
+STEP 4: Verify Upload
+1. Go to /Gallary/photo.html
+2. Select event and year
+3. Photos should appear in grid
+
+⚠️ IMPORTANT: Manual uploads via Supabase Dashboard should follow
+the naming convention: {timestamp}_{random}.{ext}
+
+──────────────────────────────────────────────────────────────
+
+METHOD 3: PROGRAMMATIC UPLOAD (ADVANCED)
+─────────────────────────────────────────
+Using Supabase JavaScript Client:
+
+```javascript
+const { data, error } = await supabaseClient.storage
+  .from('gallery_photos')
+  .upload('photos/vimarsh/2024/image.jpg', file);
+```
+
+Requirements:
+- Authenticated user (admin_users table)
+- Valid file object
+- Correct path format
+
+================================================================================
+10. HOW TO MODIFY CONTENT
+================================================================================
+
+CHANGE HERO STATISTICS:
+───────────────────────
+File: photo.html (Lines 246-266)
+
+TO CHANGE "4,000+ Photos":
+<span class="donate-impact-number">4,000+</span>
+<span class="donate-impact-label">Photos</span>
+
+TO CHANGE "10 Events":
+<span class="donate-impact-number">10</span>
+<span class="donate-impact-label">Events</span>
+
+TO CHANGE "Fast Lazy Loading":
+<span class="donate-impact-number">Fast</span>
+<span class="donate-impact-label">Lazy Loading</span>
+
+──────────────────────────────────────────────────────────────
+
+CHANGE HERO TITLE:
+──────────────────
+File: photo.html (Lines 239-242)
+
+<h1 class="hero-title">
+    <span class="hero-title-line">Photo Gallery</span>
+    <span class="hero-title-line hero-title-accent">Curated Events & Memories</span>
+</h1>
+
+──────────────────────────────────────────────────────────────
+
+CHANGE HERO DESCRIPTION:
+─────────────────────────
+File: photo.html (Lines 243-244)
+
+<p class="hero-description">Browse 4000+ photos from YUVA's landmark events with fast filters and smooth scrolling.</p>
+
+──────────────────────────────────────────────────────────────
+
+ADD NEW CATEGORY:
+─────────────────
+File: photo-admin.html (Lines 455-462)
+File: photos.js (Lines 243-250)
+
+STEP 1: Add to admin dropdown
+<option value="newcategory">New Category</option>
+
+STEP 2: Add to formatCategoryName function
+const nameMap = {
+    'vimarsh': 'Vimarsh',
+    'samarpan': 'Samarpan',
+    'bharatparv': 'Bharat Parv',
+    'events': 'Events',
+    'activities': 'Activities',
+    'newcategory': 'New Category'  // Add this line
+};
+
+STEP 3: Create folder in Supabase Storage
+- Navigate to gallery_photos/photos/
+- Create folder: newcategory
+- Create year subfolders (e.g., 2024)
+
+──────────────────────────────────────────────────────────────
+
+CHANGE BATCH SIZE:
+──────────────────
+File: photos.js (Line 22)
+
+pageSize: 60,  // Change to desired number (e.g., 100)
+
+⚠️ WARNING: Larger batch sizes may impact performance on slow connections.
+
+──────────────────────────────────────────────────────────────
+
+CHANGE SUPABASE CREDENTIALS:
+────────────────────────────
+File: photos.js (Lines 9-12)
+File: photo-admin.html (Lines 528-531)
+
+this.supabaseUrl = 'YOUR_SUPABASE_URL';
+this.supabaseKey = 'YOUR_ANON_KEY';
+this.storageBucket = 'YOUR_BUCKET_NAME';
+
+⚠️ IMPORTANT: Also update RLS policies in Supabase!
+
+──────────────────────────────────────────────────────────────
+
+CHANGE YEAR RANGE:
+──────────────────
+File: photo-admin.html (Lines 561-577)
+
+function populateYears() {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let year = currentYear; year >= 2019; year--) {  // Change 2019 to desired start year
+        years.push(year);
+    }
+    // ...
+}
+
+================================================================================
+11. TROUBLESHOOTING
+================================================================================
+
+ISSUE 1: Photos not loading
+────────────────────────────
+SYMPTOMS:
+- Empty grid after selecting filters
+- "No Images Available" message
+- Loading spinner never stops
+
+SOLUTIONS:
+1. Check Supabase connection:
+   - Open browser console (F12)
+   - Look for Supabase errors
+   - Verify URL and anon key
+
+2. Check storage bucket:
+   - Verify bucket name is 'gallery_photos'
+   - Check RLS policies allow public read
+   - Verify photos exist in correct folders
+
+3. Check folder structure:
+   - Path must be: photos/{category}/{year}/
+   - Category names must match exactly
+   - Year must be 4-digit number
+
+4. Check browser console:
+   - Look for JavaScript errors
+   - Check network tab for failed requests
+   - Verify Supabase library loaded
+
+5. Verify Supabase library loaded:
+   - Check if CDN is accessible
+   - Try different CDN URL
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 2: Filters not working
+─────────────────────────────
+SYMPTOMS:
+- Event chips don't appear
+- Year chips don't appear
+- Clicking chips doesn't filter
+
+SOLUTIONS:
+1. Check storage folders:
+   - Verify category folders exist
+   - Verify year subfolders exist
+   - Check folder naming (lowercase)
+
+2. Check JavaScript errors:
+   - Open browser console
+   - Look for errors in photos.js
+   - Verify PhotoGalleryManager initialized
+
+3. Check filter rendering:
+   - Verify #eventFilters element exists
+   - Verify #yearFilters element exists
+   - Check CSS display properties
+
+4. Refresh page and try again
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 3: Admin panel login fails
+─────────────────────────────────
+SYMPTOMS:
+- "Please enter both email and password" error
+- "Login failed" error
+- Stuck on "Signing in..."
+
+SOLUTIONS:
+1. Check Google Apps Script (GAS):
+   - Verify GAS_WEB_APP_URL is correct in photo-admin.html
+   - Ensure GAS deployment is "Web App" and accessible
+
+2. Check admin_users table:
+   - Verify email exists in table
+   - Verify password matches (hash check)
+   - Ensure role is assigned
+
+3. Check Network:
+   - Open Console > Network tab
+   - Look for request to script.google.com
+   - Check if blocked by CORS or browser privacy settings
+
+4. Clear Session:
+   - Clear localStorage ('photo_admin_session')
+   - Hard refresh page
+
+4. Check browser console:
+   - Look for Supabase errors
+   - Check network tab for failed requests
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 4: Upload fails
+──────────────────────
+SYMPTOMS:
+- "Upload failed" error
+- Progress bar stuck
+- Some images upload, others fail
+
+SOLUTIONS:
+1. Check file size:
+   - Max 5 MB per image
+   - Compress large images
+
+2. Check file format:
+   - Only JPG, PNG, WebP allowed
+   - Convert other formats
+
+3. Check storage policies:
+   - Verify INSERT policy exists
+   - Check authentication
+
+4. Check folder structure:
+   - Verify category and year selected
+   - Check folder exists in storage
+
+5. Check network connection:
+   - Slow connection may timeout
+   - Try uploading fewer images at once
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 5: Images load slowly
+────────────────────────────
+SYMPTOMS:
+- Long delay before images appear
+- Progress bar moves slowly
+- Browser becomes unresponsive
+
+SOLUTIONS:
+1. Reduce batch size:
+   - Change pageSize from 60 to 30
+   - Edit photos.js line 22
+
+2. Optimize images:
+   - Compress images before upload
+   - Use WebP format for smaller file size
+   - Resize images to max 1920px width
+
+3. Check network speed:
+   - Test internet connection
+   - Try on faster network
+
+4. Clear browser cache:
+   - Hard refresh (Ctrl+Shift+R)
+   - Clear cache and cookies
+
+5. Check Supabase CDN:
+   - Verify CDN is accessible
+   - Check for CDN outages
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 6: Flash notifications not showing
+─────────────────────────────────────────
+SYMPTOMS:
+- No notifications appear
+- Notifications appear but no styling
+- Notifications don't auto-dismiss
+
+SOLUTIONS:
+1. Check flash container:
+   - Verify #flash-container exists
+   - Check if created dynamically
+
+2. Check CSS:
+   - Verify .flash-notification class
+   - Check .show class animation
+
+3. Check showFlashNotification calls:
+   - Verify function is called
+   - Check parameters (title, message, type)
+
+4. Check z-index:
+   - Notifications may be behind other elements
+   - Increase z-index in CSS
+
+5. Clear browser cache
+
+================================================================================
+12. RESPONSIVE DESIGN
+================================================================================
+
+The page is fully responsive across all devices:
+
+DESKTOP (1920px+):
+- Full hero section with large text
+- Masonry grid: 4-5 columns
+- Filter chips: Multiple rows
+- Back-to-top button: Bottom-right
+- Sidebar: Visible by default
+
+LAPTOP (1024px - 1920px):
+- Slightly reduced spacing
+- Masonry grid: 3-4 columns
+- Filter chips: Multiple rows
+- Back-to-top button: Bottom-right
+
+TABLET (768px - 1024px):
+- Reduced font sizes
+- Masonry grid: 2-3 columns
+- Filter chips: Wrap to multiple rows
+- Back-to-top button: Bottom-right
+- Sidebar: Collapsible
+
+MOBILE LANDSCAPE (600px - 768px):
+- Compact layout
+- Masonry grid: 2 columns
+- Filter chips: Stack vertically
+- Back-to-top button: Bottom-center
+
+MOBILE PORTRAIT (< 600px):
+- Single column layout
+- Masonry grid: 1 column, full width
+- Filter chips: Stack vertically
+- Back-to-top button: Bottom-center
+- Hamburger menu
+- Touch-optimized buttons (min 44x44px)
+- Reduced padding throughout
+
+MASONRY GRID RESPONSIVE:
+- Desktop: 4-5 columns (300px min)
+- Laptop: 3-4 columns
+- Tablet: 2-3 columns
+- Mobile: 1-2 columns
+- Auto-fit based on container width
+
+ADMIN PANEL RESPONSIVE:
+- Desktop: 2-column grid
+- Tablet: 2-column grid
+- Mobile: 1-column grid
+- Preview grid: Auto-fit (150px min)
+
+================================================================================
+13. SEO & ACCESSIBILITY
+================================================================================
+
+SEO FEATURES:
+─────────────
+✓ Title: "YUVA India - Photo Gallery"
+✓ Meta viewport for mobile
+✓ Favicon
+✓ Semantic HTML (header, section, article)
+✓ Alt text on images
+✓ Descriptive page title in header
+
+ACCESSIBILITY FEATURES:
+───────────────────────
+✓ Keyboard navigation (Tab, Enter)
+✓ ARIA labels on buttons
+✓ Semantic HTML (header, section, article)
+✓ Touch targets: minimum 44x44px
+✓ Focus indicators visible
+✓ Logical heading hierarchy (h1, h2)
+✓ Alt text on images (auto-generated)
+✓ Loading states with spinners
+✓ High contrast text
+
+RECOMMENDED IMPROVEMENTS:
+─────────────────────────
+- Add meta description
+- Add Open Graph tags
+- Add Twitter Card tags
+- Add structured data (JSON-LD)
+- Add ARIA labels to filter chips
+- Add skip-to-content link
+- Add ARIA live region for filter updates
+- Add keyboard shortcuts
+- Test with screen readers
+- Add focus trap in modals
+
+PERFORMANCE OPTIMIZATIONS:
+──────────────────────────
+✓ Lazy loading for images (loading="lazy")
+✓ Async image decoding (decoding="async")
+✓ Batch rendering (60 images at a time)
+✓ Intersection Observer (efficient scroll detection)
+✓ requestIdleCallback (non-blocking operations)
+✓ CSS containment (layout, paint)
+✓ Debounced scroll handler (100ms)
+✓ Fragment-based DOM updates
+✓ Failed image removal (prevents retries)
+
+BROWSER COMPATIBILITY:
+──────────────────────
+✓ Chrome 90+
+✓ Firefox 88+
+✓ Safari 14+
+✓ Edge 90+
+✓ Mobile browsers (iOS Safari, Chrome Mobile)
+
+FALLBACKS:
+──────────
+✓ requestIdleCallback → setTimeout
+✓ Intersection Observer → Polyfill available
+✓ CSS Grid → Flexbox fallback
+✓ WebP images → JPG/PNG fallback
+
+================================================================================
+END OF MANUAL
+================================================================================
+
+For questions or support, contact the YUVA India development team.
+Last updated: December 26, 2025

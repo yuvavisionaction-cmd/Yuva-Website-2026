@@ -1326,3 +1326,39 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path=public;
 -- Re-grant permission for the updated function
 GRANT EXECUTE ON FUNCTION upsert_event_publication(INTEGER, INTEGER, BOOLEAN, BOOLEAN, INTEGER, TEXT, INTEGER, TEXT, TEXT, JSONB, INTEGER) 
 TO anon, authenticated;
+
+
+
+-- verticles
+create table public.vertical_access (
+  id uuid not null default extensions.uuid_generate_v4 (),
+  email text not null,
+  vertical_name text not null,
+  role text not null default 'contributor'::text,
+  created_at timestamp with time zone null default now(),
+  constraint vertical_access_pkey primary key (id),
+  constraint vertical_access_email_vertical_name_key unique (email, vertical_name)
+) TABLESPACE pg_default;
+
+
+create table public.vertical_events (
+  id uuid not null default extensions.uuid_generate_v4 (),
+  event_name text not null,
+  event_date date not null,
+  event_location text not null,
+  vertical_name text not null,
+  image_url text not null,
+  uploaded_by text not null,
+  created_at timestamp with time zone null default now(),
+  constraint vertical_events_pkey primary key (id)
+) TABLESPACE pg_default;
+
+
+create table public.security_keys (
+  id uuid not null default extensions.uuid_generate_v4 (),
+  email text not null,
+  security_key text not null,
+  created_at timestamp with time zone null default now(),
+  constraint security_keys_pkey primary key (id),
+  constraint security_keys_email_key unique (email)
+) TABLESPACE pg_default;

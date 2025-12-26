@@ -1,0 +1,627 @@
+================================================================================
+                    YUVA OUR ACTIVITIES PAGE - USER MANUAL
+                    Youth United For Vision & Action
+================================================================================
+
+VERSION: 2025
+LAST UPDATED: December 26, 2025
+
+================================================================================
+TABLE OF CONTENTS
+================================================================================
+
+1. OVERVIEW
+2. FILE STRUCTURE
+3. EXTERNAL DEPENDENCIES
+4. PAGE SECTIONS
+5. THE 4 CORE ACTIVITY AREAS
+6. DYNAMIC FEATURES
+7. HOW TO MODIFY CONTENT
+8. TROUBLESHOOTING
+9. RESPONSIVE DESIGN
+10. SEO & ACCESSIBILITY
+
+================================================================================
+1. OVERVIEW
+================================================================================
+
+The YUVA Our Activities Page showcases the organization's four core activity
+areas that engage youth in meaningful initiatives.
+
+THE 4 CORE ACTIVITY AREAS:
+1. Academics - Intellectual exchange and skill development
+2. Culture - Celebrating India's artistic traditions
+3. Health and Wellness - Promoting holistic growth
+4. Social Work - Community service and engagement
+
+KEY FEATURES:
+✓ Animated hero section with Ashoka Chakra SVG
+✓ Impact statistics display (4 areas, 200+ events, 10,000+ students)
+✓ Four detailed activity cards with objectives
+✓ Scroll-based animations (cards fade in on scroll)
+✓ Flash notification system
+✓ Tricolor theme (India flag colors)
+✓ Fully responsive design
+✓ SEO optimized
+
+PURPOSE:
+- Showcase YUVA's four core activity areas
+- Explain objectives and focus of each area
+- Display impact statistics
+- Engage visitors with animated, visually appealing content
+
+================================================================================
+2. FILE STRUCTURE
+================================================================================
+
+THREE MAIN FILES:
+
+1. Activities.html (400 lines, 22,861 bytes)
+   - Main HTML structure
+   - Hero section with impact stats
+   - Four activity cards (Academics, Culture, Health, Social Work)
+   - Ashoka Chakra SVG animation (24 spokes)
+
+2. activities.js (85 lines, 3,101 bytes)
+   - ActivitiesPageManager class
+   - Flash notification system
+   - Scroll-based animations (IntersectionObserver)
+   - Welcome message on page load
+
+3. activities.css (26,144 bytes)
+   - All styling for the activities page
+   - Hero section styles
+   - Activity card layouts
+   - Tricolor theme colors
+   - Animations and transitions
+
+ADDITIONAL FILES NEEDED:
+- /style.css (Global site styles)
+- /Mobile.css (Mobile-specific styles)
+- /script.js (Global site JavaScript - sidebar)
+- /Images/YUVA logo.png
+
+================================================================================
+3. EXTERNAL DEPENDENCIES
+================================================================================
+
+The page requires these external libraries:
+
+1. FONT AWESOME (v6.4.0)
+   CDN: https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css
+   Purpose: All icons on the page
+
+ICONS USED:
+- fa-tasks (Core Initiatives badge)
+- fa-book-open (Academics icon, 4 Core Areas stat)
+- fa-palette (Culture icon)
+- fa-heartbeat (Health and Wellness icon)
+- fa-hands-helping (Social Work icon)
+- fa-calendar-alt (Events Hosted stat)
+- fa-users (Students Engaged stat)
+
+NO DATABASE REQUIRED:
+This page is completely static - all content is hardcoded in HTML.
+
+================================================================================
+4. PAGE SECTIONS
+================================================================================
+
+The page has 2 main sections:
+
+┌──────────────────────────────────────────────────────────────┐
+│ SECTION 1: HERO SECTION                                      │
+├──────────────────────────────────────────────────────────────┤
+│ Components:                                                   │
+│ - Animated particle background                               │
+│ - Ashoka Chakra SVG (24 spokes, rotating animation)         │
+│ - Hero badge: "Core Initiatives" with tasks icon            │
+│ - Hero title: "Our Diverse Activities" (2 lines)            │
+│ - Hero description: Mission statement                        │
+│ - Impact statistics (3 items):                               │
+│   • 4 Core Areas                                             │
+│   • 200+ Events Hosted                                       │
+│   • 10,000+ Students Engaged                                 │
+│                                                               │
+│ Animations:                                                   │
+│ - Floating particles (20s loop)                              │
+│ - Rotating Ashoka Chakra (30s loop)                         │
+│ - Fade-in on page load                                       │
+│ - Impact numbers count up (if visible)                       │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ SECTION 2: ACTIVITY CARDS (4 cards)                          │
+├──────────────────────────────────────────────────────────────┤
+│ Each card has:                                                │
+│ - Header:                                                     │
+│   • Icon (unique per activity)                               │
+│   • Title (activity name)                                    │
+│   • Subtitle (tagline)                                       │
+│ - Content:                                                    │
+│   • Description paragraph(s)                                 │
+│   • Objectives list (bulleted)                               │
+│                                                               │
+│ Card Layout:                                                  │
+│ - Stacked vertically on all screen sizes                     │
+│ - Full width on mobile                                       │
+│ - Centered with max-width on desktop                         │
+│                                                               │
+│ Scroll Animation:                                             │
+│ - Cards fade in as user scrolls down                         │
+│ - Uses IntersectionObserver API                              │
+│ - Triggers when 10% of card is visible                       │
+│ - Animation plays once per card                              │
+└──────────────────────────────────────────────────────────────┘
+
+================================================================================
+5. THE 4 CORE ACTIVITY AREAS
+================================================================================
+
+ACTIVITY 1: ACADEMICS
+─────────────────────
+Icon: fa-book-open (book icon)
+Tagline: "Fostering Intellectual Exchange and Skill Development"
+
+DESCRIPTION:
+Focuses on conducting in-depth research and analysis on academic disciplines,
+policy issues, and societal challenges through rigorous methodologies.
+
+OBJECTIVES (6 points):
+1. Research and Analysis
+   - Generate new knowledge and insights
+   - Use rigorous research methodologies
+
+2. Intellectual Exchange
+   - Create vibrant intellectual environment
+   - Organize seminars, workshops, conferences
+   - Facilitate discussions and debates
+
+3. Skill Development
+   - Enhance analytical and critical thinking skills
+   - Offer internships and research assistantships
+   - Provide mentoring programs
+
+4. Networking and Collaboration
+   - Connect students with experts and professionals
+   - Encourage multidisciplinary collaboration
+   - Foster problem-solving approaches
+
+5. Knowledge Dissemination
+   - Publish reports and policy briefs
+   - Organize public lectures
+   - Share insights with policymakers and public
+
+6. Public Engagement and Outreach
+   - Promote informed public debates
+   - Organize panel discussions
+   - Increase awareness on critical issues
+
+──────────────────────────────────────────────────────────────
+
+ACTIVITY 2: CULTURE
+───────────────────
+Icon: fa-palette (palette icon)
+Tagline: "Celebrating India's Rich Artistic Traditions"
+
+DESCRIPTION:
+Committed to nurturing a vibrant and inclusive cultural ecosystem that
+celebrates India's Dramatic Tradition and culture. Engages youth through
+interactive sessions, cultural events, performances, workshops, and training
+programs featuring artists, scholars, and cultural enthusiasts.
+
+MAIN PURPOSE:
+Lead the young generation to do selfless service to the nation through arts.
+
+OBJECTIVES (5 points):
+1. Connect student fraternity through various forms of arts
+2. Provide platform to young talents
+3. Disseminate wisdom of Bharatiya Natya Parampara
+4. Promote physical & mental wellbeing through arts
+5. Nurture emotion of selfless devotion towards culture and nation
+
+──────────────────────────────────────────────────────────────
+
+ACTIVITY 3: HEALTH AND WELLNESS
+────────────────────────────────
+Icon: fa-heartbeat (heartbeat icon)
+Tagline: "Promoting Holistic Growth and Well-being"
+
+DESCRIPTION:
+Dedicated to fostering positive change among youth by promoting activities
+that enhance overall well-being, support holistic growth, and contribute to
+career development. Focuses on physical, mental, and emotional development.
+
+KEY INITIATIVES:
+- Skill-building workshops
+- Leadership training
+- Community service platforms
+- Self-discovery programs
+- Mentorship and collaboration
+- Resource and opportunity connections
+
+MISSION:
+Cultivate a generation of motivated, informed, and socially responsible
+individuals ready to contribute positively to their communities.
+
+──────────────────────────────────────────────────────────────
+
+ACTIVITY 4: SOCIAL WORK
+───────────────────────
+Icon: fa-hands-helping (helping hands icon)
+Tagline: "Connecting Youth with Community Service"
+
+DESCRIPTION:
+Engages youth and college students with the less-privileged strata of society.
+Enables youths to channel their skills, innovation, and passion into the
+community through social activities.
+
+FOCUS:
+- Community engagement
+- Service to underprivileged
+- Youth empowerment through service
+- Skill application in real-world contexts
+
+================================================================================
+6. DYNAMIC FEATURES
+================================================================================
+
+FEATURE 1: FLASH NOTIFICATION SYSTEM
+─────────────────────────────────────
+Managed by: ActivitiesPageManager class (activities.js)
+
+ON PAGE LOAD:
+- Shows welcome message: "Welcome! Explore the core activities of YUVA."
+- Type: Info (blue notification)
+- Duration: 4 seconds
+- Position: Top-right corner
+- User can close manually
+
+NOTIFICATION TYPES AVAILABLE:
+- Info: Blue with info icon
+- Success: Green with checkmark
+- Warning: Orange with exclamation
+- Error: Red with X icon
+
+HOW IT WORKS:
+1. Creates flash-container div on page load
+2. Appends notification to container
+3. Adds 'show' class after 100ms (fade-in animation)
+4. Auto-removes after duration (if set)
+5. User can click X button to close
+
+──────────────────────────────────────────────────────────────
+
+FEATURE 2: SCROLL-BASED ANIMATIONS
+───────────────────────────────────
+Managed by: IntersectionObserver API (activities.js)
+
+WHAT ANIMATES:
+- All 4 activity cards (.activity-card)
+
+HOW IT WORKS:
+1. Observer watches all activity cards
+2. Triggers when 10% of card is visible in viewport
+3. Adds 'is-visible' class to card
+4. CSS handles the fade-in animation
+5. Observer stops watching after animation (performance)
+
+ANIMATION EFFECT:
+- Cards start invisible (opacity: 0)
+- Fade in when scrolled into view
+- Smooth transition (0.6s ease)
+- Plays once per card
+
+──────────────────────────────────────────────────────────────
+
+FEATURE 3: ASHOKA CHAKRA ANIMATION
+───────────────────────────────────
+Location: Hero section background (SVG)
+
+STRUCTURE:
+- 24 spokes (representing 24 hours of the day)
+- Each spoke is a line with a circle at the end
+- Rotated in 15-degree increments (360° / 24 = 15°)
+
+ANIMATION:
+- Continuous rotation (30s per full rotation)
+- Clockwise direction
+- Smooth, infinite loop
+- Low opacity for subtle effect
+
+PURPOSE:
+- Visual representation of Indian national symbol
+- Adds dynamic movement to hero section
+- Reinforces patriotic theme
+
+──────────────────────────────────────────────────────────────
+
+FEATURE 4: HERO PARTICLES ANIMATION
+────────────────────────────────────
+Location: Hero section background
+
+EFFECT:
+- Floating particles in background
+- 20-second animation loop
+- Subtle movement for visual interest
+- Does not distract from content
+
+================================================================================
+7. HOW TO MODIFY CONTENT
+================================================================================
+
+CHANGE IMPACT STATISTICS:
+─────────────────────────
+File: Activities.html (Lines 252-272)
+
+TO CHANGE "4 Core Areas":
+<span class="activities-impact-number">4</span>
+<span class="activities-impact-label">Core Areas</span>
+
+TO CHANGE "200+ Events Hosted":
+<span class="activities-impact-number">200+</span>
+<span class="activities-impact-label">Events Hosted</span>
+
+TO CHANGE "10,000+ Students Engaged":
+<span class="activities-impact-number">10,000+</span>
+<span class="activities-impact-label">Students Engaged</span>
+
+──────────────────────────────────────────────────────────────
+
+CHANGE HERO SECTION:
+────────────────────
+File: Activities.html (Lines 238-250)
+
+TO CHANGE BADGE TEXT:
+<span>Core Initiatives</span>
+
+TO CHANGE TITLE:
+<span class="hero-title-line">Our Diverse</span>
+<span class="hero-title-line hero-title-accent">Activities</span>
+
+TO CHANGE DESCRIPTION:
+<p class="hero-description">
+    Engaging youth in Academic, Cultural, Social, and Wellness initiatives...
+</p>
+
+──────────────────────────────────────────────────────────────
+
+CHANGE ACTIVITY CARD CONTENT:
+──────────────────────────────
+File: Activities.html
+
+ACADEMICS CARD (Lines 278-319):
+- Title: Line 282
+- Tagline: Line 283
+- Description: Lines 287-288
+- Objectives: Lines 291-316
+
+CULTURE CARD (Lines 321-348):
+- Title: Line 325
+- Tagline: Line 326
+- Description: Lines 330-338
+- Objectives: Lines 341-345
+
+HEALTH AND WELLNESS CARD (Lines 350-375):
+- Title: Line 354
+- Tagline: Line 355
+- Description: Lines 359-373
+
+SOCIAL WORK CARD (Lines 377-390):
+- Title: Line 381
+- Tagline: Line 382
+- Description: Lines 386-388
+
+──────────────────────────────────────────────────────────────
+
+CHANGE ACTIVITY ICONS:
+──────────────────────
+File: Activities.html
+
+ACADEMICS ICON (Line 280):
+<div class="activity-icon"><i class="fas fa-book-open"></i></div>
+
+CULTURE ICON (Line 323):
+<div class="activity-icon"><i class="fas fa-palette"></i></div>
+
+HEALTH ICON (Line 352):
+<div class="activity-icon"><i class="fas fa-heartbeat"></i></div>
+
+SOCIAL WORK ICON (Line 379):
+<div class="activity-icon"><i class="fas fa-hands-helping"></i></div>
+
+Find more icons at: https://fontawesome.com/icons
+
+──────────────────────────────────────────────────────────────
+
+CHANGE WELCOME MESSAGE:
+───────────────────────
+File: activities.js (Line 12)
+
+this.showInfo('Welcome!', 'Explore the core activities of YUVA.');
+
+Change text or duration (default 4000ms)
+
+──────────────────────────────────────────────────────────────
+
+CHANGE SCROLL ANIMATION TRIGGER:
+─────────────────────────────────
+File: activities.js (Line 73)
+
+threshold: 0.1 // Trigger when 10% of element is visible
+
+Change 0.1 to:
+- 0.0 = Trigger immediately when element enters viewport
+- 0.5 = Trigger when 50% of element is visible
+- 1.0 = Trigger when 100% of element is visible
+
+──────────────────────────────────────────────────────────────
+
+CHANGE COLORS:
+──────────────
+File: activities.css
+Modify CSS variables in :root
+Example:
+--saffron-primary: #FF9933;
+--navy-chakra: #000080;
+--green-primary: #138808;
+
+================================================================================
+8. TROUBLESHOOTING
+================================================================================
+
+ISSUE 1: Welcome notification not showing
+──────────────────────────────────────────
+SOLUTION:
+1. Check if activities.js loaded (line 397)
+2. Verify ActivitiesPageManager class exists
+3. Check browser console for JavaScript errors
+4. Verify flash-container div is created
+5. Try hard refresh (Ctrl+Shift+R)
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 2: Activity cards not animating on scroll
+────────────────────────────────────────────────
+SOLUTION:
+1. Check if IntersectionObserver is supported (modern browsers)
+2. Verify .activity-card elements exist
+3. Check if 'is-visible' class is added (inspect element)
+4. Verify CSS animation is defined
+5. Try scrolling slower to trigger animation
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 3: Ashoka Chakra not rotating
+────────────────────────────────────
+SOLUTION:
+1. Check if SVG is rendering (inspect element)
+2. Verify CSS animation is defined
+3. Check browser console for errors
+4. Try different browser
+5. Verify activities.css is loaded
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 4: Icons not showing
+───────────────────────────
+SOLUTION:
+1. Check if Font Awesome CDN loaded (line 14)
+2. Verify internet connection
+3. Check if ad blocker is blocking CDN
+4. Try different CDN URL
+5. Check browser console for errors
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 5: Styles not loading / Page looks broken
+────────────────────────────────────────────────
+SOLUTION:
+1. Check if activities.css loaded (line 10)
+2. Check if /style.css loaded (line 8)
+3. Check if /Mobile.css loaded (line 9)
+4. Clear browser cache
+5. Check browser console for 404 errors
+6. Verify file paths are correct
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 6: Sidebar not working
+─────────────────────────────
+SOLUTION:
+1. Check if /script.js loaded (line 396)
+2. Verify sidebar toggle button exists
+3. Check browser console for errors
+4. Try clicking hamburger menu
+5. Verify sidebar HTML is correct
+
+================================================================================
+9. RESPONSIVE DESIGN
+================================================================================
+
+The page is fully responsive across all devices:
+
+DESKTOP (1920px+):
+- Full hero section with large text
+- Activity cards: Full width, centered
+- Impact stats: 3 columns
+- Sidebar visible by default
+- Ashoka Chakra: Large size
+
+LAPTOP (1024px - 1920px):
+- Slightly reduced spacing
+- Activity cards: Full width
+- Impact stats: 3 columns
+- Sidebar visible
+
+TABLET (768px - 1024px):
+- Reduced font sizes
+- Activity cards: Full width
+- Impact stats: 2-3 columns (wrapping)
+- Sidebar collapsible
+- Smaller Ashoka Chakra
+
+MOBILE LANDSCAPE (600px - 768px):
+- Single column layout
+- Smaller hero text
+- Impact stats: 2 columns
+- Sidebar hidden by default
+- Compact card padding
+
+MOBILE PORTRAIT (< 600px):
+- Single column layout
+- Stacked impact stats (1 column)
+- Compact hero section
+- Hamburger menu
+- Touch-optimized buttons
+- Reduced padding throughout
+
+================================================================================
+10. SEO & ACCESSIBILITY
+================================================================================
+
+SEO FEATURES:
+─────────────
+✓ Title: "YUVA India" (generic, could be improved)
+✓ Bing verification tag
+✓ Favicon (YUVA logo)
+✓ Semantic HTML structure
+✓ Descriptive headings (h1, h2, h3)
+
+RECOMMENDED IMPROVEMENTS:
+- Add unique title: "Our Activities - YUVA India"
+- Add meta description
+- Add Open Graph tags
+- Add Twitter Card tags
+- Add structured data (Organization schema)
+
+ACCESSIBILITY FEATURES:
+───────────────────────
+✓ Keyboard navigation (Tab, Enter)
+✓ ARIA labels on hamburger menu
+✓ Semantic HTML (header, section, main)
+✓ SVG has aria-hidden="true" and role="img"
+✓ Touch targets: minimum 44x44px
+✓ Focus indicators visible
+✓ Logical heading hierarchy (h1, h2, h3)
+✓ Sufficient color contrast
+
+PERFORMANCE OPTIMIZATIONS:
+──────────────────────────
+✓ IntersectionObserver (efficient scroll detection)
+✓ CSS animations (hardware accelerated)
+✓ Minimal JavaScript
+✓ No external images (only logo)
+✓ SVG graphics (scalable, small file size)
+✓ Shared CSS and JS files (cached across pages)
+
+================================================================================
+END OF USER MANUAL
+================================================================================
+
+For technical support or questions, contact:
+YUVA Technical Team
+Email: tech@yuva.ind.in
+
+Last Updated: December 26, 2025
+Version: 2025.1

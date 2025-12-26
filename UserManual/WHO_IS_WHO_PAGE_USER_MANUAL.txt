@@ -1,0 +1,764 @@
+================================================================================
+                    YUVA WHO IS WHO PAGE - USER MANUAL
+                    Youth United For Vision & Action
+================================================================================
+
+VERSION: 2025
+LAST UPDATED: December 26, 2025
+
+================================================================================
+TABLE OF CONTENTS
+================================================================================
+
+1. OVERVIEW
+2. FILE STRUCTURE
+3. EXTERNAL DEPENDENCIES
+4. DATABASE INTEGRATION (SUPABASE)
+5. PAGE SECTIONS
+6. DYNAMIC FEATURES
+7. NAVIGATION SYSTEM
+8. HOW TO MODIFY CONTENT
+9. TROUBLESHOOTING
+10. RESPONSIVE DESIGN
+11. SEO & ACCESSIBILITY
+
+================================================================================
+1. OVERVIEW
+================================================================================
+
+The YUVA Who is Who Page displays the organization's leadership structure and
+team members in a hierarchical, interactive format.
+
+KEY FEATURES:
+✓ Executive Team section (from database)
+✓ Hierarchical navigation: Zones → Colleges → Members
+✓ Dynamic data loading from Supabase
+✓ Interactive member profiles with modals
+✓ Caching system for performance
+✓ Breadcrumb navigation
+✓ Mobile back button support
+✓ Tricolor theme for all cards
+✓ Responsive design
+
+PURPOSE:
+- Display YUVA's executive leadership
+- Show organizational structure by zones and colleges
+- Present approved team members with details
+- Provide easy navigation through the hierarchy
+
+================================================================================
+2. FILE STRUCTURE
+================================================================================
+
+THREE MAIN FILES:
+
+1. whoiswho.html (292 lines)
+   - Main HTML structure
+   - Executive team section
+   - Hierarchical navigation containers
+   - Modal for member details
+
+2. whoiswho.js (694 lines)
+   - Supabase database integration
+   - Executive team loading
+   - Hierarchical data fetching (Zones, Colleges, Members)
+   - Caching system
+   - Modal management
+   - Navigation logic
+
+3. whoiswho.css
+   - All styling and visual design
+   - Tricolor theme colors
+   - Card layouts
+   - Modal styles
+   - Animations
+
+ADDITIONAL FILES NEEDED:
+- /style.css (Global site styles)
+- /script.js (Global site JavaScript - sidebar)
+- /Images/YUVA logo.png
+
+================================================================================
+3. EXTERNAL DEPENDENCIES
+================================================================================
+
+The page requires these external libraries:
+
+1. SUPABASE JS (v2)
+   CDN: https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2
+   Purpose: Database connection for all dynamic content
+
+2. GOOGLE FONTS
+   Fonts: Inter (300-800), Poppins (300-800)
+   CDN: https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap
+   Purpose: Typography
+
+3. FONT AWESOME (v6.4.0)
+   CDN: https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css
+   Purpose: All icons on the page
+
+⚠️ CRITICAL: Supabase library MUST load before whoiswho.js!
+
+================================================================================
+4. DATABASE INTEGRATION (SUPABASE)
+================================================================================
+
+CONFIGURATION:
+URL: https://jgsrsjwmywiirtibofth.supabase.co
+Anon Key: sb_publishable_5KtvO0cEHfnECBoyp2CQnw********
+
+TABLES USED:
+
+┌─────────────────────────────────────────────────────────────┐
+│ TABLE 1: executive_members                                   │
+├─────────────────────────────────────────────────────────────┤
+│ Purpose: Store executive leadership team                     │
+│                                                               │
+│ Columns:                                                      │
+│ - id (unique identifier)                                      │
+│ - member_name (full name)                                     │
+│ - designation (position title)                                │
+│ - role (department/team)                                      │
+│ - photo_url (profile picture URL, optional)                   │
+│ - contact_email (email address, optional)                     │
+│ - description (biography, optional)                           │
+│ - display_order (sorting priority, integer)                   │
+│                                                               │
+│ Query:                                                        │
+│ SELECT id, member_name, designation, role, photo_url,        │
+│        contact_email, description                             │
+│ FROM executive_members                                        │
+│ ORDER BY display_order ASC                                    │
+│                                                               │
+│ SORTING LOGIC:                                                │
+│ - Heads first (where designation === role)                   │
+│ - Then regular members                                        │
+│ - Within each group: by display_order                         │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ TABLE 2: registrations                                       │
+├─────────────────────────────────────────────────────────────┤
+│ Purpose: Store team members by college                        │
+│                                                               │
+│ Columns:                                                      │
+│ - applicant_name (member name)                                │
+│ - applying_for (role/position)                                │
+│ - unit_name (unit/chapter name)                               │
+│ - college_id (foreign key to colleges table)                  │
+│ - status ('approved' only shown)                              │
+│                                                               │
+│ Relationships:                                                │
+│ - colleges (college_name)                                     │
+│ - zones (zone_name)                                           │
+│                                                               │
+│ Query:                                                        │
+│ SELECT applicant_name, applying_for, unit_name,              │
+│        colleges(college_name), zones(zone_name)               │
+│ FROM registrations                                            │
+│ WHERE college_id = [ID] AND status = 'approved'              │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ DATABASE FUNCTIONS (RPC Calls)                               │
+├─────────────────────────────────────────────────────────────┤
+│ 1. get_zones_with_college_count()                            │
+│    Purpose: Get all zones with count of colleges             │
+│    Returns: zone_id, zone_name, college_count                │
+│                                                               │
+│ 2. get_colleges_with_member_count(p_zone_id)                 │
+│    Purpose: Get colleges in a zone with member count         │
+│    Parameters: p_zone_id (zone ID)                            │
+│    Returns: college_id, college_name, approved_member_count  │
+│                                                               │
+│ NOTE: These are custom PostgreSQL functions in Supabase      │
+└─────────────────────────────────────────────────────────────┘
+
+CACHING SYSTEM:
+───────────────
+To improve performance, the page caches all fetched data:
+
+- executiveDataCache: Executive members (array)
+- zoneDataCache: All zones (array)
+- collegeDataCache: Colleges by zone ID (object)
+- memberDataCache: Members by college ID (object)
+
+BENEFIT: Data is fetched only once per session, reducing database calls.
+
+================================================================================
+5. PAGE SECTIONS
+================================================================================
+
+The page has 4 main sections:
+
+┌──────────────────────────────────────────────────────────────┐
+│ 1. HEADER (Fixed at top)                                     │
+│    - YUVA logo                                                │
+│    - Page title: "Who is Who"                                │
+│    - Hamburger menu (mobile)                                 │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ 2. EXECUTIVE TEAM SECTION (Database-driven)                  │
+│    - Section title: "YUVA Executive Team"                    │
+│    - Loading spinner (while fetching)                        │
+│    - Executive cards grid                                     │
+│    - Error message (if fetch fails)                          │
+│                                                               │
+│    CARD LAYOUT:                                               │
+│    - Heads (first 2): Larger cards, centered                 │
+│      • Displayed when designation === role                   │
+│      • Example: "President" (designation) = "President" (role)│
+│    - Regular members: Standard grid below heads              │
+│                                                               │
+│    EACH CARD SHOWS:                                           │
+│    - Photo (if available) or initials                        │
+│    - Member name                                              │
+│    - Designation + Role (combined)                           │
+│                                                               │
+│    TRICOLOR THEME:                                            │
+│    - Card 0, 3, 6...: Saffron gradient                       │
+│    - Card 1, 4, 7...: Navy gradient                          │
+│    - Card 2, 5, 8...: Green gradient                         │
+│                                                               │
+│    CLICK ACTION:                                              │
+│    - Opens modal with full details:                          │
+│      • Photo or initials                                     │
+│      • Name and role                                         │
+│      • Description (if available)                            │
+│      • Email contact link (if available)                     │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ 3. PAGE INTRO                                                 │
+│    - Heading: "Explore Our Structure"                        │
+│    - Description: "Meet the leadership and navigate..."      │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ 4. HIERARCHICAL NAVIGATION SYSTEM                            │
+│    Three levels of navigation:                               │
+│                                                               │
+│    NAVIGATION BAR:                                            │
+│    - Back button (hidden on Zones level)                     │
+│    - Breadcrumbs:                                             │
+│      • Zones: "All Zones"                                    │
+│      • Colleges: "All Zones > [Zone Name]"                   │
+│      • Members: "All Zones > [Zone] > [College]"             │
+│                                                               │
+│    LEVEL 1: ZONES                                             │
+│    - Title: "Select a Zone"                                  │
+│    - Grid of zone cards                                      │
+│    - Each card shows:                                         │
+│      • Zone initial (single letter)                          │
+│      • Zone name                                              │
+│      • Number of colleges                                    │
+│    - Click: Navigate to colleges in that zone                │
+│                                                               │
+│    LEVEL 2: COLLEGES (within selected zone)                  │
+│    - Title: "Select a College"                               │
+│    - Grid of college cards                                   │
+│    - Each card shows:                                         │
+│      • College initials (2 letters)                          │
+│      • College name                                           │
+│      • Number of approved members                            │
+│    - Click: Navigate to members in that college              │
+│                                                               │
+│    LEVEL 3: MEMBERS (within selected college)                │
+│    - Title: "Team Members"                                   │
+│    - Grid of member cards                                    │
+│    - Each card shows:                                         │
+│      • Member initials (2 letters)                           │
+│      • Member name                                            │
+│      • Role/Position (applying_for)                          │
+│      • College name (icon)                                   │
+│      • Zone name (icon)                                      │
+│      • "View Details" button                                 │
+│    - Click: Opens modal with full member details             │
+│                                                               │
+│    TRICOLOR THEME (All levels):                               │
+│    - Card 3n+1: Saffron gradient                             │
+│    - Card 3n+2: Navy gradient                                │
+│    - Card 3n+3: Green gradient                               │
+│                                                               │
+│    LOADING STATES:                                            │
+│    - Loading spinner (while fetching data)                   │
+│    - Empty state messages:                                   │
+│      • "No zones found."                                     │
+│      • "No colleges found in [Zone Name]."                   │
+│      • "No members found in [College Name]."                 │
+│    - Error messages (if fetch fails)                         │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ 5. MEMBER MODAL (Overlay)                                    │
+│    - Dark backdrop (click to close)                          │
+│    - Modal content card:                                     │
+│      • Header:                                                │
+│        - Photo circle (gradient background)                  │
+│        - Member name                                          │
+│        - Role/Position                                        │
+│      • Body:                                                  │
+│        - Unit name                                            │
+│        - Zone name                                            │
+│        - College name                                         │
+│                                                               │
+│    CLOSE METHODS:                                             │
+│    - Click outside modal (on backdrop)                       │
+│    - Press ESC key                                            │
+│    - Mobile: Use back button                                 │
+│                                                               │
+│    MOBILE BACK BUTTON SUPPORT:                                │
+│    - When modal opens: Pushes history state                  │
+│    - When back pressed: Closes modal (no page navigation)    │
+│    - Prevents accidental page exit                           │
+└──────────────────────────────────────────────────────────────┘
+
+================================================================================
+6. DYNAMIC FEATURES
+================================================================================
+
+FEATURE 1: EXECUTIVE TEAM LOADING
+──────────────────────────────────
+Source: Supabase → executive_members table
+
+HOW IT WORKS:
+1. Page loads → Shows loading spinner
+2. Fetches executive members from database
+3. Sorts: Heads first (designation === role), then members
+4. Caches data in executiveDataCache
+5. Renders cards with tricolor theme
+6. Hides loading spinner
+
+CARD RENDERING:
+- Heads (max 2): Larger cards, centered layout
+- Members: Standard grid layout
+- Photos load asynchronously
+- If photo fails: Shows initials instead
+
+CLICK BEHAVIOR:
+- Opens modal with full executive details
+- Includes description and email (if available)
+- Modal uses same tricolor theme as card
+
+──────────────────────────────────────────────────────────────
+
+FEATURE 2: HIERARCHICAL DATA LOADING
+─────────────────────────────────────
+Source: Supabase → Multiple tables and RPC functions
+
+NAVIGATION FLOW:
+Zones → Colleges → Members
+
+LEVEL 1: ZONES
+- Fetches: get_zones_with_college_count()
+- Returns: zone_id, zone_name, college_count
+- Caches in: zoneDataCache (array)
+- Renders: Zone cards with college count
+- Click: Loads colleges for that zone
+
+LEVEL 2: COLLEGES
+- Fetches: get_colleges_with_member_count(zone_id)
+- Returns: college_id, college_name, approved_member_count
+- Caches in: collegeDataCache[zone_id] (object)
+- Renders: College cards with member count
+- Click: Loads members for that college
+
+LEVEL 3: MEMBERS
+- Fetches: registrations table (WHERE college_id = X AND status = 'approved')
+- Returns: applicant_name, applying_for, unit_name, college, zone
+- Caches in: memberDataCache[college_id] (object)
+- Renders: Member cards with details
+- Click: Opens member modal
+
+CACHING BENEFITS:
+- First load: Fetches from database
+- Subsequent loads: Uses cached data
+- No redundant database calls
+- Faster navigation
+
+──────────────────────────────────────────────────────────────
+
+FEATURE 3: STATE MANAGEMENT
+────────────────────────────
+Purpose: Track current navigation position
+
+STATE OBJECT:
+{
+  level: 'zones' | 'colleges' | 'members',
+  zoneId: null | number,
+  zoneName: '' | string,
+  collegeId: null | number,
+  collegeName: '' | string,
+  history: [] // Stack of previous states
+}
+
+HISTORY STACK:
+- When navigating forward: Pushes current state to history
+- When clicking back: Pops from history and restores state
+- Breadcrumbs: Clickable links to jump to any level
+
+EXAMPLE NAVIGATION:
+1. Start: { level: 'zones', history: [] }
+2. Click Zone "North": 
+   - Push current state to history
+   - Update: { level: 'colleges', zoneId: 1, zoneName: 'North' }
+3. Click College "DU":
+   - Push current state to history
+   - Update: { level: 'members', collegeId: 5, collegeName: 'DU' }
+4. Click Back:
+   - Pop from history
+   - Restore: { level: 'colleges', zoneId: 1, zoneName: 'North' }
+
+──────────────────────────────────────────────────────────────
+
+FEATURE 4: MODAL SYSTEM WITH MOBILE SUPPORT
+────────────────────────────────────────────
+Purpose: Display detailed member/executive information
+
+MODAL OPENING:
+1. User clicks card
+2. Checks if modal already open (prevents duplicates)
+3. Sets isModalOpen = true
+4. Pushes history state (for mobile back button)
+5. Renders modal content
+6. Shows modal with fade-in animation
+
+MODAL CLOSING:
+Desktop:
+- Click backdrop → history.back() → Closes modal
+- Press ESC → history.back() → Closes modal
+
+Mobile:
+- Press back button → history.back() → Closes modal
+- Does NOT navigate away from page
+
+IMPLEMENTATION:
+- Uses browser's History API
+- Pushes dummy state when opening
+- Listens for popstate event
+- On popstate: Closes modal if open
+- Prevents accidental page exit on mobile
+
+──────────────────────────────────────────────────────────────
+
+FEATURE 5: TRICOLOR THEME SYSTEM
+─────────────────────────────────
+Purpose: Apply India flag colors to all cards
+
+THEME ROTATION:
+- Uses nth-child CSS selectors
+- Cycles through 3 colors: Saffron, Navy, Green
+
+EXECUTIVE CARDS:
+- Index % 3 determines color
+- Card 0, 3, 6, 9... → Saffron
+- Card 1, 4, 7, 10... → Navy
+- Card 2, 5, 8, 11... → Green
+
+HIERARCHY CARDS (Zones, Colleges, Members):
+- Same rotation pattern
+- Applied via CSS nth-child(3n+1), nth-child(3n+2), nth-child(3n+3)
+
+MODAL BACKGROUNDS:
+- Inherits color from card index
+- Consistent visual theme
+
+================================================================================
+7. NAVIGATION SYSTEM
+================================================================================
+
+BREADCRUMB NAVIGATION:
+──────────────────────
+Always visible at top of hierarchy section.
+
+STATES:
+- Zones: "All Zones"
+- Colleges: "All Zones > [Zone Name]"
+- Members: "All Zones > [Zone Name] > [College Name]"
+
+CLICK BEHAVIOR:
+- "All Zones": Returns to zones level (clears history)
+- "[Zone Name]": Returns to colleges level (one step back)
+- "[College Name]": Not clickable (current level)
+
+BACK BUTTON:
+────────────
+- Visible: On Colleges and Members levels
+- Hidden: On Zones level
+- Click: Returns to previous level
+- Uses history stack to restore state
+
+KEYBOARD NAVIGATION:
+────────────────────
+- ESC: Close modal (if open)
+- Tab: Navigate through cards
+- Enter: Activate focused card
+
+MOBILE GESTURES:
+────────────────
+- Swipe: Not implemented (use back button)
+- Back button: Closes modal or navigates back
+
+================================================================================
+8. HOW TO MODIFY CONTENT
+================================================================================
+
+CHANGE SUPABASE CREDENTIALS:
+────────────────────────────
+File: whoiswho.js (Lines 8-9)
+const SUPABASE_URL = 'your-url';
+const SUPABASE_ANON_KEY = 'your-key';
+
+──────────────────────────────────────────────────────────────
+
+ADD/REMOVE EXECUTIVE MEMBERS:
+──────────────────────────────
+Method: Update Supabase database
+
+1. Go to Supabase dashboard
+2. Navigate to executive_members table
+3. Add new row:
+   - member_name: Full name
+   - designation: Position title
+   - role: Department/team
+   - photo_url: Image URL (optional)
+   - contact_email: Email (optional)
+   - description: Biography (optional)
+   - display_order: Sort priority (number)
+
+4. To make someone a "Head":
+   - Set designation = role
+   - Example: designation: "President", role: "President"
+
+5. Page will automatically fetch and display new data
+
+──────────────────────────────────────────────────────────────
+
+ADD/REMOVE TEAM MEMBERS:
+─────────────────────────
+Method: Update Supabase database
+
+1. Go to Supabase dashboard
+2. Navigate to registrations table
+3. Add new row:
+   - applicant_name: Member name
+   - applying_for: Role/position
+   - unit_name: Unit/chapter name
+   - college_id: ID from colleges table
+   - status: 'approved' (MUST be approved to show)
+
+4. Page will automatically fetch and display
+
+──────────────────────────────────────────────────────────────
+
+CHANGE SECTION TITLES:
+──────────────────────
+File: whoiswho.html
+
+Executive Team Title (Line 238):
+<h2 class="executive-team-title">YUVA Executive Team</h2>
+
+Page Intro (Lines 250-251):
+<h2>Explore Our Structure</h2>
+<p>Meet the leadership and navigate through Zones, Colleges, and Members.</p>
+
+Level Titles (Lines 264, 268, 272):
+<h3 class="level-title">Select a Zone</h3>
+<h3 class="level-title">Select a College</h3>
+<h3 class="level-title">Team Members</h3>
+
+──────────────────────────────────────────────────────────────
+
+CHANGE COLORS:
+──────────────
+File: whoiswho.css
+Modify CSS variables in :root
+Example:
+--saffron-primary: #FF9933;
+--navy-chakra: #000080;
+--green-primary: #138808;
+
+──────────────────────────────────────────────────────────────
+
+CHANGE CARD ANIMATION DELAY:
+─────────────────────────────
+File: whoiswho.js
+
+Executive cards (Line 220):
+card.style.animationDelay = `${index * 100}ms`;
+Change 100 to adjust delay between cards
+
+Hierarchy cards (Line 466):
+card.style.animationDelay = `${index * 50}ms`;
+Change 50 to adjust delay between cards
+
+================================================================================
+9. TROUBLESHOOTING
+================================================================================
+
+ISSUE 1: Executive team not loading
+────────────────────────────────────
+SOLUTION:
+1. Check browser console for errors
+2. Verify Supabase library loaded (check line 117)
+3. Check Supabase credentials (lines 8-9)
+4. Verify executive_members table exists
+5. Check table has SELECT permission for anon role
+6. Try hard refresh (Ctrl+Shift+R)
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 2: Zones/Colleges/Members not loading
+────────────────────────────────────────────
+SOLUTION:
+1. Check browser console for errors
+2. Verify database functions exist:
+   - get_zones_with_college_count()
+   - get_colleges_with_member_count()
+3. Check registrations table has data
+4. Verify status = 'approved' for members
+5. Check RPC function permissions
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 3: Modal not opening
+───────────────────────────
+SOLUTION:
+1. Check browser console for errors
+2. Verify modal elements exist (lines 284-286)
+3. Check if isModalOpen flag is stuck
+4. Try refreshing page
+5. Check JavaScript is enabled
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 4: Back button not working
+─────────────────────────────────
+SOLUTION:
+1. Check if history stack is empty
+2. Verify state management is working
+3. Check browser console for errors
+4. Try clicking breadcrumbs instead
+5. Refresh page to reset state
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 5: Photos not loading
+────────────────────────────
+SOLUTION:
+1. Check photo_url in database
+2. Verify URL is accessible
+3. Check CORS settings on image host
+4. Verify image file exists
+5. Check browser console for 404 errors
+6. Initials will show if photo fails (fallback)
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 6: Mobile back button closes page instead of modal
+─────────────────────────────────────────────────────────
+SOLUTION:
+1. This should NOT happen (feature implemented)
+2. Check if popstate listener is working (line 633)
+3. Verify history.pushState is called (lines 332, 689)
+4. Check isModalOpen flag
+5. Try different browser
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 7: Caching issues (old data showing)
+───────────────────────────────────────────
+SOLUTION:
+1. Hard refresh page (Ctrl+Shift+R)
+2. Clear browser cache
+3. Close and reopen browser
+4. Cache only persists during session
+5. New session = fresh data
+
+================================================================================
+10. RESPONSIVE DESIGN
+================================================================================
+
+The page is fully responsive across all devices:
+
+DESKTOP (1920px+):
+- Full executive team grid
+- 3-4 column hierarchy grids
+- Sidebar visible by default
+- Large modal
+
+LAPTOP (1024px - 1920px):
+- 2-3 column grids
+- Sidebar visible
+- Medium modal
+
+TABLET (768px - 1024px):
+- 2 column grids
+- Sidebar collapsible
+- Smaller modal
+- Touch-optimized cards
+
+MOBILE LANDSCAPE (600px - 768px):
+- 1-2 column grids
+- Sidebar hidden by default
+- Full-width modal
+- Larger touch targets
+
+MOBILE PORTRAIT (< 600px):
+- Single column layout
+- Stacked executive heads
+- Full-width cards
+- Hamburger menu
+- Mobile-optimized modal
+- Back button support
+
+================================================================================
+11. SEO & ACCESSIBILITY
+================================================================================
+
+SEO FEATURES:
+─────────────
+✓ Title: "Who Is Who — Leadership & Team | YUVA India"
+✓ Meta description (comprehensive)
+✓ Keywords (leadership, team, advisors, etc.)
+✓ Open Graph tags (Facebook sharing)
+✓ Twitter Card tags
+✓ Structured data:
+  - Organization schema
+  - Website schema
+  - CollectionPage schema
+  - Breadcrumb schema
+✓ Canonical URL
+✓ Content Security Policy
+
+ACCESSIBILITY FEATURES:
+───────────────────────
+✓ Keyboard navigation (Tab, ESC, Enter)
+✓ ARIA labels on buttons
+✓ Semantic HTML (header, section, nav)
+✓ Focus indicators visible
+✓ Screen reader friendly
+✓ Alt text on images
+✓ Touch targets: minimum 44x44px
+✓ Logical heading hierarchy
+
+PERFORMANCE OPTIMIZATIONS:
+──────────────────────────
+✓ Caching system (reduces database calls)
+✓ Lazy image loading
+✓ Async data fetching
+✓ Staggered card animations
+✓ CSS animations (hardware accelerated)
+✓ Minimal DOM manipulation
+
+================================================================================
+END OF USER MANUAL
+================================================================================
+
+For technical support or questions, contact:
+YUVA Technical Team
+Email: tech@yuva.ind.in
+
+Last Updated: December 26, 2025
+Version: 2025.1

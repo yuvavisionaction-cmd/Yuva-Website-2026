@@ -3,8 +3,8 @@
 // Supabase Configuration
 const SUPABASE_URL = 'https://jgsrsjwmywiirtibofth.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_5KtvO0cEHfnECBoyp2CQnw_RC3_x2me';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxMi-HPbck3OYUUrS5I8APqA20_tgiwh5vb8uGr06dhuYI9B1oKUEfR0jnx_z8doQgh/exec';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwbeXIEqX6H2pdxdTYexn0WrVE3gwcVE4RLtJZy9dkiIzEJ1rj03UTmYO_bJUcnCQm8/exec';
 
 // ===== FLASH NOTIFICATION SYSTEM =====
 class FlashNotification {
@@ -214,7 +214,7 @@ class SupabaseService {
 
     static async getAllZones() {
         try {
-            const { data, error } = await supabase
+            const { data, error } = await supabaseClient
                 .from('zones')
                 .select('id, zone_name, zone_code')
                 .order('zone_name');
@@ -231,7 +231,7 @@ class SupabaseService {
 
     static async getCollegesByZone(zoneId) {
         try {
-            const { data, error } = await supabase
+            const { data, error } = await supabaseClient
                 .from('colleges')
                 .select('*')
                 .eq('zone_id', zoneId)
@@ -249,7 +249,7 @@ class SupabaseService {
 
     static async getAllRegistrations() {
         try {
-            const { data, error } = await supabase
+            const { data, error } = await supabaseClient
                 .from('registrations')
                 .select('*')
                 .order('created_at', { ascending: false });
@@ -581,10 +581,34 @@ class AuthManager {
                 this.closeModal('login-modal');
                 this.showAdminInterface();
             } else {
-                // If login fails, the 'finally' block below will still run to reset the button
-                flashNotification.showError('Login failed', response.error || 'Invalid email or password');
+                // Log the full error for debugging
+                console.error('Login error details:', response.error);
+
+                // Sanitize error message for user display
+                let userMessage = 'Invalid email or password';
+
+                // Check for specific error types
+                if (response.error) {
+                    const errorLower = response.error.toLowerCase();
+
+                    if (errorLower.includes('database') || errorLower.includes('db')) {
+                        userMessage = 'Service temporarily unavailable. Please try again in a moment.';
+                    } else if (errorLower.includes('network') || errorLower.includes('connection')) {
+                        userMessage = 'Network error. Please check your internet connection.';
+                    } else if (errorLower.includes('invalid') || errorLower.includes('incorrect') || errorLower.includes('wrong')) {
+                        userMessage = 'Invalid email or password';
+                    } else if (errorLower.includes('not found') || errorLower.includes('no user')) {
+                        userMessage = 'No account found with this email';
+                    } else if (errorLower.includes('timeout')) {
+                        userMessage = 'Request timed out. Please try again.';
+                    }
+                }
+
+                flashNotification.showError('Login Failed', userMessage);
             }
         } catch (error) {
+            // Log the full error for debugging
+            console.error('Login exception:', error);
             // If any other error occurs, the 'finally' block will also run
             flashNotification.showError('Error', 'Unable to sign in. Please try again.');
         } finally {
@@ -675,7 +699,7 @@ class AuthManager {
 
     async handleGoogleAuth() {
         try {
-            const { data, error } = await supabase.auth.signInWithOAuth({
+            const { data, error } = await supabaseClient.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
                     redirectTo: window.location.origin,
@@ -708,7 +732,7 @@ class AuthManager {
             // Prefer Supabase auth session if present
             const {
                 data: sessionResp
-            } = await supabase.auth.getSession();
+            } = await supabaseClient.auth.getSession();
             if (sessionResp && sessionResp.session && sessionResp.session.user) {
                 const authUser = sessionResp.session.user;
                 const email = authUser.email || (authUser.user_metadata && authUser.user_metadata.email) || '';
@@ -718,7 +742,7 @@ class AuthManager {
                 try {
                     const {
                         data: matchData
-                    } = await supabase
+                    } = await supabaseClient
                         .from('admin_users')
                         .select('role, zone, college_id, full_name')
                         .eq('email', email)
@@ -731,7 +755,7 @@ class AuthManager {
                     flashNotification.showError('Access Denied', 'Your email is not registered as an admin. Please contact the administrator.');
                     // Sign out the user
                     try {
-                        await supabase.auth.signOut();
+                        await supabaseClient.auth.signOut();
                     } catch (_) { }
                     this.showAccessDenied();
                     return;
@@ -895,7 +919,7 @@ class AuthManager {
     async logout() {
         this.currentUser = null;
         localStorage.removeItem('yuva_session');
-        await supabase.auth.signOut();
+        await supabaseClient.auth.signOut();
 
         // THIS IS THE KEY FIX: Force a page reload to clear all cached data.
         window.location.reload();
@@ -1945,7 +1969,7 @@ async function loadCollegeMembers(collegeId) {
             skelLeads.appendChild(makeSkel());
             for (let i = 0; i < 3; i++) skelTeam.appendChild(makeSkel());
         }
-        let { data, error } = await supa
+        let { data, error } = await supabaseClient
             .from('registrations')
             .select('id, applicant_name, created_at, applying_for, college_id, email, phone, unit_name, status')
             .eq('college_id', collegeId);

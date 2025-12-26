@@ -275,46 +275,58 @@ function loginUser(e) {
   }
 
   try {
-    // Call RPC with anon key to avoid exposing service key in logs
-    const result = callSupabaseRpc('admin_users_login', {
-      p_email: email,
-      p_password: password
-    });
-
-    if (!result.success) {
-      console.error('Supabase RPC admin_users_login failed:', result.error);
-      return createResponse({ error: 'Login failed due to database error.', details: result.error }, result.status || 500);
-    }
-    // Normalize RPC response: it may return a single object or an array
     var rows = [];
-    if (result.data) {
-      if (Array.isArray(result.data)) {
-        rows = result.data;
-      } else if (typeof result.data === 'object') {
-        rows = [result.data];
+    
+    // Try RPC first (if it exists)
+    try {
+      const result = callSupabaseRpc('admin_users_login', {
+        p_email: email,
+        p_password: password
+      });
+
+      if (result.success && result.data) {
+        // Normalize RPC response: it may return a single object or an array
+        if (Array.isArray(result.data)) {
+          rows = result.data;
+        } else if (typeof result.data === 'object') {
+          rows = [result.data];
+        }
+      } else {
+        // RPC failed or returned no data - log it but continue to fallback
+        console.log('RPC admin_users_login failed or returned no data, using fallback method');
       }
+    } catch (rpcErr) {
+      // RPC call threw an error - log it but continue to fallback
+      console.log('RPC admin_users_login threw error, using fallback method:', rpcErr);
     }
+    
+    // Fallback: Direct table check if RPC not available/misconfigured or returned no results
     if (!rows || rows.length === 0) {
-      // Fallback: Direct table check if RPC not available/misconfigured
       try {
         var fallback = makeSupabaseRequest(`admin_users?email=eq.${encodeURIComponent(email)}&select=id,email,full_name,role,zone,college_id,password`, 'GET', null, true);
         if (fallback && fallback.success && Array.isArray(fallback.data) && fallback.data.length) {
           var u = fallback.data[0];
-          // Very basic password check if the RPC is missing: compare plaintext if stored as such, or allow only when a simple match is used in dev
-          // Note: Replace this with a proper secure compare if your DB stores hashes and provide an RPC to validate.
+          // Very basic password check: compare plaintext
+          // Note: Replace this with a proper secure compare if your DB stores hashes
           var ok = (String(u.password || '') === password);
           if (!ok) {
-            return createResponse({ error: 'Invalid email or password.' }, 401);
+            return createResponse({ error: 'Invalid email or password' }, 401);
           }
           rows = [{ id: u.id, email: u.email, full_name: u.full_name, role: u.role, zone: u.zone, college_id: u.college_id }];
         } else {
-          return createResponse({ error: 'Invalid email or password.' }, 401);
+          return createResponse({ error: 'Invalid email or password' }, 401);
         }
       } catch (fbErr) {
         console.error('Auth fallback failed:', fbErr);
-        return createResponse({ error: 'Internal auth error', details: String(fbErr) }, 500);
+        return createResponse({ error: 'Authentication service unavailable' }, 503);
       }
     }
+    
+    // If still no user found, return invalid credentials
+    if (!rows || rows.length === 0) {
+      return createResponse({ error: 'Invalid email or password' }, 401);
+    }
+    
     const user = rows[0];
 
     // Create a session token and store it (do not block login if this fails)
@@ -341,8 +353,7 @@ function loginUser(e) {
 
   } catch (error) {
     console.error('Login error:', error, error.stack);
-    // This is the block that was likely being triggered before
-    return createResponse({ error: 'Login failed', details: error.toString() }, 500);
+    return createResponse({ error: 'Unable to process login request' }, 500);
   }
 }
 

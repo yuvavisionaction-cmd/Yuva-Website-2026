@@ -1,0 +1,756 @@
+================================================================================
+                YUVA DIGITAL MEDIA PAGE - USER MANUAL
+                Youth United For Vision & Action
+================================================================================
+
+VERSION: 2025
+LAST UPDATED: December 26, 2025
+
+================================================================================
+TABLE OF CONTENTS
+================================================================================
+
+1. OVERVIEW
+2. FILE STRUCTURE
+3. EXTERNAL DEPENDENCIES
+4. PAGE SECTIONS
+5. THE 7 SOCIAL MEDIA PLATFORMS
+6. DYNAMIC FEATURES
+7. HOW TO MODIFY CONTENT
+8. TROUBLESHOOTING
+9. RESPONSIVE DESIGN
+10. SEO & ACCESSIBILITY
+
+================================================================================
+1. OVERVIEW
+================================================================================
+
+The YUVA Digital Media Page showcases the organization's presence across 7
+major social media platforms with links, statistics, and descriptions.
+
+THE 7 SOCIAL MEDIA PLATFORMS:
+1. Facebook - 25K+ followers, 500+ posts
+2. Instagram - 15K+ followers, 1.2K posts
+3. X (Twitter) - 8K+ followers, 2.5K posts
+4. LinkedIn - 12K+ connections, 300+ articles
+5. YouTube - 5K+ subscribers, 150+ videos
+6. Telegram - 1K+ members, 100+ updates
+7. WhatsApp Channel - 500+ subscribers, daily updates
+
+KEY FEATURES:
+✓ Animated hero section with Ashoka Chakra SVG
+✓ 7 social media cards with stats and links
+✓ Digital impact statistics (68K+ followers, 2.5M+ reach, etc.)
+✓ Scroll-based animations (cards fade in on scroll)
+✓ Hover effects on social cards
+✓ Platform-specific branding colors
+✓ Tricolor theme (India flag colors)
+✓ Fully responsive design
+✓ SEO optimized
+
+PURPOSE:
+- Showcase YUVA's social media presence
+- Provide direct links to all platforms
+- Display engagement statistics
+- Encourage visitors to follow/connect
+
+================================================================================
+2. FILE STRUCTURE
+================================================================================
+
+THREE MAIN FILES:
+
+1. DigitalMedia.html (503 lines, 26,487 bytes)
+   - Main HTML structure
+   - Hero section
+   - 7 social media cards
+   - Digital impact statistics section
+   - Ashoka Chakra SVG animation (24 spokes)
+
+2. media-script.js (901 lines, 31,091 bytes)
+   - Shared JavaScript for all media pages
+   - Digital Media: Scroll animations, hover effects
+   - News: Filter functionality, image modal
+   - Video: YouTube API integration, video player
+   - Flash notification system
+
+3. media-styles.css (57,031 bytes)
+   - All styling for media pages
+   - Hero section styles
+   - Social card layouts
+   - Platform-specific colors
+   - Animations and transitions
+   - Responsive breakpoints
+
+ADDITIONAL FILES NEEDED:
+- /style.css (Global site styles)
+- /Mobile.css (Mobile-specific styles)
+- /script.js (Global site JavaScript - sidebar)
+- /Images/YUVA logo.png
+
+================================================================================
+3. EXTERNAL DEPENDENCIES
+================================================================================
+
+The page requires these external libraries:
+
+1. GOOGLE FONTS
+   URL: https://fonts.googleapis.com/css2
+   Fonts: Inter (300-800), Poppins (300-800)
+   Purpose: Modern typography
+
+2. FONT AWESOME (v6.5.2)
+   CDN: https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css
+   Purpose: All icons on the page
+
+ICONS USED:
+- fa-share-alt (Digital Presence badge)
+- fa-facebook-f (Facebook icon)
+- fa-instagram (Instagram icon)
+- fa-x-twitter (X/Twitter icon)
+- fa-linkedin-in (LinkedIn icon)
+- fa-youtube (YouTube icon)
+- fa-telegram (Telegram icon)
+- fa-whatsapp (WhatsApp icon)
+- fa-external-link-alt (External link icons)
+
+NO DATABASE REQUIRED:
+This page is completely static - all content is hardcoded in HTML.
+
+================================================================================
+4. PAGE SECTIONS
+================================================================================
+
+The page has 3 main sections:
+
+┌──────────────────────────────────────────────────────────────┐
+│ SECTION 1: HERO SECTION                                      │
+├──────────────────────────────────────────────────────────────┤
+│ Components:                                                   │
+│ - Animated particle background                               │
+│ - Ashoka Chakra SVG (24 spokes, rotating animation)         │
+│ - Hero badge: "Digital Presence" with share icon            │
+│ - Hero title: "YUVA in Digital Media" (2 lines)             │
+│ - Hero description: Mission statement                        │
+│                                                               │
+│ Animations:                                                   │
+│ - Floating particles (20s loop)                              │
+│ - Rotating Ashoka Chakra (30s loop)                         │
+│ - Fade-in on page load                                       │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ SECTION 2: SOCIAL MEDIA CARDS (7 cards)                      │
+├──────────────────────────────────────────────────────────────┤
+│ Each card has:                                                │
+│ - Header:                                                     │
+│   • Platform icon (colored)                                  │
+│   • Platform name                                            │
+│ - Statistics (2 stats per platform):                         │
+│   • Followers/Subscribers/Members                            │
+│   • Posts/Videos/Articles/Updates                            │
+│ - Description paragraph                                      │
+│ - Call-to-action link (opens in new tab)                    │
+│                                                               │
+│ Card Layout:                                                  │
+│ - Grid layout (responsive)                                   │
+│ - 3 columns on desktop                                       │
+│ - 2 columns on tablet                                        │
+│ - 1 column on mobile                                         │
+│                                                               │
+│ Scroll Animation:                                             │
+│ - Cards fade in as user scrolls down                         │
+│ - Uses IntersectionObserver API                              │
+│ - Triggers when 10% of card is visible                       │
+│                                                               │
+│ Hover Effects:                                                │
+│ - Card lifts up (translateY(-8px))                           │
+│ - Card scales slightly (scale(1.02))                         │
+│ - Smooth transition (0.3s)                                   │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ SECTION 3: DIGITAL IMPACT STATISTICS                         │
+├──────────────────────────────────────────────────────────────┤
+│ 4 Impact Metrics:                                             │
+│ - 68K+ Total Followers                                       │
+│ - 2.5M+ Total Reach                                          │
+│ - 95% Engagement Rate                                        │
+│ - 24/7 Active Community                                      │
+│                                                               │
+│ Layout:                                                       │
+│ - Gradient background (light gray)                           │
+│ - Grid layout (4 columns on desktop)                         │
+│ - Responsive (wraps on smaller screens)                      │
+│ - Large numbers with labels                                  │
+└──────────────────────────────────────────────────────────────┘
+
+================================================================================
+5. THE 7 SOCIAL MEDIA PLATFORMS
+================================================================================
+
+PLATFORM 1: FACEBOOK
+────────────────────
+Icon: fa-facebook-f (Facebook logo)
+Icon Color: #1877F2 (Facebook blue)
+
+STATISTICS:
+- 25K+ Followers
+- 500+ Posts
+
+DESCRIPTION:
+"Join our Facebook community for daily updates, event announcements, and
+engaging discussions about youth development."
+
+LINK:
+https://www.facebook.com/YouthUnitedForVisionAndAction/
+
+CTA BUTTON: "Follow Us"
+
+──────────────────────────────────────────────────────────────
+
+PLATFORM 2: INSTAGRAM
+─────────────────────
+Icon: fa-instagram (Instagram logo)
+Icon Color: Linear gradient (Instagram colors)
+
+STATISTICS:
+- 15K+ Followers
+- 1.2K Posts
+
+DESCRIPTION:
+"Follow us on Instagram for behind-the-scenes content, event highlights, and
+inspiring stories from our community."
+
+LINK:
+https://www.instagram.com/yuva_delhi?igsh=MTY0cDIzN2ozaHJ5dA==
+
+CTA BUTTON: "Follow Us"
+
+──────────────────────────────────────────────────────────────
+
+PLATFORM 3: X (TWITTER)
+───────────────────────
+Icon: fa-x-twitter (X logo)
+Icon Color: #000000 (Black)
+
+STATISTICS:
+- 8K+ Followers
+- 2.5K Posts
+
+DESCRIPTION:
+"Stay updated with real-time news, thought leadership, and quick updates about
+our initiatives and events."
+
+LINK:
+https://twitter.com/yuva_delhi_?lang=en
+
+CTA BUTTON: "Follow Us"
+
+──────────────────────────────────────────────────────────────
+
+PLATFORM 4: LINKEDIN
+────────────────────
+Icon: fa-linkedin-in (LinkedIn logo)
+Icon Color: #0A66C2 (LinkedIn blue)
+
+STATISTICS:
+- 12K+ Connections
+- 300+ Articles
+
+DESCRIPTION:
+"Connect with us professionally and discover career opportunities, professional
+development content, and networking events."
+
+LINK:
+https://www.linkedin.com/company/youthunitedforvisionandaction?originalSubdomain=in
+
+CTA BUTTON: "Connect"
+
+──────────────────────────────────────────────────────────────
+
+PLATFORM 5: YOUTUBE
+───────────────────
+Icon: fa-youtube (YouTube logo)
+Icon Color: #FF0000 (YouTube red)
+
+STATISTICS:
+- 5K+ Subscribers
+- 150+ Videos
+
+DESCRIPTION:
+"Watch our event recordings, educational content, and inspiring stories that
+showcase the impact of our initiatives."
+
+LINK:
+https://www.youtube.com/@YUVADelhi
+
+CTA BUTTON: "Subscribe"
+
+──────────────────────────────────────────────────────────────
+
+PLATFORM 6: TELEGRAM
+────────────────────
+Icon: fa-telegram (Telegram logo)
+Icon Color: #0088CC (Telegram blue)
+
+STATISTICS:
+- 1K+ Members
+- 100+ Updates
+
+DESCRIPTION:
+"Join our Telegram channel for instant updates, resources, and direct
+communication with our community."
+
+LINK:
+https://t.me/+6wUzrCHiXTAxYzll
+
+CTA BUTTON: "Join Channel"
+
+──────────────────────────────────────────────────────────────
+
+PLATFORM 7: WHATSAPP CHANNEL
+─────────────────────────────
+Icon: fa-whatsapp (WhatsApp logo)
+Icon Color: #25D366 (WhatsApp green)
+
+STATISTICS:
+- 500+ Subscribers
+- Daily Updates
+
+DESCRIPTION:
+"Subscribe to our channel for important announcements and updates delivered
+directly to your phone."
+
+LINK:
+https://whatsapp.com/channel/0029Vb6mApvDzgTCSKtAAb2y
+
+CTA BUTTON: "Subscribe"
+
+================================================================================
+6. DYNAMIC FEATURES
+================================================================================
+
+FEATURE 1: SCROLL-BASED ANIMATIONS
+───────────────────────────────────
+Managed by: IntersectionObserver API (media-script.js)
+
+WHAT ANIMATES:
+- All 7 social media cards (.social-card)
+
+HOW IT WORKS:
+1. Observer watches all social cards
+2. Triggers when 10% of card is visible in viewport
+3. Adds 'fadeInUp' animation to card
+4. CSS handles the fade-in and slide-up animation
+5. Observer stops watching after animation (performance)
+
+ANIMATION EFFECT:
+- Cards start invisible (opacity: 0)
+- Fade in and slide up when scrolled into view
+- Smooth transition (0.6s ease-out)
+- Plays once per card
+
+CODE LOCATION:
+File: media-script.js
+Function: initializeDigitalMedia()
+Lines: 78-91
+
+──────────────────────────────────────────────────────────────
+
+FEATURE 2: HOVER EFFECTS
+─────────────────────────
+Managed by: JavaScript event listeners (media-script.js)
+
+WHAT HAPPENS ON HOVER:
+- Card lifts up: translateY(-8px)
+- Card scales slightly: scale(1.02)
+- Smooth transition: 0.3s
+
+WHAT HAPPENS ON MOUSE LEAVE:
+- Card returns to original position
+- Card returns to original scale
+- Smooth transition back
+
+CODE LOCATION:
+File: media-script.js
+Lines: 93-101
+
+──────────────────────────────────────────────────────────────
+
+FEATURE 3: ASHOKA CHAKRA ANIMATION
+───────────────────────────────────
+Location: Hero section background (SVG)
+
+STRUCTURE:
+- 24 spokes (representing 24 hours of the day)
+- Each spoke is a line with a circle at the end
+- Rotated in 15-degree increments (360° / 24 = 15°)
+
+ANIMATION:
+- Continuous rotation (30s per full rotation)
+- Clockwise direction
+- Smooth, infinite loop
+- Low opacity for subtle effect
+
+PURPOSE:
+- Visual representation of Indian national symbol
+- Adds dynamic movement to hero section
+- Reinforces patriotic theme
+
+──────────────────────────────────────────────────────────────
+
+FEATURE 4: HERO PARTICLES ANIMATION
+────────────────────────────────────
+Location: Hero section background
+
+EFFECT:
+- Floating particles in background
+- 20-second animation loop
+- Subtle movement for visual interest
+- Does not distract from content
+
+================================================================================
+7. HOW TO MODIFY CONTENT
+================================================================================
+
+CHANGE SOCIAL MEDIA STATISTICS:
+────────────────────────────────
+File: DigitalMedia.html
+
+FACEBOOK STATS (Lines 274-281):
+<div class="stat-item">
+    <span class="stat-number">25K+</span>
+    <span class="stat-label">Followers</span>
+</div>
+<div class="stat-item">
+    <span class="stat-number">500+</span>
+    <span class="stat-label">Posts</span>
+</div>
+
+Repeat this pattern for all 7 platforms.
+
+──────────────────────────────────────────────────────────────
+
+CHANGE SOCIAL MEDIA LINKS:
+───────────────────────────
+File: DigitalMedia.html
+
+FACEBOOK LINK (Lines 287-291):
+<a href="https://www.facebook.com/YouthUnitedForVisionAndAction/" 
+   class="social-link" target="_blank">
+    <i class="fas fa-external-link-alt"></i>
+    Follow Us
+</a>
+
+Replace the href with new URL.
+Change button text if needed (e.g., "Follow Us", "Connect", "Subscribe").
+
+──────────────────────────────────────────────────────────────
+
+CHANGE PLATFORM DESCRIPTIONS:
+──────────────────────────────
+File: DigitalMedia.html
+
+FACEBOOK DESCRIPTION (Lines 283-286):
+<p class="social-description">
+    Join our Facebook community for daily updates, event announcements, and
+    engaging discussions about youth development.
+</p>
+
+Replace text with new description.
+
+──────────────────────────────────────────────────────────────
+
+CHANGE DIGITAL IMPACT STATISTICS:
+──────────────────────────────────
+File: DigitalMedia.html (Lines 468-491)
+
+TOTAL FOLLOWERS (Lines 468-473):
+<div style="text-align: center;">
+    <div style="font-size: 32px; font-weight: 800; color: var(--primary); 
+                margin-bottom: 8px;">
+        68K+
+    </div>
+    <div style="color: var(--gray-600); font-weight: 500;">Total Followers</div>
+</div>
+
+Change "68K+" to new number.
+Change "Total Followers" to new label.
+
+Repeat for:
+- Total Reach (2.5M+)
+- Engagement Rate (95%)
+- Active Community (24/7)
+
+──────────────────────────────────────────────────────────────
+
+CHANGE HERO SECTION:
+────────────────────
+File: DigitalMedia.html (Lines 247-259)
+
+TO CHANGE BADGE TEXT (Lines 248-251):
+<div class="hero-badge">
+    <i class="fas fa-share-alt"></i>
+    <span>Digital Presence</span>
+</div>
+
+TO CHANGE TITLE (Lines 252-255):
+<h1 class="hero-title">
+    <span class="hero-title-line">YUVA in</span>
+    <span class="hero-title-line hero-title-accent">Digital Media</span>
+</h1>
+
+TO CHANGE DESCRIPTION (Lines 256-259):
+<p class="hero-description">
+    Follow our journey across social media platforms and stay connected with
+    our latest updates, events, and initiatives that are shaping the future
+    of India's youth.
+</p>
+
+──────────────────────────────────────────────────────────────
+
+ADD NEW SOCIAL MEDIA PLATFORM:
+───────────────────────────────
+File: DigitalMedia.html
+
+1. Copy an existing social-card div (Lines 266-292)
+2. Paste it after the last social-card
+3. Update the following:
+   - Icon class (e.g., fa-tiktok)
+   - Platform name
+   - Statistics (numbers and labels)
+   - Description text
+   - Link URL
+   - CTA button text
+
+4. Add platform-specific color in CSS:
+   File: media-styles.css
+   Add new class like:
+   .social-icon.tiktok {
+       background: linear-gradient(135deg, #000000, #EE1D52);
+   }
+
+──────────────────────────────────────────────────────────────
+
+CHANGE PLATFORM ICON COLORS:
+─────────────────────────────
+File: media-styles.css
+
+Search for .social-icon.[platform] classes:
+- .social-icon.facebook
+- .social-icon.instagram
+- .social-icon.x-twitter
+- .social-icon.linkedin
+- .social-icon.youtube
+- .social-icon.telegram
+- .social-icon.whatsapp
+
+Change background color or gradient.
+
+================================================================================
+8. TROUBLESHOOTING
+================================================================================
+
+ISSUE 1: Social cards not animating on scroll
+──────────────────────────────────────────────
+SOLUTION:
+1. Check if media-script.js loaded (line 500)
+2. Verify IntersectionObserver is supported (modern browsers)
+3. Check if .social-card elements exist
+4. Verify CSS animation 'fadeInUp' is defined
+5. Try scrolling slower to trigger animation
+6. Check browser console for JavaScript errors
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 2: Hover effects not working
+───────────────────────────────────
+SOLUTION:
+1. Check if media-script.js loaded
+2. Verify JavaScript is enabled in browser
+3. Check browser console for errors
+4. Try different browser
+5. Clear browser cache
+6. Check if CSS transitions are defined
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 3: Social media links not opening
+────────────────────────────────────────
+SOLUTION:
+1. Verify URLs are correct in HTML
+2. Check if target="_blank" attribute exists
+3. Check browser popup blocker settings
+4. Try clicking with Ctrl/Cmd key
+5. Check if social media sites are accessible
+6. Verify network connection
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 4: Icons not showing
+───────────────────────────
+SOLUTION:
+1. Check if Font Awesome CDN loaded (line 21)
+2. Verify internet connection
+3. Check if ad blocker is blocking CDN
+4. Try different CDN URL
+5. Check browser console for errors
+6. Verify icon class names are correct
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 5: Ashoka Chakra not rotating
+────────────────────────────────────
+SOLUTION:
+1. Check if SVG is rendering (inspect element)
+2. Verify CSS animation is defined
+3. Check browser console for errors
+4. Try different browser
+5. Verify media-styles.css is loaded
+6. Check if CSS animations are enabled
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 6: Styles not loading / Page looks broken
+────────────────────────────────────────────────
+SOLUTION:
+1. Check if media-styles.css loaded (line 10)
+2. Check if /style.css loaded (line 8)
+3. Check if /Mobile.css loaded (line 9)
+4. Clear browser cache
+5. Check browser console for 404 errors
+6. Verify file paths are correct
+7. Try hard refresh (Ctrl+Shift+R)
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 7: Fonts not loading correctly
+─────────────────────────────────────
+SOLUTION:
+1. Check if Google Fonts CDN loaded (lines 16-18)
+2. Verify internet connection
+3. Check if ad blocker is blocking fonts
+4. Try different browser
+5. Clear browser cache
+6. Check browser console for errors
+
+================================================================================
+9. RESPONSIVE DESIGN
+================================================================================
+
+The page is fully responsive across all devices:
+
+DESKTOP (1920px+):
+- Full hero section with large text
+- Social cards: 3 columns grid
+- Impact stats: 4 columns
+- Sidebar visible by default
+- Ashoka Chakra: Large size
+- Full padding and spacing
+
+LAPTOP (1024px - 1920px):
+- Slightly reduced spacing
+- Social cards: 3 columns grid
+- Impact stats: 4 columns (may wrap)
+- Sidebar visible
+- Medium Ashoka Chakra
+
+TABLET (768px - 1024px):
+- Reduced font sizes
+- Social cards: 2 columns grid
+- Impact stats: 2 columns
+- Sidebar collapsible
+- Smaller Ashoka Chakra
+- Reduced padding
+
+MOBILE LANDSCAPE (600px - 768px):
+- Single column layout for cards
+- Social cards: 1 column
+- Impact stats: 2 columns
+- Sidebar hidden by default
+- Compact hero section
+- Touch-optimized buttons
+
+MOBILE PORTRAIT (< 600px):
+- Single column layout
+- Social cards: 1 column, full width
+- Impact stats: 1 column, stacked
+- Compact hero section
+- Hamburger menu
+- Touch-optimized buttons (min 44x44px)
+- Reduced padding throughout
+- Smaller fonts
+
+GRID BREAKPOINTS:
+- Desktop: grid-template-columns: repeat(3, 1fr)
+- Tablet: grid-template-columns: repeat(2, 1fr)
+- Mobile: grid-template-columns: 1fr
+
+================================================================================
+10. SEO & ACCESSIBILITY
+================================================================================
+
+SEO FEATURES:
+─────────────
+✓ Title: "YUVA India - Digital Media"
+✓ Bing verification tag
+✓ Favicon (YUVA logo)
+✓ Semantic HTML structure
+✓ Descriptive headings (h1, h3)
+✓ External links open in new tab (target="_blank")
+
+RECOMMENDED IMPROVEMENTS:
+- Add meta description
+- Add Open Graph tags for social sharing
+- Add Twitter Card tags
+- Add structured data (Organization schema)
+- Add canonical URL
+- Add alt text to hero images (if any)
+
+ACCESSIBILITY FEATURES:
+───────────────────────
+✓ Keyboard navigation (Tab, Enter)
+✓ ARIA labels on hamburger menu
+✓ Semantic HTML (header, section, main)
+✓ SVG has aria-hidden="true" and role="img"
+✓ Touch targets: minimum 44x44px
+✓ Focus indicators visible
+✓ Logical heading hierarchy (h1, h3)
+✓ Sufficient color contrast
+✓ External link icons for clarity
+
+RECOMMENDED IMPROVEMENTS:
+- Add ARIA labels to social links
+- Add skip-to-content link
+- Ensure all interactive elements are keyboard accessible
+- Add focus styles to all interactive elements
+- Test with screen readers
+
+PERFORMANCE OPTIMIZATIONS:
+──────────────────────────
+✓ IntersectionObserver (efficient scroll detection)
+✓ CSS animations (hardware accelerated)
+✓ Minimal JavaScript
+✓ No external images (only logo)
+✓ SVG graphics (scalable, small file size)
+✓ Shared CSS and JS files (cached across pages)
+✓ Lazy loading for images (if implemented)
+
+RECOMMENDED IMPROVEMENTS:
+- Minify CSS and JavaScript
+- Compress images
+- Use CDN for static assets
+- Implement service worker for offline support
+- Add preload for critical resources
+
+================================================================================
+END OF USER MANUAL
+================================================================================
+
+For technical support or questions, contact:
+YUVA Technical Team
+Email: tech@yuva.ind.in
+
+Last Updated: December 26, 2025
+Version: 2025.1

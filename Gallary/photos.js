@@ -1,9 +1,15 @@
-// ===== PHOTO GALLERY JAVASCRIPT - MODERN FLASHY 2025 =====
+// ===== PHOTO GALLERY JAVASCRIPT - SUPABASE STORAGE 2025 =====
 
 class PhotoGalleryManager {
     constructor() {
         this.events = [];
-        this.eventYears = {}; // Changed from vimarshYears to hold years for ALL events
+        this.eventYears = {};
+
+        // Supabase Configuration
+        this.supabaseUrl = 'https://jgsrsjwmywiirtibofth.supabase.co';
+        this.supabaseKey = 'sb_publishable_5KtvO0cEHfnECBoyp2CQnw_RC3_x2me';
+        this.supabaseClient = null;
+        this.storageBucket = 'gallery_photos';
 
         // State management
         this.state = {
@@ -15,8 +21,8 @@ class PhotoGalleryManager {
             page: 0,
             pageSize: 60,
             isLoading: false,
-            imagesToLoadInBatch: 0, // For progress bar
-            imagesLoadedInBatch: 0, // For progress bar
+            imagesToLoadInBatch: 0,
+            imagesLoadedInBatch: 0,
         };
 
         // Elements
@@ -30,22 +36,32 @@ class PhotoGalleryManager {
             activeFilters: null,
             sentinel: null,
             backToTop: null,
-            progressBarContainer: null, // For progress bar
-            progressBar: null, // For progress bar
+            progressBarContainer: null,
+            progressBar: null,
         };
 
         this.init();
     }
 
     async init() {
+        this.initializeSupabase();
         this.initializeElements();
         this.initializeFlashSystem();
         this.bindEvents();
-        await this.generateDataset();
+        await this.loadPhotosFromStorage();
         this.renderFilters();
         this.setupIntersectionObserver();
         this.setupScrollHandler();
         this.showInfo('Gallery Ready', 'Photo gallery initialized successfully');
+    }
+
+    // ===== SUPABASE INITIALIZATION =====
+    initializeSupabase() {
+        if (typeof window.supabase === 'undefined') {
+            this.showError('Initialization Error', 'Supabase library not loaded. Please refresh the page.');
+            throw new Error('Supabase library not loaded');
+        }
+        this.supabaseClient = window.supabase.createClient(this.supabaseUrl, this.supabaseKey);
     }
 
     // ===== FLASH NOTIFICATION SYSTEM =====
@@ -124,85 +140,122 @@ class PhotoGalleryManager {
         }, 100));
     }
 
-    // ===== DATA GENERATION (UPDATED) =====
-    async generateDataset() {
+    // ===== LOAD PHOTOS FROM SUPABASE STORAGE =====
+    async loadPhotosFromStorage() {
         try {
-            // Path to your JSON file. Adjust if it's in a different directory.
-            const response = await fetch('/Gallary/images.json');
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const imagesData = await response.json();
+            this.showInfo('Loading Photos', 'Fetching photos from storage...');
+
+            // List all folders in the photos directory
+            const { data: categories, error: categoriesError } = await this.supabaseClient.storage
+                .from(this.storageBucket)
+                .list('photos', {
+                    limit: 100,
+                    offset: 0,
+                });
+
+            if (categoriesError) throw categoriesError;
 
             this.state.items = [];
             this.state.availableEvents = new Set();
-            this.eventYears = {}; // REPLACEMENT for vimarshYears
+            this.eventYears = {};
 
-            const yearRegex = /(20\d{2})$/; // Regex to find a year like 2022, 2025 at the end
+            // Process each category folder
+            for (const categoryFolder of categories) {
+                if (!categoryFolder.name) continue;
 
-            Object.keys(imagesData).forEach(key => {
-                const eventData = imagesData[key];
-                let eventName = key;
-                let eventYear = eventData.year || null; // Use year from JSON data first
+                const categoryName = this.formatCategoryName(categoryFolder.name);
+                this.state.availableEvents.add(categoryName);
 
-                const match = key.match(yearRegex);
-
-                if (match) {
-                    // Found a year in the key, e.g., "Bharat Parv2025" or "vimarsh2022"
-                    eventName = key.substring(0, match.index).trim(); // "Bharat Parv" or "vimarsh"
-                    eventYear = parseInt(match[1], 10); // 2025 or 2022
-                }
-
-                // Specific override for "vimarsh" keys to ensure grouping
-                if (key.toLowerCase().includes('vimarsh')) {
-                    eventName = "Vimarsh";
-                } else {
-                    // Auto-capitalize other event names like "Bharat Parv"
-                    eventName = eventName.split(' ').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
-                }
-
-                this.state.availableEvents.add(eventName);
-
-                // Store the year if it exists
-                if (eventYear) {
-                    if (!this.eventYears[eventName]) {
-                        this.eventYears[eventName] = new Set();
-                    }
-                    this.eventYears[eventName].add(eventYear);
-                }
-
-                // Add images to the main list
-                eventData.images.forEach((image) => {
-                    this.state.items.push({
-                        id: this.state.items.length + 1,
-                        event: eventName, // "Vimarsh" or "Bharat Parv"
-                        year: eventYear,  // 2022, 2023, 2025...
-                        src: image.src,
-                        height: 220 + Math.floor(this.pseudoRandom(this.state.items.length * 7) * 220),
-                        alt: image.alt,
-                        category: image.category
+                // List years within this category
+                const { data: years, error: yearsError } = await this.supabaseClient.storage
+                    .from(this.storageBucket)
+                    .list(`photos/${categoryFolder.name}`, {
+                        limit: 100,
+                        offset: 0,
                     });
-                });
-            });
 
-            // Sort event names alphabetically for the filter chips
+                if (yearsError) {
+                    console.error(`Error loading years for ${categoryFolder.name}:`, yearsError);
+                    continue;
+                }
+
+                // Process each year folder
+                for (const yearFolder of years) {
+                    if (!yearFolder.name) continue;
+
+                    const year = parseInt(yearFolder.name, 10);
+                    if (isNaN(year)) continue;
+
+                    // Store year for this event
+                    if (!this.eventYears[categoryName]) {
+                        this.eventYears[categoryName] = new Set();
+                    }
+                    this.eventYears[categoryName].add(year);
+
+                    // List images within this year folder
+                    const { data: images, error: imagesError } = await this.supabaseClient.storage
+                        .from(this.storageBucket)
+                        .list(`photos/${categoryFolder.name}/${yearFolder.name}`, {
+                            limit: 1000,
+                            offset: 0,
+                        });
+
+                    if (imagesError) {
+                        console.error(`Error loading images for ${categoryFolder.name}/${yearFolder.name}:`, imagesError);
+                        continue;
+                    }
+
+                    // Add each image to items
+                    images.forEach((image) => {
+                        if (!image.name || !image.name.match(/\.(jpg|jpeg|png|webp)$/i)) return;
+
+                        const fullPath = `photos/${categoryFolder.name}/${yearFolder.name}/${image.name}`;
+                        const { data: urlData } = this.supabaseClient.storage
+                            .from(this.storageBucket)
+                            .getPublicUrl(fullPath);
+
+                        this.state.items.push({
+                            id: this.state.items.length + 1,
+                            event: categoryName,
+                            year: year,
+                            src: urlData.publicUrl,
+                            height: 220 + Math.floor(this.pseudoRandom(this.state.items.length * 7) * 220),
+                            alt: `${categoryName} ${year} Photo`,
+                            category: categoryFolder.name
+                        });
+                    });
+                }
+            }
+
+            // Sort event names alphabetically
             this.events = Array.from(this.state.availableEvents).sort();
 
-            this.showSuccess('Gallery Ready', `Photo gallery initialized successfully`);
+            this.showSuccess('Photos Loaded', `Loaded ${this.state.items.length} photos from ${this.events.length} categories`);
         } catch (error) {
-            console.error('Failed to load images.json:', error);
-            this.showError('Data Error', 'Could not load photo data. Please check images.json.');
+            console.error('Failed to load photos from storage:', error);
+            this.showError('Storage Error', 'Could not load photos from storage. Please check your connection.');
             this.generateFallbackDataset();
         }
     }
 
+    formatCategoryName(folderName) {
+        // Convert folder names to display names
+        const nameMap = {
+            'vimarsh': 'Vimarsh',
+            'samarpan': 'Samarpan',
+            'bharatparv': 'Bharat Parv',
+            'events': 'Events',
+            'activities': 'Activities'
+        };
+        return nameMap[folderName.toLowerCase()] || folderName.charAt(0).toUpperCase() + folderName.slice(1);
+    }
 
     generateFallbackDataset() {
         this.state.items = [];
         this.state.availableEvents = new Set();
-        this.eventYears = {}; // Changed from vimarshYears
+        this.eventYears = {};
         this.events = [];
-        this.showWarning('Fallback Mode', 'No images available - JSON file could not be loaded');
+        this.showWarning('Fallback Mode', 'No images available - Storage could not be accessed');
     }
 
     pseudoRandom(index) { let x = Math.sin(index + 1) * 10000; return x - Math.floor(x); }
@@ -230,17 +283,14 @@ class PhotoGalleryManager {
         });
     }
 
-    // ===== (UPDATED) =====
     renderYearChips() {
         if (!this.elements.yearFilters) return;
         this.elements.yearFilters.innerHTML = '';
 
-        // NEW LOGIC: Check for years associated with the *active* event
         const activeEventYears = this.eventYears[this.state.activeEvent];
         if (!activeEventYears || activeEventYears.size === 0) {
-            return; // Hide year filters if no years for this event
+            return;
         }
-        // END NEW LOGIC
 
         const allBtn = document.createElement('button');
         allBtn.className = `chip${this.state.activeYear === null ? ' active' : ''}`;
@@ -248,10 +298,8 @@ class PhotoGalleryManager {
         allBtn.addEventListener('click', () => this.onYearChange(null));
         this.elements.yearFilters.appendChild(allBtn);
 
-        // NEW LOGIC: Get and sort years from the active event's set
         const years = Array.from(activeEventYears).sort((a, b) => b - a);
         years.forEach((year) => {
-            // END NEW LOGIC
             const btn = document.createElement('button');
             btn.className = `chip${this.state.activeYear === year ? ' active' : ''}`;
             btn.textContent = String(year);
@@ -266,7 +314,7 @@ class PhotoGalleryManager {
         this.state.activeEvent = label;
         this.state.activeYear = null;
         this.renderEventChips();
-        this.renderYearChips(); // This will now correctly show/hide years
+        this.renderYearChips();
         this.applyFilters(true);
         this.showInfo('Filter Applied', `Showing photos from ${label}`);
     }
@@ -280,7 +328,6 @@ class PhotoGalleryManager {
         this.showInfo('Year Filter Applied', `Showing ${this.state.activeEvent} photos from ${yearText}`);
     }
 
-    // ===== (UPDATED) =====
     applyFilters(reset = false) {
         if (reset) {
             this.state.page = 0;
@@ -301,12 +348,10 @@ class PhotoGalleryManager {
             this.state.filtered = this.state.items.filter((item) => {
                 if (item.event !== this.state.activeEvent) return false;
 
-                // NEW LOGIC: Generalized year filtering
                 const hasYearFilters = this.eventYears[this.state.activeEvent] && this.eventYears[this.state.activeEvent].size > 0;
                 if (hasYearFilters && this.state.activeYear !== null) {
                     return item.year === this.state.activeYear;
                 }
-                // END NEW LOGIC
 
                 return true;
             });
@@ -342,16 +387,13 @@ class PhotoGalleryManager {
         if (this.elements.totalCount) this.elements.totalCount.textContent = String(total);
     }
 
-    // ===== (UPDATED) =====
     renderActiveMeta() {
         if (!this.elements.activeFilters) return;
         if (!this.state.activeEvent) { this.elements.activeFilters.textContent = 'No event selected'; return; }
         const parts = [this.state.activeEvent];
 
-        // NEW LOGIC: Generalized for any event with years
         const hasYearFilters = this.eventYears[this.state.activeEvent] && this.eventYears[this.state.activeEvent].size > 0;
         if (hasYearFilters && this.state.activeYear) {
-            // END NEW LOGIC
             parts.push(String(this.state.activeYear));
         }
         if (this.state.availableEvents && !this.state.availableEvents.has(this.state.activeEvent)) { parts.push('(No images)'); }
@@ -370,7 +412,6 @@ class PhotoGalleryManager {
         img.decoding = 'async';
         img.style.aspectRatio = '4 / 3';
 
-        // Add listeners that update the progress bar
         img.addEventListener('error', () => {
             console.warn(`Failed to load image: ${item.src}`);
             this.handleImageLoadAttempt();
@@ -424,9 +465,8 @@ class PhotoGalleryManager {
         }
     }
 
-    // ===== New helper functions for the progress bar =====
     handleImageLoadAttempt() {
-        if (this.state.page > 1) return; // Only run progress bar for the first page load
+        if (this.state.page > 1) return;
         if (this.state.imagesLoadedInBatch < this.state.imagesToLoadInBatch) {
             this.state.imagesLoadedInBatch++;
             this.updateProgressBar();

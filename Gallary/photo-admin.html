@@ -1,0 +1,1453 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YUVA Photo Gallery - Admin Upload</title>
+    <link rel="shortcut icon" href="/Images/YUVA logo.png" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            /* India Theme Color Palette */
+            --saffron-primary: #FF9933;
+            --saffron-light: #FFB366;
+            --saffron-dark: #E67300;
+            --saffron-pale: #FFE5CC;
+            --white-primary: #FFFFFF;
+            --white-warm: #FAFAF9;
+            --white-cream: #F5F5F4;
+            --green-primary: #138808;
+            --green-light: #22C55E;
+            --green-dark: #0F6606;
+            --green-pale: #D1FAE5;
+            --navy-chakra: #000080;
+            --navy-dark: #00005C;
+
+            /* Semantic Colors */
+            --color-primary: var(--navy-chakra);
+            --color-secondary: var(--green-primary);
+            --color-accent: var(--saffron-primary);
+            --color-error: #ef4444;
+            --color-error-pale: #fef2f2;
+            --color-info-pale: #EBF4FF;
+
+            /* Text & Background */
+            --text-primary: #0F172A;
+            --text-secondary: #475569;
+            --text-muted: #64748B;
+            --text-on-dark: var(--white-primary);
+            --bg-base: var(--white-warm);
+            --bg-elevated: var(--white-primary);
+            --bg-subtle: var(--white-cream);
+            --bg-muted: #F1F5F9;
+            --border-light: #E2E8F0;
+            --border-medium: #CBD5E1;
+
+            /* Gradients */
+            --gradient-hero: linear-gradient(135deg, var(--saffron-light) 0%, var(--white-primary) 50%, var(--green-light) 100%);
+            --gradient-saffron: linear-gradient(135deg, var(--saffron-primary) 0%, var(--saffron-dark) 100%);
+            --gradient-green: linear-gradient(135deg, var(--green-light) 0%, var(--green-primary) 100%);
+            --gradient-navy: linear-gradient(135deg, var(--navy-chakra) 0%, var(--navy-dark) 100%);
+
+            /* Shadows & Radii */
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+            --radius-lg: 0.75rem;
+            --radius-xl: 1rem;
+            --radius-2xl: 1.5rem;
+            --radius-full: 9999px;
+
+            /* Transitions */
+            --transition-base: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--gradient-hero);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* Login Section */
+        .login-container {
+            max-width: 450px;
+            margin: 100px auto;
+            background: var(--bg-elevated);
+            border-radius: var(--radius-2xl);
+            box-shadow: var(--shadow-2xl);
+            padding: 40px;
+            border-top: 4px solid var(--color-primary);
+        }
+
+        .login-container h2 {
+            color: var(--color-primary);
+            margin-bottom: 10px;
+            font-size: 1.75rem;
+            text-align: center;
+        }
+
+        .login-container p {
+            color: var(--text-muted);
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 0.95rem;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--border-medium);
+            border-radius: var(--radius-lg);
+            background: var(--bg-elevated);
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            transition: var(--transition-base);
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(0, 0, 128, 0.1);
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background: var(--gradient-navy);
+            color: var(--text-on-dark);
+            border: none;
+            border-radius: var(--radius-lg);
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: var(--transition-base);
+            margin-top: 10px;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .message {
+            margin-top: 20px;
+            padding: 12px 16px;
+            border-radius: var(--radius-lg);
+            display: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .message.error {
+            background: var(--color-error-pale);
+            color: var(--color-error);
+            display: block;
+        }
+
+        .message.success {
+            background: var(--green-pale);
+            color: var(--green-dark);
+            display: block;
+        }
+
+        .message.info {
+            background: var(--color-info-pale);
+            color: var(--navy-dark);
+            display: block;
+        }
+
+        /* Admin Section */
+        .admin-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: none;
+        }
+
+        .admin-header {
+            background: var(--bg-elevated);
+            border-radius: var(--radius-2xl);
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: var(--shadow-lg);
+            border-top: 4px solid var(--color-primary);
+        }
+
+        .admin-header h1 {
+            color: var(--color-primary);
+            margin-bottom: 10px;
+            font-size: 2rem;
+        }
+
+        .admin-header p {
+            color: var(--text-muted);
+            margin-bottom: 20px;
+        }
+
+        .admin-actions {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .admin-actions button {
+            width: auto;
+            padding: 10px 20px;
+            margin: 0;
+        }
+
+        .view-gallery-btn {
+            background: var(--gradient-green);
+        }
+
+        .view-gallery-btn:hover {
+            background: var(--gradient-green);
+            filter: brightness(110%);
+        }
+
+        .logout-btn {
+            background: var(--color-error);
+        }
+
+        .logout-btn:hover {
+            background: var(--color-error);
+            filter: brightness(90%);
+        }
+
+        .admin-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+        }
+
+        .admin-card {
+            background: var(--bg-elevated);
+            border-radius: var(--radius-2xl);
+            padding: 30px;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .admin-card h2 {
+            color: var(--color-primary);
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .admin-card h2 i {
+            color: var(--color-accent);
+        }
+
+        /* Upload Form */
+        .upload-form .form-group {
+            margin-bottom: 18px;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-input-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 50px 20px;
+            background: var(--bg-subtle);
+            border: 2px dashed var(--border-medium);
+            border-radius: var(--radius-lg);
+            cursor: pointer;
+            transition: var(--transition-base);
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .file-input-label:hover {
+            border-color: var(--color-primary);
+            background: var(--color-info-pale);
+            color: var(--color-primary);
+        }
+
+        .file-input-label.has-file {
+            border-color: var(--green-primary);
+            background: var(--green-pale);
+            color: var(--green-dark);
+        }
+
+        .preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            max-height: 500px;
+            overflow-y: auto;
+            padding: 15px;
+            background: var(--bg-subtle);
+            border-radius: var(--radius-lg);
+        }
+
+        .preview-item {
+            position: relative;
+            background: var(--bg-elevated);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+            transition: var(--transition-base);
+        }
+
+        .preview-item:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .preview-item img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+        }
+
+        .preview-item-info {
+            padding: 10px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .delete-preview-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 30px;
+            height: 30px;
+            padding: 0;
+            background: var(--color-error);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            box-shadow: var(--shadow-md);
+        }
+
+        .delete-preview-btn:hover {
+            transform: scale(1.1);
+        }
+
+        /* Progress Bar */
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--bg-muted);
+            border-radius: var(--radius-full);
+            overflow: hidden;
+            margin: 15px 0;
+            display: none;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: var(--gradient-green);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .category-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background: var(--saffron-pale);
+            color: var(--saffron-dark);
+            border-radius: var(--radius-full);
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+
+        /* Modern Upload UI */
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .form-group-half {
+            margin-bottom: 0 !important;
+        }
+
+        .file-input-label-modern {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            padding: 40px 20px;
+            background: var(--bg-subtle);
+            border: 2px dashed var(--border-medium);
+            border-radius: var(--radius-lg);
+            cursor: pointer;
+            transition: var(--transition-base);
+            min-height: 200px;
+        }
+
+        .file-input-label-modern:hover {
+            border-color: var(--color-primary);
+            background: var(--color-info-pale);
+        }
+
+        .file-input-label-modern.has-files {
+            border-color: var(--green-primary);
+            background: var(--green-pale);
+        }
+
+        .file-label-icon {
+            color: var(--text-muted);
+            transition: var(--transition-base);
+        }
+
+        .file-input-label-modern:hover .file-label-icon {
+            color: var(--color-primary);
+            transform: translateY(-5px);
+        }
+
+        .file-label-text {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            text-align: center;
+        }
+
+        .file-label-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .file-label-subtitle {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+        }
+
+        .file-label-info {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 5px;
+        }
+
+        .file-preview-count {
+            margin-top: 15px;
+            padding: 12px 20px;
+            background: var(--green-pale);
+            border: 1px solid var(--green-primary);
+            border-radius: var(--radius-lg);
+            color: var(--green-dark);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .file-preview-count i {
+            color: var(--green-primary);
+            font-size: 1.2rem;
+        }
+
+        .upload-btn-modern {
+            width: 100%;
+            padding: 16px;
+            background: var(--gradient-navy);
+            color: var(--text-on-dark);
+            border: none;
+            border-radius: var(--radius-lg);
+            font-weight: 600;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: var(--transition-base);
+            margin-top: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .upload-btn-modern:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .upload-btn-modern:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Upload Status Box - Fixed at Top */
+        .upload-status {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-150%);
+            width: 90%;
+            max-width: 600px;
+            background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+            border: 2px solid var(--color-primary);
+            border-radius: var(--radius-xl);
+            padding: 20px 25px;
+            display: none;
+            gap: 15px;
+            align-items: flex-start;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            z-index: 9999;
+            transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        .upload-status.show {
+            display: flex;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .upload-status.success {
+            background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%);
+            border-color: var(--green-primary);
+        }
+
+        .upload-status.error {
+            background: linear-gradient(135deg, #ffebee 0%, #fce4ec 100%);
+            border-color: var(--color-error);
+        }
+
+        .status-icon {
+            font-size: 2rem;
+            color: var(--color-primary);
+            flex-shrink: 0;
+        }
+
+        .upload-status.success .status-icon {
+            color: var(--green-primary);
+        }
+
+        .upload-status.error .status-icon {
+            color: var(--color-error);
+        }
+
+        .status-content {
+            flex: 1;
+        }
+
+        .status-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 6px;
+        }
+
+        .status-message {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            line-height: 1.5;
+            white-space: pre-line;
+        }
+
+        .status-progress {
+            margin-top: 12px;
+        }
+
+        .progress-bar-modern {
+            width: 100%;
+            height: 10px;
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: var(--radius-full);
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .progress-bar-fill-modern {
+            height: 100%;
+            background: var(--gradient-green);
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: var(--radius-full);
+        }
+
+        .progress-text {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            text-align: center;
+        }
+
+        .status-action-btn {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 8px 16px;
+            background: var(--white-primary);
+            color: var(--green-primary);
+            border: 1px solid var(--green-primary);
+            border-radius: var(--radius-lg);
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: var(--transition-base);
+            text-decoration: none;
+        }
+
+        .status-action-btn:hover {
+            background: var(--green-primary);
+            color: var(--white-primary);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .admin-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .preview-grid {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .upload-status {
+                top: 10px;
+                width: 95%;
+                max-width: none;
+                padding: 15px 18px;
+                gap: 12px;
+            }
+
+            .status-icon {
+                font-size: 1.5rem;
+            }
+
+            .status-title {
+                font-size: 1.1rem;
+            }
+
+            .status-message {
+                font-size: 0.85rem;
+            }
+
+            .progress-text {
+                font-size: 0.8rem;
+            }
+        }
+
+        /* Modal Styles */
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-backdrop.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-content {
+            background: var(--bg-elevated);
+            padding: 30px;
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-2xl);
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            transform: scale(0.9);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .modal-backdrop.active .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: var(--color-error-pale);
+            color: var(--color-error);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin: 0 auto 20px;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 10px;
+        }
+
+        .modal-message {
+            color: var(--text-muted);
+            margin-bottom: 25px;
+            line-height: 1.5;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .modal-btn {
+            padding: 10px 24px;
+            border-radius: var(--radius-lg);
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            border: none;
+            transition: var(--transition-base);
+        }
+
+        .modal-btn.cancel {
+            background: var(--bg-muted);
+            color: var(--text-secondary);
+        }
+
+        .modal-btn.cancel:hover {
+            background: var(--border-medium);
+        }
+
+        .modal-btn.delete {
+            background: var(--color-error);
+            color: white;
+        }
+
+        .modal-btn.delete:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Login Section -->
+    <div class="login-container" id="loginSection">
+        <h2><i class="fas fa-shield-alt"></i> Secure Access</h2>
+        <p>Enter your credentials to access the photo upload system</p>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="email"><i class="fas fa-envelope"></i> Email Address</label>
+                <input type="email" id="email" placeholder="your@example.com" required>
+            </div>
+
+            <div class="form-group">
+                <label for="password"><i class="fas fa-lock"></i> Password</label>
+                <input type="password" id="password" placeholder="Enter your password" required>
+            </div>
+
+            <button type="submit" id="loginBtn">
+                <i class="fas fa-sign-in-alt"></i> Login
+            </button>
+        </form>
+
+        <div id="loginMessage" class="message"></div>
+    </div>
+
+    <!-- Admin Section -->
+    <div class="admin-container" id="adminSection">
+        <div class="admin-header">
+            <h1><i class="fas fa-images"></i> Photo Gallery Admin</h1>
+            <p>Upload and manage photos for the YUVA India gallery</p>
+            <div class="admin-actions">
+                <button onclick="notifyFrontend()" class="view-gallery-btn">
+                    <i class="fas fa-bell"></i> Notify Frontend
+                </button>
+                <button class="logout-btn" id="logoutBtn">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </div>
+
+        <div class="admin-grid">
+            <!-- Upload Section -->
+            <div class="admin-card">
+                <h2><i class="fas fa-cloud-upload-alt"></i> Upload Photos</h2>
+
+                <!-- Upload Status Messages -->
+                <div id="uploadStatus" class="upload-status" style="display: none;">
+                    <div class="status-icon">
+                        <i class="fas fa-circle-notch fa-spin"></i>
+                    </div>
+                    <div class="status-content">
+                        <div class="status-title" id="statusTitle">Uploading...</div>
+                        <div class="status-message" id="statusMessage">Please wait while we upload your photos</div>
+                        <div class="status-progress">
+                            <div class="progress-bar-modern">
+                                <div class="progress-bar-fill-modern" id="progressBarFillModern"></div>
+                            </div>
+                            <div class="progress-text" id="progressText">0 of 0 uploaded</div>
+                        </div>
+                    </div>
+                </div>
+
+                <form class="upload-form" id="uploadForm">
+                    <!-- Category and Year in one row -->
+                    <div class="form-row">
+                        <div class="form-group form-group-half">
+                            <label for="category"><i class="fas fa-folder"></i> Category</label>
+                            <select id="category" required>
+                                <option value="">Select Category</option>
+                                <option value="vimarsh">Vimarsh</option>
+                                <option value="samarpan">Samarpan</option>
+                                <option value="bharatparv">Bharat Parv</option>
+                                <option value="events">General Events</option>
+                                <option value="activities">Activities</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group form-group-half">
+                            <label for="year"><i class="fas fa-calendar"></i> Year</label>
+                            <select id="year" required>
+                                <option value="">Select Year</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- File Selection -->
+                    <div class="form-group">
+                        <label><i class="fas fa-images"></i> Select Photos (Max 500 KB each)</label>
+                        <div class="file-input-wrapper">
+                            <input type="file" id="imageFiles" accept="image/jpeg,image/png,image/webp" multiple>
+                            <label for="imageFiles" class="file-input-label-modern" id="fileLabel">
+                                <div class="file-label-icon">
+                                    <i class="fas fa-cloud-upload-alt fa-3x"></i>
+                                </div>
+                                <div class="file-label-text">
+                                    <span class="file-label-title">Click to select photos</span>
+                                    <span class="file-label-subtitle">or drag and drop here</span>
+                                    <span class="file-label-info">JPG, PNG, WEBP • Max 500 KB per file</span>
+                                </div>
+                            </label>
+                        </div>
+                        <div id="filePreviewCount" class="file-preview-count" style="display: none;">
+                            <i class="fas fa-check-circle"></i>
+                            <span id="fileCount">0</span> file(s) selected
+                        </div>
+                    </div>
+
+                    <!-- Upload Button -->
+                    <button type="submit" id="uploadBtn" class="upload-btn-modern">
+                        <i class="fas fa-upload"></i> Upload Photos
+                    </button>
+                </form>
+            </div>
+
+            <!-- Preview/Manage Section -->
+            <div class="admin-card">
+                <h2><i class="fas fa-th"></i> Manage Photos</h2>
+                <div class="form-group">
+                    <label for="filterCategory"><i class="fas fa-filter"></i> Filter by Category</label>
+                    <select id="filterCategory">
+                        <option value="">All Categories</option>
+                        <option value="vimarsh">Vimarsh</option>
+                        <option value="samarpan">Samarpan</option>
+                        <option value="bharatparv">Bharat Parv</option>
+                        <option value="events">General Events</option>
+                        <option value="activities">Activities</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="filterYear"><i class="fas fa-calendar"></i> Filter by Year</label>
+                    <select id="filterYear">
+                        <option value="">All Years</option>
+                    </select>
+                </div>
+
+                <div class="preview-grid" id="previewGrid">
+                    <p style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px;">
+                        Select filters to view photos
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Confirm Modal -->
+    <div id="confirmModal" class="modal-backdrop">
+        <div class="modal-content">
+            <div class="modal-icon">
+                <i class="fas fa-trash-alt"></i>
+            </div>
+            <h3 class="modal-title">Delete Photo?</h3>
+            <p class="modal-message">Are you sure you want to delete this photo? This action cannot be undone.</p>
+            <div class="modal-actions">
+                <button id="cancelDeleteBtn" class="modal-btn cancel">Cancel</button>
+                <button id="confirmDeleteBtn" class="modal-btn delete">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Initialize Supabase (for storage only)
+        const SUPABASE_URL = 'https://jgsrsjwmywiirtibofth.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_5KtvO0cEHfnECBoyp2CQnw_RC3_x2me';
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const STORAGE_BUCKET = 'gallery_photos';
+
+        // Google Apps Script backend URL (for authentication)
+        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwbeXIEqX6H2pdxdTYexn0WrVE3gwcVE4RLtJZy9dkiIzEJ1rj03UTmYO_bJUcnCQm8/exec';
+
+        // DOM Elements
+        const loginSection = document.getElementById('loginSection');
+        const adminSection = document.getElementById('adminSection');
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const loginForm = document.getElementById('loginForm');
+        const loginBtn = document.getElementById('loginBtn');
+        const loginMessage = document.getElementById('loginMessage');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const uploadForm = document.getElementById('uploadForm');
+        const categorySelect = document.getElementById('category');
+        const yearSelect = document.getElementById('year');
+        const imageFiles = document.getElementById('imageFiles');
+        const fileLabel = document.getElementById('fileLabel');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const uploadMessage = document.getElementById('uploadMessage');
+        const progressBar = document.getElementById('progressBar');
+        const progressBarFill = document.getElementById('progressBarFill');
+        const filterCategory = document.getElementById('filterCategory');
+        const filterYear = document.getElementById('filterYear');
+        const previewGrid = document.getElementById('previewGrid');
+
+        let currentUser = null;
+        let selectedFiles = [];
+
+        // Populate year dropdowns
+        function populateYears() {
+            const currentYear = new Date().getFullYear();
+            const years = [];
+            for (let year = currentYear; year >= 2019; year--) {
+                years.push(year);
+            }
+
+            [yearSelect, filterYear].forEach(select => {
+                const isFilter = select === filterYear;
+                select.innerHTML = isFilter ? '<option value="">All Years</option>' : '<option value="">Select Year</option>';
+                years.forEach(year => {
+                    const option = document.createElement('option');
+                    option.value = year;
+                    option.textContent = year;
+                    select.appendChild(option);
+                });
+            });
+        }
+
+        populateYears();
+
+        // Authentication Flow - Using admin_users table via Google Apps Script
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const email = emailInput.value.trim();
+            const password = passwordInput.value.trim();
+
+            if (!email || !password) {
+                showMessage(loginMessage, 'Please enter both email and password.', 'error');
+                return;
+            }
+
+            showMessage(loginMessage, 'Signing in...', 'info');
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Logging in...';
+
+            try {
+                // Call Google Apps Script backend to authenticate
+                const params = new URLSearchParams({
+                    action: 'auth',
+                    method: 'login',
+                    email: email,
+                    password: password
+                });
+
+                const response = await fetch(`${GAS_WEB_APP_URL}?${params.toString()}`);
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    // Success - user is authenticated
+                    currentUser = {
+                        id: result.user.id,
+                        email: result.user.email,
+                        full_name: result.user.full_name || 'Admin',
+                        role: result.user.role || 'viewer',
+                        zone: result.user.zone || '',
+                        college_id: result.user.college_id || null
+                    };
+
+                    // Store session
+                    localStorage.setItem('photo_admin_session', JSON.stringify({ user: currentUser }));
+
+                    loginSection.style.display = 'none';
+                    adminSection.style.display = 'block';
+                    showMessage(loginMessage, '', '');
+                    loadPhotos();
+                } else {
+                    // Login failed
+                    console.error('Login error:', result.error);
+
+                    // Sanitize error message
+                    let userMessage = 'Invalid email or password';
+                    if (result.error) {
+                        const errorLower = result.error.toLowerCase();
+                        if (errorLower.includes('database') || errorLower.includes('db')) {
+                            userMessage = 'Service temporarily unavailable. Please try again.';
+                        } else if (errorLower.includes('network') || errorLower.includes('connection')) {
+                            userMessage = 'Network error. Please check your internet connection.';
+                        }
+                    }
+
+                    showMessage(loginMessage, userMessage, 'error');
+                }
+            } catch (error) {
+                console.error('Login exception:', error);
+                showMessage(loginMessage, 'Unable to sign in. Please try again.', 'error');
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
+            }
+        });
+
+        // Check for existing session on page load
+        function checkExistingSession() {
+            const sessionData = localStorage.getItem('photo_admin_session');
+            if (sessionData) {
+                try {
+                    const { user } = JSON.parse(sessionData);
+                    if (user) {
+                        currentUser = user;
+                        loginSection.style.display = 'none';
+                        adminSection.style.display = 'block';
+                        loadPhotos();
+                    }
+                } catch (e) {
+                    localStorage.removeItem('photo_admin_session');
+                }
+            }
+        }
+
+        // Call on page load
+        checkExistingSession();
+
+        // Logout
+        logoutBtn.addEventListener('click', () => {
+            currentUser = null;
+            localStorage.removeItem('photo_admin_session');
+            loginSection.style.display = 'block';
+            adminSection.style.display = 'none';
+            emailInput.value = '';
+            passwordInput.value = '';
+            showMessage(loginMessage, '', '');
+        });
+
+        // File Selection
+        const filePreviewCount = document.getElementById('filePreviewCount');
+        const fileCountSpan = document.getElementById('fileCount');
+        const uploadStatus = document.getElementById('uploadStatus');
+        const statusTitle = document.getElementById('statusTitle');
+        const statusMessage = document.getElementById('statusMessage');
+        const progressBarFillModern = document.getElementById('progressBarFillModern');
+        const progressText = document.getElementById('progressText');
+
+        imageFiles.addEventListener('change', (e) => {
+            selectedFiles = Array.from(e.target.files);
+            updateFileLabel();
+        });
+
+        function updateFileLabel() {
+            if (selectedFiles.length > 0) {
+                fileLabel.classList.add('has-files');
+                filePreviewCount.style.display = 'flex';
+                fileCountSpan.textContent = selectedFiles.length;
+            } else {
+                fileLabel.classList.remove('has-files');
+                filePreviewCount.style.display = 'none';
+            }
+        }
+
+        // Upload Form
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const category = categorySelect.value;
+            const year = yearSelect.value;
+
+            if (!category || !year) {
+                showUploadStatus('error', 'Missing Information', 'Please select both category and year');
+                return;
+            }
+
+            if (selectedFiles.length === 0) {
+                showUploadStatus('error', 'No Files Selected', 'Please select at least one photo to upload');
+                return;
+            }
+
+            // Validate file sizes (500 KB = 512000 bytes)
+            const MAX_FILE_SIZE = 500 * 1024; // 500 KB in bytes
+            const oversizedFiles = selectedFiles.filter(file => file.size > MAX_FILE_SIZE);
+
+            if (oversizedFiles.length > 0) {
+                const fileList = oversizedFiles.map(f => `• ${f.name} (${(f.size / 1024).toFixed(0)} KB)`).join('\n');
+                showUploadStatus('error', 'Files Too Large', `The following files exceed 500 KB:\n${fileList}\n\nPlease compress them and try again.`);
+                return;
+            }
+
+            uploadBtn.disabled = true;
+            uploadBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Uploading...';
+
+            // Show upload status with animation
+            uploadStatus.className = 'upload-status';
+            statusTitle.textContent = 'Uploading Photos...';
+            statusMessage.textContent = 'Please wait while we upload your photos to the gallery';
+            progressBarFillModern.style.width = '0%';
+            progressText.textContent = `0 of ${selectedFiles.length} uploaded`;
+
+            uploadStatus.style.display = 'flex';
+            setTimeout(() => {
+                uploadStatus.classList.add('show');
+            }, 10);
+
+            try {
+                const totalFiles = selectedFiles.length;
+                let uploadedCount = 0;
+                let failedCount = 0;
+
+                for (const file of selectedFiles) {
+                    const fileExt = file.name.split('.').pop();
+                    const fileName = `photos/${category}/${year}/${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+
+                    const { error: uploadError } = await supabaseClient.storage
+                        .from(STORAGE_BUCKET)
+                        .upload(fileName, file);
+
+                    if (uploadError) {
+                        console.error('Upload error:', uploadError);
+                        failedCount++;
+                    } else {
+                        uploadedCount++;
+                    }
+
+                    // Update progress
+                    const progress = ((uploadedCount + failedCount) / totalFiles) * 100;
+                    progressBarFillModern.style.width = `${progress}%`;
+                    progressText.textContent = `${uploadedCount} of ${totalFiles} uploaded`;
+                }
+
+                // Show final status
+                if (uploadedCount === totalFiles) {
+                    const message = `Successfully uploaded all ${uploadedCount} photos to ${category}/${year}<br>` +
+                        `<a href="#" onclick="notifyFrontend(); return false;" class="status-action-btn"><i class="fas fa-bell"></i> Notify Frontend</a>`;
+                    showUploadStatus('success', 'Upload Complete!', message);
+                } else if (uploadedCount > 0) {
+                    const message = `Uploaded ${uploadedCount} of ${totalFiles} photos. ${failedCount} failed.<br>` +
+                        `<a href="#" onclick="notifyFrontend(); return false;" class="status-action-btn"><i class="fas fa-bell"></i> Notify Frontend</a>`;
+                    showUploadStatus('success', 'Partial Upload', message);
+                } else {
+                    showUploadStatus('error', 'Upload Failed', 'No photos were uploaded. Please try again.');
+                }
+
+                // Reset form if any succeeded
+                if (uploadedCount > 0) {
+                    uploadForm.reset();
+                    selectedFiles = [];
+                    updateFileLabel();
+
+                    // Reload photos if filters match
+                    if (filterCategory.value === category || !filterCategory.value) {
+                        loadPhotos();
+                    }
+                }
+
+            } catch (error) {
+                console.error('Upload failed:', error);
+                showUploadStatus('error', 'Upload Error', 'An unexpected error occurred. Please try again.');
+            } finally {
+                uploadBtn.disabled = false;
+                uploadBtn.innerHTML = '<i class="fas fa-upload"></i> Upload Photos';
+            }
+        });
+
+        // Helper function to show upload status
+        function showUploadStatus(type, title, message) {
+            uploadStatus.className = `upload-status ${type}`;
+            statusTitle.textContent = title;
+            statusMessage.innerHTML = message;
+
+            const icon = uploadStatus.querySelector('.status-icon i');
+            if (type === 'success') {
+                icon.className = 'fas fa-check-circle';
+            } else if (type === 'error') {
+                icon.className = 'fas fa-exclamation-circle';
+            } else {
+                icon.className = 'fas fa-circle-notch fa-spin';
+            }
+
+            // Show/hide progress for different states
+            const progressDiv = uploadStatus.querySelector('.status-progress');
+            if (type === 'success' || type === 'error') {
+                if (progressDiv) progressDiv.style.display = 'none';
+            } else {
+                if (progressDiv) progressDiv.style.display = 'block';
+            }
+
+            // Trigger slide-in animation
+            uploadStatus.style.display = 'flex';
+            setTimeout(() => {
+                uploadStatus.classList.add('show');
+            }, 10);
+
+            // Auto-hide after delay
+            const hideDelay = (type === 'success' || type === 'error') ? 10000 : 0;
+            if (hideDelay > 0) {
+                setTimeout(() => {
+                    uploadStatus.classList.remove('show');
+                    setTimeout(() => {
+                        uploadStatus.style.display = 'none';
+                        // Reset progress visibility
+                        if (progressDiv) progressDiv.style.display = 'block';
+                    }, 400); // Wait for slide-out animation
+                }, hideDelay);
+            }
+        }
+
+        // Load and Display Photos
+        async function loadPhotos() {
+            const category = filterCategory.value;
+            const year = filterYear.value;
+
+            if (!category && !year) {
+                previewGrid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px;">Select filters to view photos</p>';
+                return;
+            }
+
+            previewGrid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px;"><i class="fas fa-spinner fa-spin"></i> Loading photos...</p>';
+
+            try {
+                let path = 'photos/';
+                if (category) path += `${category}/`;
+                if (year) path += `${year}/`;
+
+                const { data, error } = await supabaseClient.storage
+                    .from(STORAGE_BUCKET)
+                    .list(path, {
+                        limit: 1000,
+                        sortBy: { column: 'created_at', order: 'desc' }
+                    });
+
+                if (error) throw error;
+
+                const imageFiles = data.filter(file =>
+                    file.name.match(/\.(jpg|jpeg|png|webp)$/i)
+                );
+
+                if (imageFiles.length === 0) {
+                    previewGrid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px;">No photos found for this selection.</p>';
+                    return;
+                }
+
+                previewGrid.innerHTML = '';
+                imageFiles.forEach(file => {
+                    const fullPath = path + file.name;
+                    const { data: urlData } = supabaseClient.storage
+                        .from(STORAGE_BUCKET)
+                        .getPublicUrl(fullPath);
+
+                    const item = document.createElement('div');
+                    item.className = 'preview-item';
+                    item.innerHTML = `
+                        <img src="${urlData.publicUrl}" alt="${file.name}">
+                        <div class="preview-item-info">
+                            <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">${file.name.substring(0, 20)}...</div>
+                            <div>${new Date(file.created_at).toLocaleDateString()}</div>
+                        </div>
+                        <button class="delete-preview-btn" onclick="deletePhoto('${fullPath}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    `;
+                    previewGrid.appendChild(item);
+                });
+            } catch (error) {
+                console.error('Load photos error:', error);
+                previewGrid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: var(--color-error); padding: 40px;">Error loading photos.</p>';
+            }
+        }
+
+        // Modal Elements
+        const confirmModal = document.getElementById('confirmModal');
+        const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+        const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+        let photoToDelete = null;
+
+        // Delete Photo - Step 1: Show Confirmation
+        window.deletePhoto = function (filePath) {
+            photoToDelete = filePath;
+            confirmModal.classList.add('active');
+        };
+
+        // Modal Actions
+        cancelDeleteBtn.addEventListener('click', () => {
+            confirmModal.classList.remove('active');
+            photoToDelete = null;
+        });
+
+        confirmDeleteBtn.addEventListener('click', async () => {
+            if (!photoToDelete) return;
+
+            // Show loading state on button
+            const originalBtnText = confirmDeleteBtn.textContent;
+            confirmDeleteBtn.disabled = true;
+            confirmDeleteBtn.textContent = 'Deleting...';
+
+            try {
+                const { error } = await supabaseClient.storage
+                    .from(STORAGE_BUCKET)
+                    .remove([photoToDelete]);
+
+                if (error) throw error;
+
+                // Success
+                confirmModal.classList.remove('active');
+                loadPhotos();
+                showUploadStatus('success', 'Photo Deleted', 'The photo has been permanently removed.');
+            } catch (error) {
+                console.error('Delete error:', error);
+                showUploadStatus('error', 'Delete Failed', 'Could not delete the photo. Please try again.');
+                confirmModal.classList.remove('active');
+            } finally {
+                // Reset button
+                confirmDeleteBtn.disabled = false;
+                confirmDeleteBtn.textContent = originalBtnText;
+                photoToDelete = null;
+            }
+        });
+
+        // Close modal on outside click
+        confirmModal.addEventListener('click', (e) => {
+            if (e.target === confirmModal) {
+                confirmModal.classList.remove('active');
+                photoToDelete = null;
+            }
+        });
+
+
+
+        // Filter Change Handlers
+        filterCategory.addEventListener('change', loadPhotos);
+        filterYear.addEventListener('change', loadPhotos);
+
+
+        // Notify Frontend Function
+        window.notifyFrontend = function () {
+            // Find both buttons (header and status message)
+            const headerBtn = document.querySelector('.view-gallery-btn');
+            const statusBtn = document.querySelector('.status-action-btn');
+            const btns = [headerBtn, statusBtn].filter(b => b); // Filter out nulls
+
+            // Store original content
+            const originals = btns.map(b => b.innerHTML);
+
+            // Set loading state
+            btns.forEach(b => {
+                b.disabled = true;
+                b.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Notifying...';
+            });
+
+            // Simulate sync delay
+            setTimeout(() => {
+                // Success state
+                btns.forEach(b => {
+                    b.innerHTML = '<i class="fas fa-check"></i> Notified!';
+                    b.classList.add('success'); // You can add CSS for this class if desired
+                });
+
+                // Show separate success toast/status if the main status box isn't visible,
+                // or update existing one.
+                showUploadStatus('success', 'Frontend Notified', 'The public gallery has been successfully notified.<br>Users will see new photos immediately.');
+
+                // Reset buttons after 2 seconds
+                setTimeout(() => {
+                    btns.forEach((b, i) => {
+                        b.innerHTML = originals[i];
+                        b.disabled = false;
+                        b.classList.remove('success');
+                    });
+                }, 2000);
+            }, 1500);
+        };
+
+        // Helper Function
+        function showMessage(element, msg, type) {
+            element.textContent = msg;
+            element.className = `message ${type}`;
+            if (type === 'success' || type === 'info') {
+                setTimeout(() => {
+                    element.style.display = 'none';
+                }, 5000);
+            }
+        }
+    </script>
+</body>
+
+</html>

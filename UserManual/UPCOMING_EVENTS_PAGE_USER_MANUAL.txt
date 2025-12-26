@@ -1,0 +1,1564 @@
+================================================================================
+            YUVA UPCOMING EVENTS PAGE - USER MANUAL
+                Youth United For Vision & Action
+================================================================================
+
+VERSION: 2025
+LAST UPDATED: December 26, 2025
+
+================================================================================
+TABLE OF CONTENTS
+================================================================================
+
+1. OVERVIEW
+2. FILE STRUCTURE
+3. EXTERNAL DEPENDENCIES
+4. DATABASE INTEGRATION
+5. PAGE SECTIONS
+6. DYNAMIC FEATURES
+7. FILTER SYSTEM
+8. EVENT MODAL
+9. SHARE FUNCTIONALITY
+10. HOW TO MODIFY CONTENT
+11. TROUBLESHOOTING
+12. RESPONSIVE DESIGN
+13. SEO & ACCESSIBILITY
+
+================================================================================
+1. OVERVIEW
+================================================================================
+
+The YUVA Upcoming Events Page displays all future events fetched from Supabase
+database with advanced filtering, search, and registration capabilities.
+
+KEY FEATURES:
+✓ Dynamic event loading from Supabase database
+✓ Advanced search and filter system
+✓ Grid and List view toggle
+✓ Featured event spotlight
+✓ Event modal with full details
+✓ Social media sharing
+✓ Event insights and statistics
+✓ FAQ section
+✓ Newsletter subscription
+✓ Flash notification system
+✓ Fully responsive design
+✓ SEO optimized with structured data
+
+PURPOSE:
+- Display upcoming YUVA events
+- Allow users to search and filter events
+- Provide event registration links
+- Show event details in modal
+- Enable social sharing
+- Collect newsletter subscriptions
+
+================================================================================
+2. FILE STRUCTURE
+================================================================================
+
+THREE MAIN FILES:
+
+1. Upcoming.html (695 lines, 35,762 bytes)
+   - Main HTML structure
+   - Hero section with Ashoka Chakra
+   - Filter bar (search, category, mode, view toggle)
+   - Featured event section
+   - Events grid
+   - Event insights
+   - FAQ section
+   - Newsletter subscription
+   - Event modal
+   - Share modal
+   - Extensive SEO meta tags
+   - Structured data (JSON-LD)
+
+2. event.js (1,492 lines, 56,925 bytes)
+   - Supabase integration
+   - Event fetching and rendering
+   - Filter and search logic
+   - Modal functionality
+   - Share functionality
+   - Flash notification system
+   - View toggle (grid/list)
+   - Custom dropdown system
+
+3. event.css (83,448 bytes)
+   - All styling for events pages
+   - Hero section styles
+   - Filter bar styles
+   - Event card layouts
+   - Modal styles
+   - Share modal styles
+   - Responsive breakpoints
+   - Animations and transitions
+
+ADDITIONAL FILES NEEDED:
+- /style.css (Global site styles)
+- /script.js (Global site JavaScript - sidebar)
+- /Images/YUVA logo.png
+- Supabase JS library (CDN)
+
+================================================================================
+3. EXTERNAL DEPENDENCIES
+================================================================================
+
+The page requires these external libraries:
+
+1. GOOGLE FONTS
+   URL: https://fonts.googleapis.com/css2
+   Fonts: Inter (300-800), Poppins (300-800)
+   Purpose: Modern typography
+
+2. FONT AWESOME (v6.4.0)
+   CDN: https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css
+   Purpose: All icons on the page
+
+3. SUPABASE JS CLIENT (v2)
+   CDN: https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2
+   Purpose: Database connection and queries
+
+SUPABASE CONFIGURATION:
+───────────────────────
+URL: https://jgsrsjwmywiirtibofth.supabase.co
+Anon Key: sb_publishable_5KtvO0cEHfnECBoyp2CQnw*******
+
+⚠️ IMPORTANT: These credentials are public and should be protected with RLS!
+
+================================================================================
+4. DATABASE INTEGRATION
+================================================================================
+
+SUPABASE TABLES USED:
+─────────────────────
+
+1. published_events (VIEW)
+   - Joins events with event_publications
+   - Contains all event data
+   - Columns:
+     • id (UUID)
+     • title (text)
+     • description (text)
+     • long_description (text) - from event_publications
+     • banner_url (text) - from event_publications
+     • start_at (timestamp)
+     • end_at (timestamp)
+     • location (text)
+     • mode (text) - online, offline, hybrid
+     • category (text)
+     • speakers (jsonb) - array of speaker objects
+     • registration_url (text)
+     • capacity (integer)
+     • status (text) - upcoming, scheduled, completed
+     • college_name (text)
+     • college_code (text)
+     • display_on_home (boolean)
+     • display_on_upcoming (boolean)
+
+2. event_categories (TABLE)
+   - Stores event categories
+   - Columns:
+     • name (text)
+
+QUERY LOGIC:
+────────────
+File: event.js (Lines 229-268)
+
+const { data, error } = await supabase
+    .from('published_events')
+    .select('*')
+    .eq('display_on_upcoming', true)  // Only upcoming page events
+    .gte('start_at', now)              // Future events only
+    .in('status', ['upcoming', 'scheduled'])
+    .order('start_at', { ascending: true })
+    .limit(50);
+
+FILTERS:
+- display_on_upcoming = true (only events marked for this page)
+- start_at >= now (only future events)
+- status IN ('upcoming', 'scheduled')
+- Ordered by start date (earliest first)
+- Limited to 50 events
+
+================================================================================
+5. PAGE SECTIONS
+================================================================================
+
+The page has 8 main sections:
+
+┌──────────────────────────────────────────────────────────────┐
+│ SECTION 1: HERO SECTION (Lines 263-411)                      │
+├──────────────────────────────────────────────────────────────┤
+│ Components:                                                   │
+│ - Animated particle background                               │
+│ - Ashoka Chakra SVG (24 spokes, rotating animation)         │
+│ - Hero badge: "Discover & Register for Events"              │
+│ - Hero title: "Explore Upcoming Events Across India"        │
+│ - Hero description                                           │
+│ - Impact statistics:                                         │
+│   • 50+ Events Yearly                                        │
+│   • 15+ Cities Covered                                       │
+│   • 10K+ Attendees                                           │
+│                                                               │
+│ Animations:                                                   │
+│ - Floating particles (20s loop)                              │
+│ - Rotating Ashoka Chakra (30s loop)                         │
+│ - Fade-in on page load                                       │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ SECTION 2: FILTER BAR (Lines 414-460)                        │
+├──────────────────────────────────────────────────────────────┤
+│ Components:                                                   │
+│ - Search input (by name, location, keyword)                 │
+│ - Category dropdown (dynamically populated from database)   │
+│ - Mode dropdown (All, Online, In-Person, Hybrid)            │
+│ - View toggle buttons (Grid, List)                          │
+│                                                               │
+│ Features:                                                     │
+│ - Sticky on scroll                                           │
+│ - Glass morphism effect                                      │
+│ - Real-time search (300ms debounce)                         │
+│ - Custom dropdown styling                                    │
+│ - Active state indicators                                    │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ SECTION 3: FEATURED EVENT (Lines 463-477)                    │
+├──────────────────────────────────────────────────────────────┤
+│ Shows the first event from filtered list                     │
+│                                                              │
+│ Components:                                                  │
+│ - Large banner image                                         │
+│ - "Featured Event" badge                                     │
+│ - Event title (large, 2.5rem)                                │
+│ - Event description (truncated to 180 chars)                 │
+│ - Date and location                                          │
+│ - "Register Now" button                                      │
+│ - "View Details" button                                      │
+│                                                              │
+│ Dynamically loaded from: event.js renderFeatured()           │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ SECTION 4: EVENTS GRID (Lines 480-494)                       │
+├──────────────────────────────────────────────────────────────┤
+│ Displays all filtered events in cards                        │
+│                                                              │
+│ Each card shows:                                             │
+│ - Banner image with date badge                               │
+│ - Time, location, mode icons                                 │
+│ - Event title                                                │
+│ - Description (truncated to 100 chars)                       │
+│ - "Register" button                                          │
+│ - "Details" button                                           │
+│                                                               │
+│ Features:                                                     │
+│ - Color-coded accent (saffron, navy, green rotation)        │
+│ - Loading spinner while fetching                             │
+│ - Empty state when no events match filters                   │
+│ - "Clear Filters" button in empty state                      │
+│                                                               │
+│ Views:                                                        │
+│ - Grid view (default): 3 columns on desktop                 │
+│ - List view: Full-width cards                               │
+│                                                               │
+│ Dynamically loaded from: event.js renderGrid()              │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ SECTION 5: EVENT INSIGHTS (Lines 497-542)                    │
+├──────────────────────────────────────────────────────────────┤
+│ 4 Insight Cards:                                              │
+│ - Total Events (count from database)                        │
+│ - Cities Covered (unique locations)                         │
+│ - Expected Attendees (sum of capacities)                    │
+│ - Next Event (days until next event)                        │
+│                                                               │
+│ Features:                                                     │
+│ - Icons for each metric                                      │
+│ - Large numbers with labels                                  │
+│ - Responsive grid layout                                     │
+│ - Auto-calculated from fetched events                        │
+│                                                               │
+│ Updated by: event.js updateEventInsights()                  │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ SECTION 6: FAQ SECTION (Lines 545-611)                       │
+├──────────────────────────────────────────────────────────────┤
+│ 5 FAQ Items:                                                  │
+│ 1. How do I register for an event?                          │
+│ 2. Can I attend events online?                              │
+│ 3. Is there a registration fee?                             │
+│ 4. How can I get involved as a volunteer?                   │
+│ 5. What should I bring to an event?                         │
+│                                                               │
+│ Features:                                                     │
+│ - Collapsible answers (click to expand)                     │
+│ - Chevron icon rotation on expand                           │
+│ - Smooth slide animation                                     │
+│ - SEO-friendly (also in structured data)                    │
+│                                                               │
+│ Toggle function: toggleFAQ(element)                         │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ SECTION 7: NEWSLETTER SUBSCRIPTION (Lines 614-632)           │
+├──────────────────────────────────────────────────────────────┤
+│ Components:                                                   │
+│ - Title: "Never Miss an Event"                              │
+│ - Description                                                │
+│ - Email input field                                          │
+│ - "Subscribe" button                                         │
+│ - Privacy notice with lock icon                              │
+│ - Bell icon illustration                                     │
+│                                                               │
+│ Features:                                                     │
+│ - Email validation (required)                                │
+│ - Form submission handler                                    │
+│ - Privacy assurance message                                  │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ SECTION 8: EVENT MODAL (Lines 637-642)                       │
+├──────────────────────────────────────────────────────────────┤
+│ Full-screen modal with event details                         │
+│                                                               │
+│ Components:                                                   │
+│ - Large banner image                                         │
+│ - Category and mode badges                                   │
+│ - Event title                                                │
+│ - Organizer name                                             │
+│ - Date, time, location grid                                  │
+│ - Capacity (if available)                                    │
+│ - Full event description                                     │
+│ - Speakers section (if available)                            │
+│ - "Register Now" button                                      │
+│ - "Share Event" button                                       │
+│ - Close button                                               │
+│                                                               │
+│ Features:                                                     │
+│ - Backdrop click to close                                    │
+│ - Escape key to close                                        │
+│ - Prevents body scrolling when open                          │
+│ - Formatted dates and times                                  │
+│ - Speaker cards with initials                                │
+│                                                               │
+│ Opened by: event.js openModal(event)                        │
+└──────────────────────────────────────────────────────────────┘
+
+================================================================================
+6. DYNAMIC FEATURES
+================================================================================
+
+FEATURE 1: REAL-TIME SEARCH
+───────────────────────────
+Managed by: event.js (Lines 162-170)
+
+HOW IT WORKS:
+1. User types in search input
+2. 300ms debounce delay
+3. Searches through:
+   - Event title
+   - Event description
+   - Event location
+4. Case-insensitive matching
+5. Filters events in real-time
+6. Updates grid automatically
+
+CODE LOCATION:
+File: event.js
+Function: applyFilters()
+Lines: 391-413
+
+──────────────────────────────────────────────────────────────
+
+FEATURE 2: CUSTOM DROPDOWN FILTERS
+───────────────────────────────────
+Managed by: event.js CustomDropdown class (Lines 19-128)
+
+CATEGORY FILTER:
+- Dynamically populated from database
+- Fetches from event_categories table
+- Shows all unique categories
+- "All Categories" option
+
+MODE FILTER:
+- Hardcoded options:
+  • All Modes
+  • Online (globe icon)
+  • In-Person (map marker icon)
+  • Hybrid (building icon)
+
+HOW IT WORKS:
+1. Click dropdown trigger
+2. Menu opens with options
+3. Click option to select
+4. Dropdown closes
+5. Triggers filter change event
+6. Grid updates with filtered events
+7. Flash notification shows filter applied
+
+FEATURES:
+- Click outside to close
+- Escape key to close
+- Active state highlighting
+- Custom styling
+- Icon support
+
+──────────────────────────────────────────────────────────────
+
+FEATURE 3: VIEW TOGGLE (GRID/LIST)
+───────────────────────────────────
+Managed by: event.js (Lines 183-204)
+
+GRID VIEW (Default):
+- 3 columns on desktop
+- 2 columns on tablet
+- 1 column on mobile
+- Compact cards
+
+LIST VIEW:
+- Full-width cards
+- Horizontal layout
+- More details visible
+- Better for scanning
+
+HOW IT WORKS:
+1. Click view button (grid or list icon)
+2. Active class toggles
+3. CSS class added to grid container
+4. Layout changes via CSS
+5. Flash notification confirms change
+
+──────────────────────────────────────────────────────────────
+
+FEATURE 4: EVENT MODAL
+──────────────────────
+Managed by: event.js openModal() (Lines 538-701)
+
+OPENS WHEN:
+- Click "Details" button on event card
+- Click "View Details" on featured event
+
+DISPLAYS:
+- Full event information
+- Formatted dates and times
+- Speaker cards (if available)
+- Registration and share buttons
+
+CLOSES WHEN:
+- Click close button (X)
+- Click outside modal (backdrop)
+- Press Escape key
+
+FEATURES:
+- Prevents body scrolling
+- Smooth fade-in animation
+- Responsive layout
+- Touch-friendly buttons
+
+──────────────────────────────────────────────────────────────
+
+FEATURE 5: SOCIAL SHARING
+─────────────────────────
+Managed by: Share modal (Lines 651-692)
+
+SHARE PLATFORMS:
+1. WhatsApp
+2. Twitter
+3. Facebook
+4. LinkedIn
+5. Telegram
+6. Instagram
+
+FEATURES:
+- Copy link to clipboard
+- Platform-specific share URLs
+- Event title and URL included
+- Opens in new tab
+- Copy button with feedback
+
+HOW IT WORKS:
+1. Click "Share Event" in modal
+2. Share modal opens
+3. Click platform icon
+4. Opens share dialog
+5. Or copy link manually
+
+──────────────────────────────────────────────────────────────
+
+FEATURE 6: FLASH NOTIFICATIONS
+───────────────────────────────
+Managed by: event.js showNotification() (Lines 737-789)
+
+NOTIFICATION TYPES:
+- Success (green, checkmark icon)
+- Error (red, X icon)
+- Warning (yellow, exclamation icon)
+- Info (blue, info icon)
+
+FEATURES:
+- Auto-dismiss after 4 seconds
+- Manual close button
+- Slide-in animation
+- Multiple notifications stack
+- Matches home page style
+
+TRIGGERED BY:
+- Events loaded
+- Filter applied
+- View changed
+- Registration clicked
+- Errors
+
+──────────────────────────────────────────────────────────────
+
+FEATURE 7: EVENT INSIGHTS AUTO-CALCULATION
+───────────────────────────────────────────
+Managed by: event.js updateEventInsights()
+
+CALCULATES:
+- Total events count
+- Unique cities (from locations)
+- Total expected attendees (sum of capacities)
+- Days until next event
+
+UPDATES:
+- On page load
+- After filtering
+- After data fetch
+
+DISPLAYS:
+- Large numbers
+- Descriptive labels
+- Icons for each metric
+
+================================================================================
+7. FILTER SYSTEM
+================================================================================
+
+FILTER COMBINATION:
+───────────────────
+All filters work together (AND logic):
+
+Event is shown if:
+- Matches search term (OR title OR description OR location)
+  AND
+- Matches selected category (or "All Categories")
+  AND
+- Matches selected mode (or "All Modes")
+
+FILTER FLOW:
+────────────
+1. User changes any filter
+2. applyFilters() function called
+3. Loops through all events
+4. Checks each filter condition
+5. Creates filtered array
+6. Calls renderGrid() with filtered events
+7. Updates empty state if no matches
+8. Shows flash notification
+
+RESET FILTERS:
+──────────────
+Click "Clear Filters" button in empty state:
+1. Clears search input
+2. Resets category to "All Categories"
+3. Resets mode to "All Modes"
+4. Re-applies filters (shows all events)
+5. Shows success notification
+
+================================================================================
+8. EVENT MODAL
+================================================================================
+
+MODAL STRUCTURE:
+────────────────
+
+┌─────────────────────────────────────────────────────────┐
+│ [X] Close Button                                         │
+├─────────────────────────────────────────────────────────┤
+│ Banner Image (full width, 320px max height)             │
+├─────────────────────────────────────────────────────────┤
+│ [Category Badge] [Mode Badge]                           │
+│                                                          │
+│ Event Title (2rem, navy blue)                           │
+│ Organized by: Organizer Name                            │
+│                                                          │
+│ ┌──────────────┬──────────────┬──────────────┐         │
+│ │ Date & Time  │ Location     │ Capacity     │         │
+│ │ (formatted)  │ (with icon)  │ (if avail)   │         │
+│ └──────────────┴──────────────┴──────────────┘         │
+│                                                          │
+│ ┌─────────────────────────────────────────────┐        │
+│ │ About This Event                             │        │
+│ │ Full description text...                     │        │
+│ └─────────────────────────────────────────────┘        │
+│                                                          │
+│ Speakers & Guests (if available)                        │
+│ ┌──────┐ ┌──────┐ ┌──────┐                            │
+│ │  A   │ │  B   │ │  C   │                            │
+│ │ Name │ │ Name │ │ Name │                            │
+│ │ Role │ │ Role │ │ Role │                            │
+│ └──────┘ └──────┘ └──────┘                            │
+│                                                          │
+│ [Register Now Button] [Share Event Button]              │
+└─────────────────────────────────────────────────────────┘
+
+SPEAKER CARDS:
+──────────────
+- Circular avatar with initial
+- Speaker name (bold, navy)
+- Speaker role (smaller, gray)
+- Grid layout (auto-fit, min 160px)
+- Hover effect
+
+DATE FORMATTING:
+────────────────
+Start Date: "Monday, December 25, 2025"
+Start Time: "10:00 AM"
+End Time: " - 12:00 PM" (if same day)
+End Date: " - Dec 26 12:00 PM" (if different day)
+
+MODE BADGES:
+────────────
+Online: Blue background, globe icon
+Hybrid: Green background, building icon
+In-Person: Orange background, map marker icon
+
+================================================================================
+9. SHARE FUNCTIONALITY
+================================================================================
+
+SHARE MODAL STRUCTURE:
+──────────────────────
+
+┌─────────────────────────────────────────────────────────┐
+│ Share this Event                                  [X]    │
+│ Event Title Here                                         │
+├─────────────────────────────────────────────────────────┤
+│ ┌─────────┐ ┌─────────┐ ┌─────────┐                   │
+│ │WhatsApp │ │ Twitter │ │Facebook │                   │
+│ └─────────┘ └─────────┘ └─────────┘                   │
+│ ┌─────────┐ ┌─────────┐ ┌─────────┐                   │
+│ │LinkedIn │ │Telegram │ │Instagram│                   │
+│ └─────────┘ └─────────┘ └─────────┘                   │
+├─────────────────────────────────────────────────────────┤
+│ [Event URL here...........................] [Copy]      │
+└─────────────────────────────────────────────────────────┘
+
+SHARE URL FORMAT:
+─────────────────
+WhatsApp: https://wa.me/?text=Check out this event: [TITLE] [URL]
+Twitter: https://twitter.com/intent/tweet?text=[TITLE]&url=[URL]
+Facebook: https://www.facebook.com/sharer/sharer.php?u=[URL]
+LinkedIn: https://www.linkedin.com/sharing/share-offsite/?url=[URL]
+Telegram: https://t.me/share/url?url=[URL]&text=[TITLE]
+Instagram: (Opens Instagram app if available)
+
+COPY LINK FEATURE:
+──────────────────
+1. Click "Copy" button
+2. URL copied to clipboard
+3. Button text changes to "Copied!"
+4. Icon changes to checkmark
+5. Resets after 2 seconds
+
+================================================================================
+10. HOW TO ADD EVENTS (ULTRA-LAYERED SYSTEM)
+================================================================================
+
+⚠️ IMPORTANT: Events are NOT added directly on the Upcoming Events page!
+Events are added through the UNIT REGISTRATION ADMIN SYSTEM.
+
+This is an ULTRA-LAYERED, 3-STEP PROCESS with multiple modals and database tables.
+
+ACCESS REQUIREMENTS:
+────────────────────
+URL: /GetInvolve/UnitRegistration.html
+Login Required: YES (Admin credentials)
+Roles Allowed: Super Admin, Zone Convener, Mentor
+Database: Supabase
+
+SYSTEM ARCHITECTURE:
+────────────────────
+┌──────────────────────────────────────────────────────────────┐
+│                    EVENT ADDING FLOW                          │
+├──────────────────────────────────────────────────────────────┤
+│                                                              │
+│  STEP 1: Create Basic Event (events table)                   │
+│  ↓                                                           │
+│  STEP 2: Choose Display Options (event_publications table)   │
+│  ↓                                                           │
+│  STEP 3: Add Extended Details (event_publications table)     │
+│  ↓                                                           │
+│  RESULT: Event appears on selected pages                     │
+│                                                              │
+└──────────────────────────────────────────────────────────────┘
+
+DATABASE TABLES INVOLVED:
+─────────────────────────
+1. events (Basic event data)
+2. event_publications (Extended details + display settings)
+3. event_categories (Category lookup)
+4. colleges (College association)
+
+════════════════════════════════════════════════════════════════
+STEP-BY-STEP: HOW TO ADD AN EVENT
+════════════════════════════════════════════════════════════════
+
+PREREQUISITE: Login to Unit Registration
+──────────────────────────────────────────
+1. Go to /GetInvolve/UnitRegistration.html
+2. Click "Login" button in header
+3. Enter admin email and password
+4. Click "Login"
+5. Wait for admin dashboard to load
+
+STEP 1: CREATE BASIC EVENT
+───────────────────────────
+Location: College Dashboard → Events Section
+
+1.1. Navigate to College:
+   - Select a Zone from zone buttons
+   - Click on a College card
+   - College Dashboard opens
+
+1.2. Open Event Modal:
+   - Scroll to "Events" section
+   - Click "Add Event" button (green, with calendar icon)
+   - Event modal appears
+
+1.3. Fill Basic Event Form:
+   
+   FIELD 1: Event Name *
+   - Input: Text field
+   - Example: "Vimarsh 2025 - Day 1"
+   - Required: YES
+   
+   FIELD 2: Description
+   - Input: Textarea
+   - Example: "Annual intellectual conclave..."
+   - Required: NO (but recommended)
+   
+   FIELD 3: Start Date & Time *
+   - Input: datetime-local
+   - Format: YYYY-MM-DDTHH:MM
+   - Example: 2025-03-15T10:00
+   - Required: YES
+   
+   FIELD 4: End Date & Time
+   - Input: datetime-local
+   - Format: YYYY-MM-DDTHH:MM
+   - Example: 2025-03-15T17:00
+   - Required: NO
+   
+   FIELD 5: Location
+   - Input: Text field
+   - Example: "Delhi University, North Campus"
+   - Required: NO
+   
+   FIELD 6: Status
+   - Input: Dropdown
+   - Options: upcoming, scheduled, completed, cancelled
+   - Default: upcoming
+   - Required: YES
+   
+   FIELD 7: Banner Image
+   - Option A: Upload File
+     • Click "Choose File"
+     • Select image (max 500KB)
+     • Formats: JPG, PNG, WebP
+     • Recommended: 600x400px
+   
+   - Option B: Enter URL
+     • Paste image URL
+     • Example: https://example.com/banner.jpg
+
+1.4. Save Basic Event:
+   - Click "Save" button
+   - System uploads image (if file selected)
+   - System saves to events table
+   - Success notification appears
+   - Modal closes automatically
+   - STEP 2 modal opens immediately
+
+STEP 2: CHOOSE DISPLAY OPTIONS
+───────────────────────────────
+Location: Event Display Options Modal (Auto-opens after Step 1)
+
+2.1. Modal Title:
+   - "Event Created Successfully!" (for new events)
+   - "Event Updated!" (for edited events)
+
+2.2. Choose Display Target:
+   
+   OPTION 1: Home Page Only
+   - Radio button: value="home"
+   - Icon: Home icon
+   - Description: "Show basic event details on the main home page."
+   - Result: display_on_home = true, display_on_upcoming = false
+   - Next: Saves immediately, NO Step 3
+   
+   OPTION 2: Upcoming Events Page Only
+   - Radio button: value="upcoming"
+   - Icon: Calendar icon
+   - Description: "Display full event details with registration."
+   - Result: display_on_home = false, display_on_upcoming = true
+   - Next: Opens Step 3 for extended details
+   
+   OPTION 3: Both Pages ⭐ RECOMMENDED
+   - Radio button: value="both"
+   - Icon: Layer group icon
+   - Description: "Show on Home (teaser) and Upcoming (full details)."
+   - Result: display_on_home = true, display_on_upcoming = true
+   - Next: Opens Step 3 for extended details
+
+2.3. Select Option:
+   - Click on one of the 3 radio button cards
+   - "Continue" button becomes enabled
+   - Click "Continue" button
+   
+   IF "Home Page Only" selected:
+   - Event saved immediately
+   - Success notification
+   - Modal closes
+   - Events list refreshes
+   - DONE!
+   
+   IF "Upcoming" or "Both" selected:
+   - Step 3 modal opens
+   - Continue to extended details
+
+2.4. Alternative: Skip For Now
+   - Click "Skip For Now" button
+   - Event saved without publication
+   - Can edit later to publish
+
+STEP 3: ADD EXTENDED DETAILS (For Upcoming Events Page)
+────────────────────────────────────────────────────────
+Location: Event Additional Details Modal (Opens after Step 2)
+
+3.1. Basic Information Display (Read-only):
+   - Event Title: (from Step 1)
+   - Date & Time: (from Step 1)
+   - Location: (from Step 1)
+
+3.2. Extended Details Form:
+
+   FIELD 1: Event Category * ⭐ IMPORTANT
+   - Input: Dropdown (dynamically loaded from database)
+   - Options: Debate, Workshop, Cultural, Seminar, Webinar, Competition, Conference
+   - Database: event_categories table
+   - Stores: category_id (integer)
+   - Required: YES
+   - Example: "Workshop"
+   
+   FIELD 2: Event Mode *
+   - Input: Dropdown
+   - Options:
+     • offline (In-person)
+     • online
+     • hybrid
+   - Default: offline
+   - Required: YES
+   - Affects: Mode badge color on event cards
+   
+   FIELD 3: Expected Capacity
+   - Input: Number
+   - Example: 100
+   - Required: NO
+   - Used for: Event insights calculations
+   
+   FIELD 4: Event Banner URL
+   - Input: URL
+   - Example: https://example.com/banner.jpg
+   - Required: NO
+   - Overrides: Banner from Step 1 (if provided)
+   - Recommended size: 600x400px
+   
+   FIELD 5: Registration Link
+   - Input: URL
+   - Example: https://forms.gle/abc123
+   - Required: NO
+   - Used for: "Register Now" button
+   - If empty: Button shows "Registration link coming soon!"
+   
+   FIELD 6: Detailed Description *
+   - Input: Textarea (4 rows)
+   - Example: "Join us for an intensive workshop on..."
+   - Required: YES
+   - Used for: Full event description in modal
+   - Difference from Step 1 description: This is longer, more detailed
+
+3.3. Speakers/Guests Section (Optional):
+
+   ADD SPEAKER:
+   - Click "+ Add Speaker" button
+   - New speaker row appears
+   
+   SPEAKER FIELDS:
+   - Speaker Name: Text input (e.g., "Dr. Rajesh Kumar")
+   - Role/Designation: Text input (e.g., "Professor, Delhi University")
+   
+   REMOVE SPEAKER:
+   - Click X button on speaker row
+   - If last speaker: Fields clear instead of removing
+   
+   MULTIPLE SPEAKERS:
+   - Click "+ Add Speaker" multiple times
+   - Each speaker gets own row
+   - Stored as JSON array in database
+
+3.4. Display Settings Summary:
+   - Shows selected display options from Step 2
+   - Badge for Home Page (if selected)
+   - Badge for Upcoming Events (if selected)
+
+3.5. Save & Publish:
+   - Click "Save & Publish Event" button
+   - System validates required fields
+   - System calls upsert_event_publication RPC
+   - System saves to event_publications table
+   - Success notification appears
+   - Modals close
+   - Events list refreshes
+   - Event now visible on selected pages!
+
+════════════════════════════════════════════════════════════════
+DATABASE OPERATIONS
+════════════════════════════════════════════════════════════════
+
+STEP 1 DATABASE OPERATION:
+──────────────────────────
+Table: events
+Method: INSERT or UPDATE
+Columns:
+- college_id (from selected college)
+- title
+- description
+- start_at (ISO timestamp)
+- end_at (ISO timestamp)
+- location
+- status
+- banner_url
+
+SQL Example (INSERT):
+INSERT INTO events (college_id, title, description, start_at, end_at, location, status, banner_url)
+VALUES (123, 'Vimarsh 2025', 'Annual conclave...', '2025-03-15T10:00:00Z', '2025-03-15T17:00:00Z', 'Delhi', 'upcoming', 'https://...');
+
+STEP 2 & 3 DATABASE OPERATION:
+───────────────────────────────
+Table: event_publications
+Method: RPC call to upsert_event_publication
+Function: Inserts or updates publication record
+
+Parameters:
+- p_event_id (from Step 1)
+- p_college_id (from Step 1)
+- p_display_on_home (boolean from Step 2)
+- p_display_on_upcoming (boolean from Step 2)
+- p_category_id (integer from Step 3)
+- p_mode (text from Step 3)
+- p_capacity (integer from Step 3)
+- p_registration_url (text from Step 3)
+- p_long_description (text from Step 3)
+- p_speakers (jsonb array from Step 3)
+- p_published_by (current user ID)
+
+RPC Call Example:
+SELECT upsert_event_publication(
+  p_event_id := 456,
+  p_college_id := 123,
+  p_display_on_home := true,
+  p_display_on_upcoming := true,
+  p_category_id := 2,
+  p_mode := 'offline',
+  p_capacity := 100,
+  p_registration_url := 'https://forms.gle/abc',
+  p_long_description := 'Detailed description...',
+  p_speakers := '[{"name":"Dr. Kumar","role":"Professor"}]'::jsonb,
+  p_published_by := 'user-uuid-here'
+);
+
+RESULT VIEW:
+────────────
+The published_events view (used by Upcoming.html) joins:
+- events table (basic info)
+- event_publications table (extended info)
+- colleges table (college name)
+- event_categories table (category name)
+
+════════════════════════════════════════════════════════════════
+EDITING EXISTING EVENTS
+════════════════════════════════════════════════════════════════
+
+TO EDIT AN EVENT:
+─────────────────
+1. Go to College Dashboard
+2. Find event in "Upcoming" or "Past" section
+3. Click "Edit" button on event card
+4. Event modal opens with pre-filled data
+5. Modify fields as needed
+6. Click "Save"
+7. Display options modal opens with current settings pre-selected
+8. Click "Continue"
+9. Extended details modal opens with current data
+10. Modify fields as needed
+11. Click "Save & Publish Event"
+12. Event updated!
+
+WHAT GETS PRE-FILLED:
+─────────────────────
+Step 1 Modal:
+- All basic event fields from events table
+
+Step 2 Modal:
+- Radio button pre-selected based on current publication settings
+
+Step 3 Modal:
+- Category dropdown pre-selected
+- Mode dropdown pre-selected
+- All text fields filled
+- Speakers list populated
+- Display summary shows current settings
+
+════════════════════════════════════════════════════════════════
+DELETING EVENTS
+════════════════════════════════════════════════════════════════
+
+TO DELETE AN EVENT:
+───────────────────
+1. Go to College Dashboard
+2. Find event in events list
+3. Click "Delete" button (red, trash icon)
+4. Confirmation dialog appears
+5. Click "OK" to confirm
+6. Event deleted from events table
+7. Associated publication record also deleted (cascade)
+8. Success notification
+9. Events list refreshes
+
+⚠️ WARNING: Deletion is permanent and cannot be undone!
+
+════════════════════════════════════════════════════════════════
+TROUBLESHOOTING EVENT ADDING
+════════════════════════════════════════════════════════════════
+
+ISSUE: "Add Event" button not visible
+SOLUTION:
+- Ensure you're logged in as admin
+- Navigate to a specific college dashboard
+- Button is in Events section, not on zone page
+
+ISSUE: Step 2 modal doesn't open after saving
+SOLUTION:
+- Check browser console for errors
+- Ensure tempEventData is set
+- Refresh page and try again
+
+ISSUE: Category dropdown is empty in Step 3
+SOLUTION:
+- Check event_categories table has data
+- Verify RLS policies allow read access
+- Check browser console for Supabase errors
+
+ISSUE: Event saved but doesn't appear on Upcoming page
+SOLUTION:
+- Check display_on_upcoming = true in event_publications
+- Verify event start_at is in the future
+- Check event status is 'upcoming' or 'scheduled'
+- Clear browser cache and refresh
+
+ISSUE: Speakers not saving
+SOLUTION:
+- Ensure at least one speaker has a name
+- Check JSON format in database
+- Verify speakers column is jsonb type
+
+ISSUE: "Save & Publish" button disabled
+SOLUTION:
+- Fill all required fields (marked with *)
+- Category must be selected
+- Long description must not be empty
+
+════════════════════════════════════════════════════════════════
+QUICK REFERENCE: EVENT ADDING CHECKLIST
+════════════════════════════════════════════════════════════════
+
+□ 1. Login to Unit Registration
+□ 2. Select Zone
+□ 3. Select College
+□ 4. Click "Add Event"
+□ 5. Fill Event Name *
+□ 6. Fill Start Date & Time *
+□ 7. Fill Description (recommended)
+□ 8. Upload/Enter Banner Image
+□ 9. Click "Save"
+□ 10. Choose Display Option (Home/Upcoming/Both)
+□ 11. Click "Continue"
+□ 12. Select Event Category *
+□ 13. Select Event Mode *
+□ 14. Enter Detailed Description *
+□ 15. Add Registration Link (if available)
+□ 16. Add Speakers (optional)
+□ 17. Click "Save & Publish Event"
+□ 18. Verify event appears on selected page(s)
+
+DONE! ✅
+
+════════════════════════════════════════════════════════════════
+
+11. HOW TO MODIFY CONTENT
+
+================================================================================
+
+CHANGE HERO STATISTICS:
+───────────────────────
+File: Upcoming.html (Lines 382-408)
+
+TO CHANGE "50+ Events Yearly" (Lines 387-388):
+<span class="home-impact-number" id="impact-events">50+</span>
+<span class="home-impact-label">Events Yearly</span>
+
+TO CHANGE "15+ Cities Covered" (Lines 396-397):
+<span class="home-impact-number">15+</span>
+<span class="home-impact-label">Cities Covered</span>
+
+TO CHANGE "10K+ Attendees" (Lines 405-406):
+<span class="home-impact-number" id="impact-attendees">10K+</span>
+<span class="home-impact-label">Attendees</span>
+
+──────────────────────────────────────────────────────────────
+
+CHANGE HERO TITLE:
+──────────────────
+File: Upcoming.html (Lines 373-376)
+
+<h1 class="hero-title">
+    <span class="hero-title-line">Explore Upcoming</span>
+    <span class="hero-title-line hero-title-accent">Events Across India</span>
+</h1>
+
+──────────────────────────────────────────────────────────────
+
+CHANGE HERO DESCRIPTION:
+─────────────────────────
+File: Upcoming.html (Lines 377-380)
+
+<p class="hero-description">
+    Participate in debates, workshops, cultural programs, and seminars...
+</p>
+
+──────────────────────────────────────────────────────────────
+
+ADD/EDIT FAQ ITEMS:
+───────────────────
+File: Upcoming.html (Lines 553-608)
+
+TO ADD NEW FAQ:
+<div class="faq-item">
+    <div class="faq-question" onclick="toggleFAQ(this)">
+        <h4>Your Question Here?</h4>
+        <i class="fas fa-chevron-down"></i>
+    </div>
+    <div class="faq-answer" style="display: none;">
+        <p>Your answer here...</p>
+    </div>
+</div>
+
+TO EDIT EXISTING FAQ:
+1. Find the faq-item div
+2. Change the <h4> text (question)
+3. Change the <p> text (answer)
+
+──────────────────────────────────────────────────────────────
+
+CHANGE SUPABASE CREDENTIALS:
+────────────────────────────
+File: event.js (Lines 6-7)
+
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
+
+⚠️ IMPORTANT: Also update RLS policies in Supabase!
+
+──────────────────────────────────────────────────────────────
+
+CHANGE EVENT QUERY FILTERS:
+───────────────────────────
+File: event.js (Lines 238-246)
+
+TO SHOW MORE EVENTS:
+.limit(50)  // Change to .limit(100)
+
+TO CHANGE STATUS FILTER:
+.in('status', ['upcoming', 'scheduled'])
+// Add more statuses: ['upcoming', 'scheduled', 'confirmed']
+
+TO REMOVE DISPLAY FILTER:
+// Comment out or remove:
+// .eq('display_on_upcoming', true)
+
+================================================================================
+11. TROUBLESHOOTING
+================================================================================
+
+ISSUE 1: Events not loading
+────────────────────────────
+SYMPTOMS:
+- Empty grid
+- Loading spinner never stops
+- "No events found" message
+
+SOLUTIONS:
+1. Check Supabase connection:
+   - Open browser console (F12)
+   - Look for Supabase errors
+   - Verify URL and anon key
+
+2. Check database query:
+   - Verify published_events view exists
+   - Check RLS policies allow anonymous read
+   - Verify events have display_on_upcoming = true
+
+3. Check event dates:
+   - Events must have start_at >= now
+   - Check timezone issues
+
+4. Check browser console:
+   - Look for JavaScript errors
+   - Check network tab for failed requests
+
+5. Verify Supabase library loaded:
+   - Check if CDN is accessible
+   - Try different CDN URL
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 2: Filters not working
+─────────────────────────────
+SYMPTOMS:
+- Dropdown doesn't open
+- Selection doesn't filter events
+- Search doesn't work
+
+SOLUTIONS:
+1. Check CustomDropdown initialization:
+   - Verify customDropdownInstance exists
+   - Check browser console for errors
+
+2. Check dropdown HTML:
+   - Verify .custom-dropdown class
+   - Check data-name attribute
+   - Verify .dropdown-menu exists
+
+3. Check event listener:
+   - Verify customDropdownChange event fires
+   - Check applyFilters() is called
+
+4. Check search input:
+   - Verify id="event-search"
+   - Check debounce timeout
+
+5. Refresh page and try again
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 3: Modal not opening
+───────────────────────────
+SYMPTOMS:
+- Click "Details" button, nothing happens
+- Modal appears but no content
+- Modal stuck open
+
+SOLUTIONS:
+1. Check modal HTML:
+   - Verify id="event-modal"
+   - Check id="modal-body-content"
+
+2. Check event object:
+   - Verify event has all required fields
+   - Check browser console for errors
+
+3. Check modal close:
+   - Click close button (X)
+   - Click outside modal
+   - Press Escape key
+
+4. Check body overflow:
+   - May be stuck with overflow: hidden
+   - Manually set: document.body.style.overflow = 'auto'
+
+5. Refresh page
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 4: Share modal not working
+─────────────────────────────────
+SYMPTOMS:
+- Share button doesn't open modal
+- Share links don't work
+- Copy button doesn't copy
+
+SOLUTIONS:
+1. Check share modal HTML:
+   - Verify id="share-modal"
+   - Check share button IDs
+
+2. Check openShareModal function:
+   - Verify function exists
+   - Check event object passed
+
+3. Check clipboard API:
+   - May be blocked on HTTP (needs HTTPS)
+   - Check browser permissions
+
+4. Check share URLs:
+   - Verify URL encoding
+   - Check platform-specific formats
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 5: Flash notifications not showing
+─────────────────────────────────────────
+SYMPTOMS:
+- No notifications appear
+- Notifications appear but no styling
+- Notifications don't auto-dismiss
+
+SOLUTIONS:
+1. Check flash container:
+   - Verify id="flash-container"
+   - Check if created dynamically
+
+2. Check CSS:
+   - Verify .flash-notification class
+   - Check .show class animation
+
+3. Check showNotification calls:
+   - Verify function is called
+   - Check parameters (title, message, type)
+
+4. Check z-index:
+   - Notifications may be behind other elements
+   - Increase z-index in CSS
+
+5. Clear browser cache
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 6: View toggle not working
+─────────────────────────────────
+SYMPTOMS:
+- Click grid/list button, nothing changes
+- Layout doesn't switch
+
+SOLUTIONS:
+1. Check view buttons:
+   - Verify .view-btn class
+   - Check data-view attribute
+
+2. Check grid container:
+   - Verify id="events-grid"
+   - Check .list-view class toggle
+
+3. Check CSS:
+   - Verify .list-view styles exist
+   - Check grid-template-columns
+
+4. Check event listener:
+   - Verify button click handler
+   - Check currentView variable
+
+5. Refresh page
+
+================================================================================
+12. RESPONSIVE DESIGN
+================================================================================
+
+The page is fully responsive across all devices:
+
+DESKTOP (1920px+):
+- Full hero section with large text
+- Filter bar: All filters in one row
+- Featured event: Side-by-side layout
+- Events grid: 3 columns
+- Event insights: 4 columns
+- FAQ: 2 columns
+- Newsletter: Side-by-side layout
+- Sidebar visible by default
+
+LAPTOP (1024px - 1920px):
+- Slightly reduced spacing
+- Filter bar: All filters in one row
+- Featured event: Side-by-side layout
+- Events grid: 2-3 columns
+- Event insights: 4 columns (may wrap)
+- FAQ: 2 columns
+- Newsletter: Side-by-side layout
+
+TABLET (768px - 1024px):
+- Reduced font sizes
+- Filter bar: Filters wrap to 2 rows
+- Featured event: Stacked layout
+- Events grid: 2 columns
+- Event insights: 2 columns
+- FAQ: 1 column
+- Newsletter: Stacked layout
+- Sidebar collapsible
+
+MOBILE LANDSCAPE (600px - 768px):
+- Compact layout
+- Filter bar: Filters stack vertically
+- Featured event: Stacked layout
+- Events grid: 1-2 columns
+- Event insights: 2 columns
+- FAQ: 1 column
+- Newsletter: Stacked layout
+
+MOBILE PORTRAIT (< 600px):
+- Single column layout
+- Filter bar: Filters stack vertically
+- Featured event: Stacked layout
+- Events grid: 1 column, full width
+- Event insights: 1 column, stacked
+- FAQ: 1 column
+- Newsletter: Stacked layout
+- Hamburger menu
+- Touch-optimized buttons (min 44x44px)
+- Reduced padding throughout
+
+EVENT CARD RESPONSIVE:
+- Desktop: 3 columns
+- Tablet: 2 columns
+- Mobile: 1 column
+- Date badge: Always visible
+- Meta info: Wraps on small screens
+- Buttons: Stack on mobile
+
+MODAL RESPONSIVE:
+- Desktop: Max width 900px, centered
+- Tablet: Full width with padding
+- Mobile: Full screen
+- Speaker grid: 3 → 2 → 1 columns
+- Buttons: Stack on mobile
+
+================================================================================
+13. SEO & ACCESSIBILITY
+================================================================================
+
+SEO FEATURES:
+─────────────
+✓ Title: "Upcoming Events — Discover & Register | YUVA India"
+✓ Meta description (comprehensive)
+✓ Keywords meta tag
+✓ Canonical URL
+✓ Open Graph tags (Facebook, LinkedIn)
+✓ Twitter Card tags
+✓ Structured data (JSON-LD):
+  • Organization schema
+  • WebSite schema
+  • CollectionPage schema
+  • FAQPage schema
+  • BreadcrumbList schema
+✓ Bing verification tag
+✓ Theme color
+✓ Mobile web app capable
+✓ Preconnect to fonts
+
+STRUCTURED DATA TYPES:
+1. Organization - YUVA details, social links
+2. WebSite - Site info, search action
+3. CollectionPage - Events page info
+4. FAQPage - All 5 FAQ items
+5. BreadcrumbList - Navigation path
+
+ACCESSIBILITY FEATURES:
+───────────────────────
+✓ Keyboard navigation (Tab, Enter, Escape)
+✓ ARIA labels on buttons
+✓ Semantic HTML (header, section, main)
+✓ SVG has aria-hidden="true" and role="img"
+✓ Touch targets: minimum 44x44px
+✓ Focus indicators visible
+✓ Logical heading hierarchy (h1, h2, h3, h4)
+✓ Sufficient color contrast
+✓ Alt text on images
+✓ Modal close with Escape key
+✓ Form labels and validation
+✓ Loading states with spinners
+
+RECOMMENDED IMPROVEMENTS:
+- Add ARIA labels to filter dropdowns
+- Add skip-to-content link
+- Add ARIA live region for filter updates
+- Add keyboard shortcuts for modal
+- Test with screen readers
+- Add focus trap in modal
+
+PERFORMANCE OPTIMIZATIONS:
+──────────────────────────
+✓ Lazy loading for images (loading="lazy")
+✓ Debounced search (300ms)
+✓ Limit database queries (50 events)
+✓ CSS animations (hardware accelerated)
+✓ Minimal JavaScript
+✓ Shared CSS and JS files (cached)
+✓ SVG graphics (scalable, small size)
+✓ Preconnect to font CDNs
+✓ Image error handling (fallback)
+
+RECOMMENDED IMPROVEMENTS:
+- Minify CSS and JavaScript
+- Compress images
+- Use WebP format for banners
+- Implement service worker
+- Add preload for critical resources
+- Use CDN for static assets
+- Implement pagination for large event lists
+- Add infinite scroll
+
+================================================================================
+END OF USER MANUAL
+================================================================================
+
+QUICK REFERENCE:
+────────────────
+
+VIEW EVENTS:
+1. Open Upcoming.html
+2. Events load automatically from database
+3. Use filters to narrow down
+4. Click "Details" to see full info
+
+FILTER EVENTS:
+1. Type in search box
+2. Select category from dropdown
+3. Select mode (Online/In-Person/Hybrid)
+4. Click "Clear Filters" to reset
+
+REGISTER FOR EVENT:
+1. Click "Register" button on card
+2. Or open modal and click "Register Now"
+3. Redirected to registration URL
+
+SHARE EVENT:
+1. Open event modal
+2. Click "Share Event" button
+3. Choose platform or copy link
+
+TROUBLESHOOT:
+1. Check browser console (F12)
+2. Verify Supabase connection
+3. Check database RLS policies
+4. Clear cache and refresh
+
+For technical support or questions, contact:
+YUVA Technical Team
+Email: tech@yuva.ind.in
+
+Last Updated: December 26, 2025
+Version: 2025.1

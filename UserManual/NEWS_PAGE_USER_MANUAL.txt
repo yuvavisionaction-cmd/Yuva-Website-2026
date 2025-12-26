@@ -1,0 +1,770 @@
+================================================================================
+                    YUVA NEWS PAGE - USER MANUAL
+                Youth United For Vision & Action
+================================================================================
+
+VERSION: 2025
+LAST UPDATED: December 26, 2025
+
+================================================================================
+TABLE OF CONTENTS
+================================================================================
+
+1. OVERVIEW
+2. FILE STRUCTURE
+3. EXTERNAL DEPENDENCIES
+4. PAGE SECTIONS
+5. NEWS CATEGORIES & FILTERING
+6. NEWSPAPER GALLERY
+7. DYNAMIC FEATURES
+8. HOW TO MODIFY CONTENT
+9. TROUBLESHOOTING
+10. RESPONSIVE DESIGN
+11. SEO & ACCESSIBILITY
+
+================================================================================
+1. OVERVIEW
+================================================================================
+
+The YUVA News Page showcases the organization's media coverage, press mentions,
+and newspaper clippings from various publications across India.
+
+KEY FEATURES:
+✓ Newspaper clippings gallery (7 images, masonry layout)
+✓ News articles grid (6 articles with filtering)
+✓ Category filtering (All, Events, Features, Interviews)
+✓ Image modal for enlarged newspaper views
+✓ Media coverage statistics (150+ mentions, 25+ outlets, etc.)
+✓ Animated hero section with Ashoka Chakra SVG
+✓ Click-to-enlarge newspaper cuttings
+✓ External links to full articles
+✓ Tricolor theme (India flag colors)
+✓ Fully responsive design
+
+PURPOSE:
+- Showcase YUVA's media presence
+- Display newspaper clippings and press coverage
+- Provide links to full articles
+- Demonstrate credibility and reach
+- Highlight achievements and recognition
+
+================================================================================
+2. FILE STRUCTURE
+================================================================================
+
+THREE MAIN FILES:
+
+1. News.html (624 lines, 32,202 bytes)
+   - Main HTML structure
+   - Hero section
+   - Newspaper gallery (7 clippings)
+   - News articles grid (6 articles)
+   - Filter buttons
+   - Media coverage statistics
+   - Custom CSS for image placeholders
+
+2. media-script.js (901 lines, 31,091 bytes)
+   - Shared JavaScript for all media pages
+   - News: Filter functionality, image modal, click effects
+   - Digital Media: Scroll animations, hover effects
+   - Video: YouTube API integration
+   - Flash notification system
+
+3. media-styles.css (57,031 bytes)
+   - All styling for media pages
+   - Hero section styles
+   - Newspaper gallery (masonry layout)
+   - News card layouts
+   - Image modal styles
+   - Filter button styles
+   - Animations and transitions
+
+ADDITIONAL FILES NEEDED:
+- /style.css (Global site styles)
+- /Mobile.css (Mobile-specific styles)
+- /script.js (Global site JavaScript - sidebar)
+- /Images/YUVA logo.png
+- /Images/Newspaper/*.jpeg (7 newspaper clipping images)
+
+================================================================================
+3. EXTERNAL DEPENDENCIES
+================================================================================
+
+The page requires these external libraries:
+
+1. GOOGLE FONTS
+   URL: https://fonts.googleapis.com/css2
+   Fonts: Inter (300-800), Poppins (300-800)
+   Purpose: Modern typography
+
+2. FONT AWESOME (v6.5.2)
+   CDN: https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css
+   Purpose: All icons on the page
+
+ICONS USED:
+- fa-newspaper (News badge, placeholder icons)
+- fa-calendar (Date icons)
+- fa-arrow-right (Read more arrows)
+- fa-share-alt (Features icon)
+- fa-times (Modal close button)
+
+NO DATABASE REQUIRED:
+This page is completely static - all content is hardcoded in HTML.
+
+================================================================================
+4. PAGE SECTIONS
+================================================================================
+
+The page has 4 main sections:
+
+┌──────────────────────────────────────────────────────────────┐
+│ SECTION 1: HERO SECTION                                      │
+├──────────────────────────────────────────────────────────────┤
+│ Components:                                                   │
+│ - Animated particle background                               │
+│ - Ashoka Chakra SVG (24 spokes, rotating animation)         │
+│ - Hero badge: "Latest News" with newspaper icon             │
+│ - Hero title: "YUVA in the News" (2 lines)                  │
+│ - Hero description: Mission statement                        │
+│                                                               │
+│ Animations:                                                   │
+│ - Floating particles (20s loop)                              │
+│ - Rotating Ashoka Chakra (30s loop)                         │
+│ - Fade-in on page load                                       │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ SECTION 2: NEWSPAPER GALLERY                                 │
+├──────────────────────────────────────────────────────────────┤
+│ Header:                                                       │
+│ - Title: "From the Headlines"                                │
+│ - Subtitle: "A snapshot of our presence in the press..."     │
+│                                                               │
+│ Gallery Grid:                                                 │
+│ - 7 newspaper clipping images                                │
+│ - Masonry layout (varied heights)                            │
+│ - 2 "tall" images (double height)                            │
+│ - 5 regular images                                           │
+│ - Responsive grid (3 → 2 → 1 columns)                        │
+│                                                               │
+│ Features:                                                     │
+│ - Click any image to enlarge in modal                        │
+│ - Hover effect (scale and shadow)                            │
+│ - data-title attribute for modal title                       │
+│ - Alt text for accessibility                                 │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ SECTION 3: NEWS ARTICLES GRID                                │
+├──────────────────────────────────────────────────────────────┤
+│ Filter Buttons (4 buttons):                                   │
+│ - All News (active by default)                               │
+│ - Events                                                      │
+│ - Features                                                    │
+│ - Interviews                                                  │
+│                                                               │
+│ News Cards (6 articles):                                      │
+│ Each card has:                                                │
+│ - Image placeholder (with icon and category badge)           │
+│ - Title                                                       │
+│ - Excerpt (preview text)                                     │
+│ - Metadata:                                                   │
+│   • Publication date                                         │
+│   • News source                                              │
+│ - "Read Full Article" link (opens in new tab)               │
+│                                                               │
+│ Categories:                                                   │
+│ - Events: 4 articles                                         │
+│ - Features: 2 articles                                       │
+│ - Interviews: 0 articles (can be added)                      │
+│                                                               │
+│ Filtering:                                                    │
+│ - Click filter button to show/hide cards                     │
+│ - Smooth fade-in animation                                   │
+│ - Active button highlighted                                  │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ SECTION 4: MEDIA COVERAGE STATISTICS                         │
+├──────────────────────────────────────────────────────────────┤
+│ 4 Statistics:                                                 │
+│ - 150+ Media Mentions                                        │
+│ - 25+ News Outlets                                           │
+│ - 5M+ Media Reach                                            │
+│ - 12 Awards Won                                              │
+│                                                               │
+│ Layout:                                                       │
+│ - Gradient background (light gray)                           │
+│ - Grid layout (4 columns on desktop)                         │
+│ - Responsive (wraps on smaller screens)                      │
+│ - Large numbers with labels                                  │
+└──────────────────────────────────────────────────────────────┘
+
+================================================================================
+5. NEWS CATEGORIES & FILTERING
+================================================================================
+
+CATEGORY 1: EVENTS (4 articles)
+────────────────────────────────
+Articles about YUVA events, conferences, and programs.
+
+ARTICLE 1:
+Title: "DU: Discussion on the importance of the Constitution begins at Yuva Samvad"
+Date: November 7, 2025
+Source: Prabhat Khabar
+Link: https://www.prabhatkhabar.com/national/du-importance-of-the-constitution
+
+ARTICLE 2:
+Title: "Protecting India's culture is protecting the Constitution: Prafulla Ketkar"
+Date: November 9, 2025
+Source: Hindusthan Samachar
+Link: https://www.hindusthansamachar.in/Encyc/2025/11/9/...
+
+ARTICLE 3:
+Title: "Protecting India's culture is protecting the Constitution: Prafulla Ketkar"
+Date: November 9, 2025
+Source: Live VNS News
+Link: https://livevns.news/state/delhincr/...
+
+ARTICLE 4:
+Title: "Discussion on Constitution: The Soul of India 2025"
+Date: November 10, 2025
+Source: News Adda India
+Link: https://newsaddaindia.com/the-discussion-on-constitution-...
+
+──────────────────────────────────────────────────────────────
+
+CATEGORY 2: FEATURES (2 articles)
+──────────────────────────────────
+Feature articles, e-paper mentions, and special coverage.
+
+ARTICLE 5:
+Title: "Haribhoomi E-Paper: New Delhi Main Edition"
+Date: November 8, 2025
+Source: Haribhoomi
+Link: https://epaper.haribhoomi.com/view/43249/new-delhi-main-edition/1
+
+ARTICLE 6:
+Title: "YUVA Coverage (Shared Link)"
+Date: November 10, 2025
+Source: Google Share
+Link: https://share.google/QwttrFSCeJZ1X4WTg
+
+──────────────────────────────────────────────────────────────
+
+CATEGORY 3: INTERVIEWS (0 articles)
+────────────────────────────────────
+No interview articles currently. Can be added following the same structure.
+
+================================================================================
+6. NEWSPAPER GALLERY
+================================================================================
+
+NEWSPAPER CLIPPING 1 (TALL)
+───────────────────────────
+Title: "Youth Conclave 'Vimarsh' to be Held from Oct 13-15 at Satyawati College"
+Image: /Images/Newspaper/WhatsApp-Image-2023-11-08-at-1.31.58-AM.jpeg
+Height: Double (tall class)
+
+NEWSPAPER CLIPPING 2
+────────────────────
+Title: "Youth are the Representative Signature of Amritkaal: DU Vice-Chancellor at Vimarsh Conclave"
+Image: /Images/Newspaper/WhatsApp-Image-2023-11-08-at-10.04.36-AM.jpeg
+Height: Regular
+
+NEWSPAPER CLIPPING 3
+────────────────────
+Title: "Youth Should Demolish Anti-India Narratives: Monika Arora"
+Image: /Images/Newspaper/WhatsApp-Image-2023-11-08-at-10.04.37-AM-1.jpeg
+Height: Regular
+
+NEWSPAPER CLIPPING 4 (TALL)
+───────────────────────────
+Title: "Indian Society is Based on Acceptance, Not Tolerance: Monika Arora"
+Image: /Images/Newspaper/WhatsApp-Image-2023-11-08-at-10.04.38-AM-1.jpeg
+Height: Double (tall class)
+
+NEWSPAPER CLIPPING 5
+────────────────────
+Title: "Indian Philosophy Inspires Compassion for All: Monika Arora"
+Image: /Images/Newspaper/WhatsApp-Image-2023-11-08-at-10.04.38-AM.jpeg
+Height: Regular
+
+NEWSPAPER CLIPPING 6
+────────────────────
+Title: "Youth are Representatives of Amritkaal: DU Vice-Chancellor"
+Image: /Images/Newspaper/WhatsApp-Image-2023-11-08-at-10.04.39-AM-1.jpeg
+Height: Regular
+
+NEWSPAPER CLIPPING 7
+────────────────────
+Title: "Three-Day 'Vimarsh 2023' Program Concludes"
+Image: /Images/Newspaper/WhatsApp-Image-2023-11-08-at-10.04.39-AM.jpeg
+Height: Regular
+
+MASONRY LAYOUT:
+- Desktop: 3 columns
+- Tablet: 2 columns
+- Mobile: 1 column
+- Tall images span 2 rows
+- Auto-fit grid layout
+
+================================================================================
+7. DYNAMIC FEATURES
+================================================================================
+
+FEATURE 1: CATEGORY FILTERING
+──────────────────────────────
+Managed by: media-script.js (Lines 105-149)
+
+HOW IT WORKS:
+1. User clicks a filter button (All, Events, Features, Interviews)
+2. JavaScript removes 'active' class from all buttons
+3. Adds 'active' class to clicked button
+4. Updates currentFilter variable
+5. Calls filterNewsCards() function
+6. Shows/hides cards based on data-category attribute
+7. Applies fade-in animation to visible cards
+
+FILTER LOGIC:
+- If "All News": Show all cards
+- If specific category: Show only matching cards
+- Hidden cards: display: none
+- Visible cards: display: block + fadeInUp animation
+
+CODE LOCATION:
+File: media-script.js
+Function: initializeNews(), filterNewsCards()
+Lines: 105-149
+
+──────────────────────────────────────────────────────────────
+
+FEATURE 2: IMAGE MODAL (NEWSPAPER VIEWER)
+──────────────────────────────────────────
+Managed by: media-script.js (Lines 155-215)
+
+HOW IT WORKS:
+1. User clicks a newspaper cutting
+2. JavaScript creates modal HTML (if not exists)
+3. Gets image src and data-title from clicked element
+4. Opens modal with enlarged image
+5. Displays title below image
+6. Prevents background scrolling
+7. User can close by:
+   - Clicking X button
+   - Clicking outside modal
+   - Pressing Escape key
+
+MODAL STRUCTURE:
+- Overlay (dark background)
+- Modal content box
+- Close button (top-right)
+- Image container
+- Image title
+
+CODE LOCATION:
+File: media-script.js
+Functions: setupImageModal(), openImageModal(), closeImageModal()
+Lines: 155-215
+
+──────────────────────────────────────────────────────────────
+
+FEATURE 3: CLICK EFFECTS ON NEWS CARDS
+───────────────────────────────────────
+Managed by: media-script.js (Lines 124-132)
+
+WHAT HAPPENS ON CLICK:
+- Card scales down slightly: scale(0.98)
+- After 150ms, returns to normal: scale(1)
+- Provides visual feedback for interaction
+
+PURPOSE:
+- Indicates card is clickable
+- Improves user experience
+- Provides tactile feedback
+
+──────────────────────────────────────────────────────────────
+
+FEATURE 4: ASHOKA CHAKRA ANIMATION
+───────────────────────────────────
+Location: Hero section background (SVG)
+
+STRUCTURE:
+- 24 spokes (representing 24 hours of the day)
+- Each spoke is a line with a circle at the end
+- Rotated in 15-degree increments (360° / 24 = 15°)
+
+ANIMATION:
+- Continuous rotation (30s per full rotation)
+- Clockwise direction
+- Smooth, infinite loop
+- Low opacity for subtle effect
+
+──────────────────────────────────────────────────────────────
+
+FEATURE 5: HERO PARTICLES ANIMATION
+────────────────────────────────────
+Location: Hero section background
+
+EFFECT:
+- Floating particles in background
+- 20-second animation loop
+- Subtle movement for visual interest
+- Does not distract from content
+
+================================================================================
+8. HOW TO MODIFY CONTENT
+================================================================================
+
+ADD NEW NEWS ARTICLE:
+─────────────────────
+File: News.html (Lines 403-580)
+
+1. Copy an existing news-card div (e.g., Lines 404-432)
+2. Paste it inside the news-grid div
+3. Update the following:
+
+<div class="news-card" data-category="events">  <!-- Change category -->
+    <div class="news-image-placeholder">
+        <i class="fas fa-newspaper"></i>  <!-- Change icon if needed -->
+        <div class="news-category">Events</div>  <!-- Change category label -->
+    </div>
+    <div class="news-content">
+        <h3 class="news-title">YOUR ARTICLE TITLE</h3>
+        <p class="news-excerpt">
+            YOUR ARTICLE EXCERPT (preview text)...
+        </p>
+        <div class="news-meta">
+            <div class="news-date">
+                <i class="fas fa-calendar"></i>
+                <span>YOUR DATE</span>
+            </div>
+            <div class="news-source">
+                <i class="fas fa-newspaper"></i>
+                <span>YOUR SOURCE</span>
+            </div>
+        </div>
+        <a href="YOUR_ARTICLE_URL" class="news-link" target="_blank" 
+           rel="noopener noreferrer">
+            Read Full Article
+            <i class="fas fa-arrow-right"></i>
+        </a>
+    </div>
+</div>
+
+CATEGORIES:
+- events
+- features
+- interviews
+
+──────────────────────────────────────────────────────────────
+
+ADD NEW NEWSPAPER CLIPPING:
+────────────────────────────
+File: News.html (Lines 359-394)
+
+1. Copy an existing newspaper-cutting div (e.g., Lines 360-364)
+2. Paste it inside the newspaper-grid div
+3. Update the following:
+
+<div class="newspaper-cutting tall"  <!-- Add 'tall' for double height -->
+     data-title="YOUR NEWSPAPER TITLE">
+    <img src="/Images/Newspaper/YOUR_IMAGE.jpeg"
+         alt="YOUR ALT TEXT">
+</div>
+
+TALL CLASS:
+- Add class="newspaper-cutting tall" for double-height images
+- Use class="newspaper-cutting" for regular height
+- Recommended: 2 tall images per 7 total for good layout
+
+──────────────────────────────────────────────────────────────
+
+CHANGE MEDIA COVERAGE STATISTICS:
+──────────────────────────────────
+File: News.html (Lines 589-612)
+
+MEDIA MENTIONS (Lines 589-594):
+<div style="text-align: center;">
+    <div style="font-size: 32px; font-weight: 800; color: var(--primary); 
+                margin-bottom: 8px;">
+        150+  <!-- Change this number -->
+    </div>
+    <div style="color: var(--gray-600); font-weight: 500;">Media Mentions</div>
+</div>
+
+Repeat for:
+- News Outlets (25+)
+- Media Reach (5M+)
+- Awards Won (12)
+
+──────────────────────────────────────────────────────────────
+
+CHANGE HERO SECTION:
+────────────────────
+File: News.html (Lines 334-347)
+
+TO CHANGE BADGE TEXT (Lines 335-338):
+<div class="hero-badge">
+    <i class="fas fa-newspaper"></i>
+    <span>Latest News</span>
+</div>
+
+TO CHANGE TITLE (Lines 339-342):
+<h1 class="hero-title">
+    <span class="hero-title-line">YUVA in the</span>
+    <span class="hero-title-line hero-title-accent">News</span>
+</h1>
+
+TO CHANGE DESCRIPTION (Lines 343-346):
+<p class="hero-description">
+    Stay informed about our latest achievements, media coverage, and
+    recognition from leading publications and news outlets across India.
+</p>
+
+──────────────────────────────────────────────────────────────
+
+ADD NEW FILTER CATEGORY:
+─────────────────────────
+File: News.html (Lines 396-401)
+
+1. Add new filter button:
+<button class="filter-btn" data-filter="yourcategory">Your Category</button>
+
+2. Update news cards with matching data-category:
+<div class="news-card" data-category="yourcategory">
+
+3. JavaScript will automatically handle filtering
+
+──────────────────────────────────────────────────────────────
+
+CHANGE PLACEHOLDER ICON:
+─────────────────────────
+File: News.html (Lines 405-407)
+
+<div class="news-image-placeholder">
+    <i class="fas fa-newspaper"></i>  <!-- Change icon class -->
+    <div class="news-category">Events</div>
+</div>
+
+ICON OPTIONS:
+- fa-newspaper (default)
+- fa-share-alt (for features)
+- fa-microphone (for interviews)
+- fa-camera (for photo features)
+- fa-video (for video content)
+
+Find more icons at: https://fontawesome.com/icons
+
+================================================================================
+9. TROUBLESHOOTING
+================================================================================
+
+ISSUE 1: Filter buttons not working
+────────────────────────────────────
+SOLUTION:
+1. Check if media-script.js loaded (line 621)
+2. Verify JavaScript is enabled in browser
+3. Check browser console for errors
+4. Verify data-filter attributes match data-category
+5. Try different browser
+6. Clear browser cache
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 2: Image modal not opening
+─────────────────────────────────
+SOLUTION:
+1. Check if media-script.js loaded
+2. Verify setupImageModal() function exists
+3. Check if data-title attribute exists on newspaper-cutting
+4. Check browser console for JavaScript errors
+5. Verify modal HTML is created in DOM
+6. Try different browser
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 3: Newspaper images not loading
+──────────────────────────────────────
+SOLUTION:
+1. Verify image paths are correct (/Images/Newspaper/...)
+2. Check if images exist in the directory
+3. Check file names match exactly (case-sensitive)
+4. Verify image format (JPEG, JPG, PNG)
+5. Check browser console for 404 errors
+6. Try opening image URL directly in browser
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 4: Modal won't close
+───────────────────────────
+SOLUTION:
+1. Click the X button in top-right corner
+2. Click outside the modal (on dark background)
+3. Press Escape key
+4. Refresh the page
+5. Check if JavaScript is enabled
+6. Clear browser cache
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 5: News cards not filtering correctly
+────────────────────────────────────────────
+SOLUTION:
+1. Verify data-category attribute on news-card
+2. Check if data-filter on button matches category
+3. Check JavaScript console for errors
+4. Verify currentFilter variable is updating
+5. Check if filterNewsCards() function is called
+6. Try hard refresh (Ctrl+Shift+R)
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 6: Styles not loading / Page looks broken
+────────────────────────────────────────────────
+SOLUTION:
+1. Check if media-styles.css loaded (line 10)
+2. Check if /style.css loaded (line 8)
+3. Check if /Mobile.css loaded (line 9)
+4. Clear browser cache
+5. Check browser console for 404 errors
+6. Verify file paths are correct
+7. Try hard refresh (Ctrl+Shift+R)
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 7: External links not opening
+────────────────────────────────────
+SOLUTION:
+1. Verify URLs are correct in HTML
+2. Check if target="_blank" attribute exists
+3. Check browser popup blocker settings
+4. Try clicking with Ctrl/Cmd key
+5. Check if news sites are accessible
+6. Verify network connection
+
+================================================================================
+10. RESPONSIVE DESIGN
+================================================================================
+
+The page is fully responsive across all devices:
+
+DESKTOP (1920px+):
+- Full hero section with large text
+- Newspaper gallery: 3 columns
+- News cards: 3 columns grid
+- Media stats: 4 columns
+- Sidebar visible by default
+- Ashoka Chakra: Large size
+
+LAPTOP (1024px - 1920px):
+- Slightly reduced spacing
+- Newspaper gallery: 3 columns
+- News cards: 2-3 columns
+- Media stats: 4 columns (may wrap)
+- Sidebar visible
+
+TABLET (768px - 1024px):
+- Reduced font sizes
+- Newspaper gallery: 2 columns
+- News cards: 2 columns
+- Media stats: 2 columns
+- Sidebar collapsible
+- Smaller Ashoka Chakra
+- Placeholder height: 180px
+
+MOBILE LANDSCAPE (600px - 768px):
+- Single column layout
+- Newspaper gallery: 2 columns
+- News cards: 1 column
+- Media stats: 2 columns
+- Sidebar hidden by default
+- Compact hero section
+- Touch-optimized buttons
+
+MOBILE PORTRAIT (< 600px):
+- Single column layout
+- Newspaper gallery: 1 column
+- News cards: 1 column, full width
+- Media stats: 1 column, stacked
+- Compact hero section
+- Hamburger menu
+- Touch-optimized buttons (min 44x44px)
+- Reduced padding throughout
+- Smaller fonts
+- Placeholder height: 160px
+
+EXTRA SMALL (< 480px):
+- Placeholder height: 140px
+- Icon size: 3.5rem
+- Category badge: smaller padding
+
+================================================================================
+11. SEO & ACCESSIBILITY
+================================================================================
+
+SEO FEATURES:
+─────────────
+✓ Title: "YUVA India - News"
+✓ Bing verification tag
+✓ Favicon (YUVA logo)
+✓ Semantic HTML structure
+✓ Descriptive headings (h1, h2, h3)
+✓ External links with rel="noopener noreferrer"
+✓ Alt text on all newspaper images
+
+RECOMMENDED IMPROVEMENTS:
+- Add meta description
+- Add Open Graph tags for social sharing
+- Add Twitter Card tags
+- Add structured data (NewsArticle schema)
+- Add canonical URL
+- Add publication dates in schema
+
+ACCESSIBILITY FEATURES:
+───────────────────────
+✓ Keyboard navigation (Tab, Enter, Escape)
+✓ ARIA labels on hamburger menu
+✓ Semantic HTML (header, section, main)
+✓ SVG has aria-hidden="true" and role="img"
+✓ Touch targets: minimum 44x44px
+✓ Focus indicators visible
+✓ Logical heading hierarchy (h1, h2, h3)
+✓ Sufficient color contrast
+✓ Alt text on all images
+✓ External link icons for clarity
+✓ Modal can be closed with Escape key
+
+RECOMMENDED IMPROVEMENTS:
+- Add ARIA labels to filter buttons
+- Add skip-to-content link
+- Add ARIA live region for filter updates
+- Test with screen readers
+- Add keyboard shortcuts for modal
+
+PERFORMANCE OPTIMIZATIONS:
+──────────────────────────
+✓ Minimal JavaScript
+✓ CSS animations (hardware accelerated)
+✓ Shared CSS and JS files (cached across pages)
+✓ SVG graphics (scalable, small file size)
+✓ Lazy loading for images (if implemented)
+
+RECOMMENDED IMPROVEMENTS:
+- Optimize newspaper images (compress JPEGs)
+- Minify CSS and JavaScript
+- Use WebP format for images
+- Implement lazy loading for newspaper gallery
+- Add preload for critical resources
+- Use CDN for static assets
+
+================================================================================
+END OF USER MANUAL
+================================================================================
+
+For technical support or questions, contact:
+YUVA Technical Team
+Email: tech@yuva.ind.in
+
+Last Updated: December 26, 2025
+Version: 2025.1

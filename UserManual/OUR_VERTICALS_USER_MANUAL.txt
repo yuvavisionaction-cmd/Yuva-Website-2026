@@ -1,0 +1,1194 @@
+================================================================================
+                YUVA OUR VERTICALS PAGES - COMPREHENSIVE USER MANUAL
+                    Youth United For Vision & Action
+================================================================================
+
+VERSION: 2025
+LAST UPDATED: December 26, 2025
+
+================================================================================
+TABLE OF CONTENTS
+================================================================================
+
+1. OVERVIEW
+2. FILE STRUCTURE
+3. EXTERNAL DEPENDENCIES
+4. DATABASE INTEGRATION (SUPABASE)
+5. SHARED COMPONENTS & FEATURES
+6. THE 5 VERTICALS EXPLAINED
+7. DYNAMIC GALLERY SYSTEM
+8. HOW TO MODIFY CONTENT
+9. TROUBLESHOOTING
+10. RESPONSIVE DESIGN
+11. SEO & ACCESSIBILITY
+
+================================================================================
+1. OVERVIEW
+================================================================================
+
+The YUVA Our Verticals section consists of 5 specialized pages, each showcasing
+a different vertical of the organization's work, plus 3 additional pages for
+the secure photo upload system.
+
+THE 5 VERTICALS:
+1. Medico YUVA - Healthcare education and awareness
+2. Tech YUVA - Technology and innovation
+3. Media Manthan - Media literacy and journalism
+4. Niti Manthan - Policy research and governance
+5. YUVA Distance Learning (YDL) - Remote education platform
+
+THE 3 UPLOAD SYSTEM PAGES:
+6. photo-upload.html - Login page (2-step authentication)
+7. upload-form.html - Upload interface and photo management
+8. password-reset.html - Password reset (legacy, not currently used)
+
+KEY FEATURES (SHARED ACROSS ALL VERTICALS):
+✓ Consistent page structure and design
+✓ Dynamic gallery from Supabase database
+✓ Tricolor theme (India flag colors)
+✓ Animated hero sections
+✓ Flash notification system
+✓ Fully responsive design
+✓ SEO optimized
+
+KEY FEATURES (UPLOAD SYSTEM):
+✓ Secure 2-step authentication
+✓ Email verification (vertical_access table)
+✓ Security key verification (security_keys table)
+✓ File upload to Supabase Storage
+✓ Photo management (view/delete)
+✓ Multi-vertical support per user
+
+PURPOSE:
+- Showcase each vertical's mission and vision
+- Display objectives and working models
+- Present major events and activities
+- Show photo galleries from vertical-specific events
+- Allow authorized users to upload event photos
+
+================================================================================
+2. FILE STRUCTURE
+================================================================================
+
+SHARED FILES (Used by all 5 verticals):
+
+1. verticals.css (16,283 bytes)
+   - All styling for vertical pages
+   - Hero sections, content sections, galleries
+   - Tricolor theme colors
+   - Animations and effects
+
+2. verticals.js (2,194 bytes)
+   - VerticalPageManager class
+   - Flash notification system
+   - Welcome message on page load
+
+3. /style.css (Global site styles)
+   - Header, sidebar, navigation
+
+4. /script.js (Global site JavaScript)
+   - Sidebar functionality
+
+INDIVIDUAL VERTICAL FILES:
+
+1. MedicoYuva.html (250 lines, 11,891 bytes)
+   - Medico YUVA vertical page
+   - Healthcare focus
+
+2. TechYuva.html (247 lines, 11,739 bytes)
+   - Tech YUVA vertical page
+   - Technology focus
+
+3. MediaManthan.html (253 lines, 13,052 bytes)
+   - Media Manthan vertical page
+   - Media literacy focus
+
+4. NitiManthan.html (255 lines, 13,138 bytes)
+   - Niti Manthan vertical page
+   - Policy and governance focus
+
+5. YDL.html (249 lines, 11,981 bytes)
+   - YUVA Distance Learning page
+   - Remote education focus
+
+UPLOAD SYSTEM FILES:
+
+6. photo-upload.html (347 lines, 13,076 bytes)
+   - Login page for photo upload system
+   - 2-step authentication (email + security key)
+   - Checks vertical_access and security_keys tables
+   - Redirects to upload-form.html on success
+
+7. upload-form.html (762 lines, 27,936 bytes)
+   - Main upload interface
+   - Form for uploading event photos
+   - Photo management (view/delete existing photos)
+   - Handles file upload to Supabase Storage
+   - Inserts records to vertical_events table
+
+8. password-reset.html (6,588 bytes)
+   - Password reset page (legacy, not currently used)
+   - Was part of 3-step auth (now simplified to 2-step)
+
+COMMON STRUCTURE (All vertical HTML files):
+- Lines 1-122: Header, sidebar, navigation (identical)
+- Lines 123-188: Unique content for each vertical
+- Lines 189-247: Scripts and gallery loading (similar pattern)
+
+================================================================================
+3. EXTERNAL DEPENDENCIES
+================================================================================
+
+All vertical pages require these external libraries:
+
+1. SUPABASE JS (v2)
+   CDN: https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2
+   Purpose: Database connection for dynamic galleries
+   Location: Loaded in each HTML file (line ~192)
+
+2. FONT AWESOME (v6.4.0)
+   CDN: https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css
+   Purpose: All icons on the pages
+   Location: Loaded in each HTML file (line 12)
+
+⚠️ CRITICAL: 
+- Supabase MUST load for galleries to work
+- Font Awesome required for all icons
+- If either fails, features will be broken
+
+================================================================================
+4. DATABASE INTEGRATION (SUPABASE)
+================================================================================
+
+CONFIGURATION (Same for all verticals):
+URL: https://jgsrsjwmywiirtibofth.supabase.co
+Anon Key: sb_publishable_5KtvO0cEHfnECBoyp2CQnw********
+
+TABLE USED:
+
+┌─────────────────────────────────────────────────────────────┐
+│ TABLE: vertical_events                                       │
+├─────────────────────────────────────────────────────────────┤
+│ Purpose: Store event photos for all verticals                │
+│                                                               │
+│ Columns:                                                      │
+│ - image_url (photo URL)                                       │
+│ - event_name (event title)                                    │
+│ - event_date (date of event, timestamp)                       │
+│ - event_location (venue/location)                             │
+│ - vertical_name (which vertical: MedicoYuva, TechYuva, etc.) │
+│                                                               │
+│ Query Pattern (used by all verticals):                        │
+│ SELECT image_url, event_name, event_date, event_location     │
+│ FROM vertical_events                                          │
+│ WHERE vertical_name = '[VerticalName]'                        │
+│ ORDER BY event_date DESC                                      │
+│ LIMIT 10                                                      │
+│                                                               │
+│ VERTICAL NAMES (data-vertical attribute):                     │
+│ - MedicoYuva                                                  │
+│ - TechYuva                                                    │
+│ - MediaManthan                                                │
+│ - NitiManthan                                                 │
+│ - YDL                                                         │
+└─────────────────────────────────────────────────────────────┘
+
+HOW IT WORKS:
+1. Each vertical page has data-vertical="[VerticalName]" attribute
+2. JavaScript reads this attribute
+3. Fetches only images for that specific vertical
+4. Displays up to 10 most recent event photos
+5. Shows event name, date, and location as caption
+
+EXAMPLE DATA:
+{
+  "image_url": "https://example.com/photo.jpg",
+  "event_name": "Healthcare Workshop 2024",
+  "event_date": "2024-12-15T10:00:00",
+  "event_location": "Delhi",
+  "vertical_name": "MedicoYuva"
+}
+
+================================================================================
+5. SHARED COMPONENTS & FEATURES
+================================================================================
+
+All 5 vertical pages share the same structure and features:
+
+┌──────────────────────────────────────────────────────────────┐
+│ COMPONENT 1: HEADER (Fixed at top)                           │
+├──────────────────────────────────────────────────────────────┤
+│ - YUVA logo                                                   │
+│ - Page title (vertical name)                                 │
+│ - Hamburger menu (mobile)                                    │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ COMPONENT 2: SIDEBAR NAVIGATION                               │
+├──────────────────────────────────────────────────────────────┤
+│ Same navigation menu as all other pages:                     │
+│ - Home                                                        │
+│ - About (dropdown)                                            │
+│ - Our Initiatives (dropdown)                                  │
+│ - Our Verticals (dropdown) - Current page highlighted        │
+│ - Our Activities (dropdown)                                   │
+│ - Media (dropdown)                                            │
+│ - Events (dropdown)                                           │
+│ - Gallery (dropdown)                                          │
+│ - Blog (dropdown)                                             │
+│ - Get Involved (dropdown)                                     │
+│ - Donate                                                      │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ COMPONENT 3: HERO SECTION                                     │
+├──────────────────────────────────────────────────────────────┤
+│ Structure (same for all):                                     │
+│ - Animated particle background                               │
+│ - Hero badge with icon and "Our Vertical" text              │
+│ - Hero title (vertical name with YUVA accent)                │
+│ - Hero subtitle (vertical tagline)                           │
+│                                                               │
+│ Icons vary by vertical:                                       │
+│ - Medico YUVA: fa-user-md (doctor)                           │
+│ - Tech YUVA: fa-microchip (chip)                             │
+│ - Media Manthan: fa-newspaper (newspaper)                    │
+│ - Niti Manthan: fa-balance-scale (scales)                    │
+│ - YDL: fa-laptop-code (laptop)                               │
+│                                                               │
+│ Animation:                                                    │
+│ - Floating particles (20s loop)                              │
+│ - Fade-in on page load                                       │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ COMPONENT 4: CONTENT SECTIONS                                 │
+├──────────────────────────────────────────────────────────────┤
+│ Each vertical has 3-4 content sections:                       │
+│                                                               │
+│ SECTION 1: Introduction & Vision                             │
+│ - Icon (varies by vertical)                                  │
+│ - Description of the vertical                                │
+│ - Vision statement                                            │
+│                                                               │
+│ SECTION 2: Objectives                                         │
+│ - Icon: fa-tasks                                              │
+│ - Bulleted list of 4-5 objectives                            │
+│                                                               │
+│ SECTION 3: Dual Section (Working Model + Major Events)       │
+│ - Two columns side by side                                   │
+│ - Left: Working Model description                            │
+│ - Right: Major Events (bulleted list)                        │
+│                                                               │
+│ SECTION 4: Gallery (Dynamic from database)                   │
+│ - Icon: fa-images                                             │
+│ - Photo grid (up to 10 images)                               │
+│ - Each photo has caption with event details                  │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ COMPONENT 5: FLASH NOTIFICATION SYSTEM                        │
+├──────────────────────────────────────────────────────────────┤
+│ Managed by: verticals.js (VerticalPageManager class)         │
+│                                                               │
+│ Features:                                                     │
+│ - Shows welcome message on page load                         │
+│ - Message: "Welcome! Exploring the [Vertical] vertical."     │
+│ - Duration: 4 seconds                                         │
+│ - Type: Info (blue notification)                             │
+│ - Position: Top-right corner                                 │
+│ - User can close manually                                    │
+│                                                               │
+│ Notification Types Available:                                 │
+│ - Info: Blue with info icon                                  │
+│ - Success: Green with checkmark                              │
+│ - Warning: Orange with exclamation                           │
+│ - Error: Red with X icon                                     │
+└──────────────────────────────────────────────────────────────┘
+
+================================================================================
+6. THE 5 VERTICALS EXPLAINED
+================================================================================
+
+VERTICAL 1: MEDICO YUVA
+───────────────────────
+File: MedicoYuva.html
+Icon: fa-user-md (doctor)
+Color Theme: Healthcare blue/green
+
+FOCUS: Healthcare education and public health awareness
+
+VISION:
+"To revolutionize healthcare education and training through digital platforms,
+ensuring that every healthcare professional has access to the knowledge and
+tools needed to improve patient care."
+
+OBJECTIVES:
+1. Improve access to updated medical education and resources
+2. Encourage awareness about preventive health care
+3. Provide platform for healthcare professionals to collaborate
+4. Facilitate medical research and innovation among youth
+
+WORKING MODEL:
+- Webinars and virtual workshops
+- Expert sessions with medical professionals
+- Discussion on medical research and public health policies
+- Healthcare technology education
+
+MAJOR EVENTS:
+- Healthcare Webinars (monthly)
+- Medical Training Camps (virtual and in-person)
+- Public Health Awareness Drives
+
+──────────────────────────────────────────────────────────────
+
+VERTICAL 2: TECH YUVA
+─────────────────────
+File: TechYuva.html
+Icon: fa-microchip (chip)
+Color Theme: Technology blue/purple
+
+FOCUS: Innovation and technological development
+
+VISION:
+"To inspire and equip the next generation of innovators and technologists
+who can drive India's future in technology and digital transformation."
+
+OBJECTIVES:
+1. Create awareness about emerging technologies
+2. Provide hands-on learning through workshops and labs
+3. Encourage innovation and entrepreneurship
+4. Facilitate connections between industry and youth
+
+WORKING MODEL:
+- Tech bootcamps and coding competitions
+- Innovation labs
+- Collaboration with tech startups and academic institutions
+- Identifying and bridging technological gaps
+
+MAJOR EVENTS:
+- Hackathons and Coding Competitions (national-level)
+- Technology Bootcamps (AI, Cloud Computing, Cybersecurity)
+- Innovation Showcases (for investors and industry leaders)
+
+──────────────────────────────────────────────────────────────
+
+VERTICAL 3: MEDIA MANTHAN
+─────────────────────────
+File: MediaManthan.html
+Icon: fa-newspaper (newspaper)
+Color Theme: Media orange/red
+
+FOCUS: Media literacy and responsible journalism
+
+VISION:
+"To create a generation of informed media consumers and responsible
+journalists who can navigate the complex media landscape with critical
+thinking and ethical standards."
+
+OBJECTIVES:
+1. Promote media literacy among youth
+2. Encourage responsible journalism practices
+3. Provide platform for aspiring journalists
+4. Combat misinformation and fake news
+
+WORKING MODEL:
+- Media workshops and training sessions
+- Journalism bootcamps
+- Collaboration with media houses and journalists
+- Critical media analysis sessions
+
+MAJOR EVENTS:
+- Media Literacy Workshops
+- Journalism Competitions
+- Panel Discussions with Media Professionals
+- Fact-Checking Campaigns
+
+──────────────────────────────────────────────────────────────
+
+VERTICAL 4: NITI MANTHAN
+────────────────────────
+File: NitiManthan.html
+Icon: fa-balance-scale (scales)
+Color Theme: Governance gold/brown
+
+FOCUS: Policy research and governance awareness
+
+VISION:
+"To empower youth with knowledge of policy-making and governance,
+enabling them to participate actively in shaping India's future through
+informed civic engagement."
+
+OBJECTIVES:
+1. Promote understanding of public policy and governance
+2. Encourage youth participation in policy discussions
+3. Provide platform for policy research
+4. Bridge gap between policymakers and citizens
+
+WORKING MODEL:
+- Policy research workshops
+- Model parliament sessions
+- Collaboration with think tanks and government bodies
+- Policy analysis and discussion forums
+
+MAJOR EVENTS:
+- Policy Debates and Discussions
+- Model United Nations (MUN)
+- Governance Workshops
+- Youth Parliament Sessions
+
+──────────────────────────────────────────────────────────────
+
+VERTICAL 5: YUVA DISTANCE LEARNING (YDL)
+────────────────────────────────────────
+File: YDL.html
+Icon: fa-laptop-code (laptop)
+Color Theme: Education green/teal
+
+FOCUS: Remote education and skill development
+
+VISION:
+"To make quality education available to everyone, irrespective of
+geographical boundaries, and to equip youth with the skills needed
+for the modern workforce."
+
+OBJECTIVES:
+1. Democratize education through free/affordable opportunities
+2. Promote skill-based learning (technology, management, vocational)
+3. Use innovative learning methods (e-learning, webinars)
+4. Encourage lifelong learning for global job market
+
+WORKING MODEL:
+- Pre-recorded lessons and live webinars
+- Interactive assignments
+- Partnership with educational institutions
+- Industry-recognized certifications
+
+MAJOR EVENTS:
+- Webinars on Professional Skills (monthly)
+- Certification Programs (industry partnerships)
+- Virtual Workshops (exam prep, interview skills)
+
+================================================================================
+7. DYNAMIC GALLERY SYSTEM
+================================================================================
+
+All vertical pages have a dynamic gallery that loads from Supabase.
+
+HOW IT WORKS:
+─────────────
+
+STEP 1: PAGE LOADS
+- HTML contains empty photo grid: <div id="photo-grid-dynamic"></div>
+- Gallery section has data-vertical attribute
+- Example: <section data-vertical="MedicoYuva">
+
+STEP 2: JAVASCRIPT INITIALIZATION
+- DOMContentLoaded event fires
+- Inline script (lines 193-246) executes
+- Supabase client is created
+
+STEP 3: DATA FETCHING
+- Reads data-vertical attribute
+- Queries vertical_events table
+- Filters: WHERE vertical_name = '[VerticalName]'
+- Sorts: ORDER BY event_date DESC
+- Limits: LIMIT 10 (most recent 10 events)
+
+STEP 4: RENDERING
+- Loops through fetched images
+- Creates photo-item div for each
+- Formats date: "Dec 15, 2024" format
+- Displays: Image + Event Name + Date + Location
+
+STEP 5: ERROR HANDLING
+- If Supabase error: Shows "Could not load gallery"
+- If no images: Shows "No event photos uploaded yet"
+- If images exist: Displays photo grid
+
+PHOTO ITEM STRUCTURE:
+<div class="photo-item">
+  <img src="[image_url]" alt="[event_name]">
+  <div class="photo-caption">
+    <strong>[event_name]</strong>
+    <span>[formatted_date] - [event_location]</span>
+  </div>
+</div>
+
+GALLERY LAYOUT:
+- CSS Grid: auto-fit columns
+- Responsive: 1-4 columns depending on screen size
+- Hover effect: Image scales up slightly
+- Caption appears on hover
+
+================================================================================
+8. HOW TO MODIFY CONTENT
+================================================================================
+
+CHANGE SUPABASE CREDENTIALS:
+────────────────────────────
+File: Each vertical HTML file (lines ~194-195)
+const SUPABASE_URL = 'your-url';
+const SUPABASE_ANON_KEY = 'your-key';
+
+NOTE: Must change in ALL 5 files if credentials change
+
+──────────────────────────────────────────────────────────────
+
+CHANGE VERTICAL CONTENT:
+────────────────────────
+Each vertical has unique content in lines 137-180 (approximately)
+
+TO CHANGE INTRODUCTION & VISION:
+File: [Vertical].html (section 1)
+- Edit paragraph text
+- Update vision statement
+
+TO CHANGE OBJECTIVES:
+File: [Vertical].html (section 2)
+- Edit <li> items in the list
+- Add/remove objectives as needed
+
+TO CHANGE WORKING MODEL:
+File: [Vertical].html (dual-section, left column)
+- Edit paragraph in first .info-block
+
+TO CHANGE MAJOR EVENTS:
+File: [Vertical].html (dual-section, right column)
+- Edit <li> items in second .info-block
+- Add/remove events as needed
+
+──────────────────────────────────────────────────────────────
+
+CHANGE HERO SECTION:
+────────────────────
+File: [Vertical].html (lines ~125-136)
+
+TO CHANGE ICON:
+<div class="hero-badge"><i class="fas fa-[icon-name]"></i>
+
+TO CHANGE TITLE:
+<h1 class="hero-title">[Title] <span class="yuva-accent-text">YUVA</span></h1>
+
+TO CHANGE SUBTITLE:
+<p class="hero-subtitle">[Your subtitle here]</p>
+
+──────────────────────────────────────────────────────────────
+
+ADD GALLERY IMAGES:
+───────────────────
+Method: Use secure web-based upload system
+
+⚠️ IMPORTANT: You CANNOT add images directly to the database!
+Images must be uploaded through the secure upload portal.
+
+UPLOAD SYSTEM OVERVIEW:
+The system has 2 authentication steps + upload form:
+1. Email verification (checks vertical_access table)
+2. Security key verification (checks security_keys table)
+3. Upload form (if both steps pass)
+
+──────────────────────────────────────────────────────────────
+
+STEP-BY-STEP UPLOAD PROCESS:
+
+STEP 1: ACCESS THE UPLOAD PORTAL
+─────────────────────────────────
+URL: https://yuva.ind.in/OurVerticals/photo-upload.html
+File: OurVerticals/photo-upload.html
+
+This is the login page with 2-step authentication.
+
+STEP 2: EMAIL VERIFICATION
+───────────────────────────
+1. Enter your authorized email address
+2. Click "Verify Email"
+3. System checks vertical_access table in Supabase
+4. If authorized: Shows security key field
+5. If not authorized: Shows error message
+
+DATABASE CHECK:
+- Table: vertical_access
+- Function: check_vertical_admin(user_email)
+- Returns: true/false
+
+STEP 3: SECURITY KEY VERIFICATION
+──────────────────────────────────
+1. Enter your security key
+2. Click "Verify Security Key"
+3. System checks security_keys table
+4. If valid: Redirects to upload-form.html
+5. If invalid: Shows error message
+
+DATABASE CHECK:
+- Table: security_keys
+- Columns: email, security_key
+- Match required: Both email AND key must match
+
+STEP 4: UPLOAD FORM (upload-form.html)
+───────────────────────────────────────
+Once authenticated, you see the upload form:
+
+FORM FIELDS:
+1. Vertical (dropdown or auto-selected)
+   - If you have access to 1 vertical: Auto-selected
+   - If you have access to multiple: Dropdown to choose
+
+2. Event Name (text input)
+   - Required
+   - Example: "Healthcare Workshop 2024"
+
+3. Event Date (date picker)
+   - Required
+   - Format: YYYY-MM-DD
+
+4. Event Location (text input)
+   - Required
+   - Example: "Delhi" or "JMI Campus"
+
+5. Image File (file upload)
+   - Required
+   - Max size: 500 KB
+   - Allowed formats: JPG, PNG, WebP
+   - System validates size and type
+
+UPLOAD PROCESS:
+1. Fill all fields
+2. Select image file
+3. Click "Upload Image"
+4. System shows "Uploading..." message
+5. Image uploads to Supabase Storage (vertical_images bucket)
+6. Record inserted into vertical_events table
+7. Success message appears
+8. New image appears at top of "Manage Existing Photos"
+
+UPLOAD DETAILS:
+- Storage Bucket: vertical_images
+- File Path: [VerticalName]/[timestamp].[extension]
+- Example: MedicoYuva/1703520000000.jpg
+- Public URL generated automatically
+
+STEP 5: MANAGE EXISTING PHOTOS
+───────────────────────────────
+Below the upload form, you see all your uploaded photos:
+
+DISPLAY:
+- Grid layout (responsive)
+- Shows photos for YOUR assigned verticals only
+- Sorted by upload date (newest first)
+- Each photo shows:
+  • Thumbnail image
+  • Event name
+  • Event date
+  • Vertical name
+  • Delete button
+
+DELETE PHOTO:
+1. Click "Delete" button on any photo
+2. Confirmation modal appears
+3. Click "Delete" to confirm or "Cancel" to abort
+4. If confirmed:
+   - Image deleted from Storage
+   - Record deleted from Database
+   - Photo removed from grid
+5. Success message appears
+
+──────────────────────────────────────────────────────────────
+
+DATABASE TABLES INVOLVED:
+
+TABLE 1: vertical_access
+────────────────────────
+Purpose: Control who can upload to which verticals
+Columns:
+- id (UUID, auto-generated)
+- email (user's email)
+- vertical_name (MedicoYuva, TechYuva, etc.)
+- role (default: 'contributor')
+- created_at (timestamp, auto-generated)
+
+Example:
+email: admin@yuva.in
+vertical_name: MedicoYuva
+role: contributor
+
+TABLE 2: security_keys
+──────────────────────
+Purpose: Additional security layer
+Columns:
+- id (UUID, auto-generated)
+- email (user's email)
+- security_key (secret key)
+- created_at (timestamp, auto-generated)
+
+Example:
+email: admin@yuva.in
+security_key: ABC123XYZ
+
+TABLE 3: vertical_events
+────────────────────────
+Purpose: Store event photo metadata
+Columns:
+- id (auto-generated)
+- event_name (from form)
+- event_date (from form)
+- event_location (from form)
+- vertical_name (from form)
+- image_url (generated by system)
+- uploaded_by (user's email, auto-filled)
+- created_at (timestamp, auto-filled)
+
+──────────────────────────────────────────────────────────────
+
+HOW TO GRANT UPLOAD ACCESS TO USERS (MANUAL SETUP):
+────────────────────────────────────────────────────
+
+⚠️ IMPORTANT: This must be done by a database administrator!
+
+You need to add records to TWO tables for each user:
+1. vertical_access (which verticals they can access)
+2. security_keys (their security key)
+
+──────────────────────────────────────────────────────────────
+
+STEP 1: ADD USER TO vertical_access TABLE
+──────────────────────────────────────────
+
+METHOD 1: Using Supabase Dashboard (Recommended)
+─────────────────────────────────────────────────
+1. Go to Supabase Dashboard
+2. Navigate to: Table Editor → vertical_access
+3. Click "Insert" → "Insert row"
+4. Fill in the fields:
+   - email: user@example.com
+   - vertical_name: Choose from dropdown or type:
+     • MedicoYuva
+     • TechYuva
+     • MediaManthan
+     • NitiManthan
+     • YDL
+   - role: contributor (default, leave as is)
+5. Click "Save"
+
+IMPORTANT: vertical_name MUST match exactly (case-sensitive!)
+
+METHOD 2: Using SQL Query
+─────────────────────────
+1. Go to Supabase Dashboard
+2. Navigate to: SQL Editor
+3. Run this query:
+
+INSERT INTO vertical_access (email, vertical_name, role)
+VALUES ('user@example.com', 'MedicoYuva', 'contributor');
+
+EXAMPLE: Grant access to multiple verticals for one user:
+
+INSERT INTO vertical_access (email, vertical_name, role)
+VALUES 
+  ('admin@yuva.in', 'MedicoYuva', 'contributor'),
+  ('admin@yuva.in', 'TechYuva', 'contributor'),
+  ('admin@yuva.in', 'MediaManthan', 'contributor');
+
+This allows admin@yuva.in to upload to 3 verticals.
+
+──────────────────────────────────────────────────────────────
+
+STEP 2: ADD SECURITY KEY FOR USER
+──────────────────────────────────
+
+METHOD 1: Using Supabase Dashboard (Recommended)
+─────────────────────────────────────────────────
+1. Go to Supabase Dashboard
+2. Navigate to: Table Editor → security_keys
+3. Click "Insert" → "Insert row"
+4. Fill in the fields:
+   - email: user@example.com (SAME email as vertical_access)
+   - security_key: Create a strong key (e.g., "SecureKey123!")
+5. Click "Save"
+
+⚠️ IMPORTANT: 
+- Email MUST match the email in vertical_access
+- Security key is case-sensitive
+- Share this key securely with the user
+- Each email can have only ONE security key
+
+METHOD 2: Using SQL Query
+─────────────────────────
+1. Go to Supabase Dashboard
+2. Navigate to: SQL Editor
+3. Run this query:
+
+INSERT INTO security_keys (email, security_key)
+VALUES ('user@example.com', 'SecureKey123!');
+
+EXAMPLE: Add security keys for multiple users:
+
+INSERT INTO security_keys (email, security_key)
+VALUES 
+  ('admin@yuva.in', 'AdminKey2024!'),
+  ('medico@yuva.in', 'MedicoPass123'),
+  ('tech@yuva.in', 'TechSecure456');
+
+──────────────────────────────────────────────────────────────
+
+COMPLETE EXAMPLE: Setting Up a New User
+────────────────────────────────────────
+
+SCENARIO: Give "john@yuva.in" access to upload photos for 
+          Medico YUVA and Tech YUVA verticals.
+
+STEP 1: Add to vertical_access (2 rows, one per vertical)
+
+INSERT INTO vertical_access (email, vertical_name, role)
+VALUES 
+  ('john@yuva.in', 'MedicoYuva', 'contributor'),
+  ('john@yuva.in', 'TechYuva', 'contributor');
+
+STEP 2: Add security key (1 row)
+
+INSERT INTO security_keys (email, security_key)
+VALUES ('john@yuva.in', 'JohnSecure2024!');
+
+STEP 3: Share credentials with John
+- Email: john@yuva.in
+- Security Key: JohnSecure2024!
+- Access URL: https://yuva.ind.in/OurVerticals/photo-upload.html
+
+John can now:
+1. Enter email: john@yuva.in
+2. Enter security key: JohnSecure2024!
+3. Upload photos to Medico YUVA or Tech YUVA
+
+──────────────────────────────────────────────────────────────
+
+VERIFICATION: Check if User Has Access
+───────────────────────────────────────
+
+To verify a user is set up correctly, run these queries:
+
+1. Check vertical access:
+
+SELECT * FROM vertical_access 
+WHERE email = 'user@example.com';
+
+Expected result: One or more rows showing which verticals they can access
+
+2. Check security key:
+
+SELECT * FROM security_keys 
+WHERE email = 'user@example.com';
+
+Expected result: One row with their security key
+
+──────────────────────────────────────────────────────────────
+
+COMMON MISTAKES TO AVOID:
+─────────────────────────
+
+❌ WRONG vertical_name:
+INSERT INTO vertical_access (email, vertical_name)
+VALUES ('user@example.com', 'Medico YUVA');  -- WRONG!
+
+✓ CORRECT vertical_name:
+INSERT INTO vertical_access (email, vertical_name)
+VALUES ('user@example.com', 'MedicoYuva');  -- CORRECT!
+
+❌ WRONG: Different emails in two tables:
+vertical_access: admin@yuva.in
+security_keys: admin@gmail.com  -- WRONG!
+
+✓ CORRECT: Same email in both tables:
+vertical_access: admin@yuva.in
+security_keys: admin@yuva.in  -- CORRECT!
+
+❌ WRONG: Duplicate security key for same email:
+INSERT INTO security_keys (email, security_key)
+VALUES ('user@example.com', 'Key1');
+INSERT INTO security_keys (email, security_key)
+VALUES ('user@example.com', 'Key2');  -- ERROR! Duplicate email
+
+✓ CORRECT: One security key per email:
+INSERT INTO security_keys (email, security_key)
+VALUES ('user@example.com', 'Key1');  -- CORRECT!
+
+──────────────────────────────────────────────────────────────
+
+REMOVING USER ACCESS:
+─────────────────────
+
+To remove a user's access completely:
+
+1. Delete from vertical_access:
+
+DELETE FROM vertical_access 
+WHERE email = 'user@example.com';
+
+2. Delete from security_keys:
+
+DELETE FROM security_keys 
+WHERE email = 'user@example.com';
+
+To remove access to specific vertical only:
+
+DELETE FROM vertical_access 
+WHERE email = 'user@example.com' 
+AND vertical_name = 'MedicoYuva';
+
+──────────────────────────────────────────────────────────────
+
+UPDATING SECURITY KEY:
+──────────────────────
+
+If a user forgets their key or needs a new one:
+
+UPDATE security_keys 
+SET security_key = 'NewSecureKey2024!' 
+WHERE email = 'user@example.com';
+
+Share the new key with the user securely.
+
+──────────────────────────────────────────────────────────────
+
+IMPORTANT NOTES:
+
+VERTICAL NAMES (Case-Sensitive!):
+✓ MedicoYuva (correct)
+✗ Medico YUVA (wrong)
+✗ medicoyuva (wrong)
+
+✓ TechYuva (correct)
+✗ Tech YUVA (wrong)
+
+✓ MediaManthan (correct)
+✗ Media Manthan (wrong)
+
+✓ NitiManthan (correct)
+✗ Niti Manthan (wrong)
+
+✓ YDL (correct)
+✗ YUVA Distance Learning (wrong)
+
+FILE SIZE LIMIT:
+- Maximum: 500 KB (512,000 bytes)
+- System validates before upload
+- Compress images if too large
+
+ALLOWED FILE TYPES:
+- JPEG (.jpg, .jpeg)
+- PNG (.png)
+- WebP (.webp)
+- System validates file type
+
+SECURITY:
+- 2-layer authentication required
+- Email must be in vertical_access table
+- Security key must match in security_keys table
+- Both must pass to access upload form
+
+LOGOUT:
+- Click "Logout" button at bottom of upload form
+- Clears session
+- Redirects to photo-upload.html (login page)
+
+──────────────────────────────────────────────────────────────
+
+CHANGE GALLERY LIMIT:
+─────────────────────
+File: Each vertical HTML file (line ~214)
+.limit(10); // Change 10 to desired number
+
+NOTE: Must change in ALL 5 files if you want consistent limit
+
+──────────────────────────────────────────────────────────────
+
+CHANGE COLORS:
+──────────────
+File: verticals.css
+Modify CSS variables in :root
+Example:
+--saffron-primary: #FF9933;
+--navy-chakra: #000080;
+--green-primary: #138808;
+
+──────────────────────────────────────────────────────────────
+
+CHANGE WELCOME MESSAGE:
+───────────────────────
+File: verticals.js (line 10)
+this.showInfo('Welcome!', `Exploring the ${pageTitle} vertical.`);
+
+Change text or duration (default 4000ms)
+
+================================================================================
+9. TROUBLESHOOTING
+================================================================================
+
+ISSUE 1: Gallery not loading
+─────────────────────────────
+SOLUTION:
+1. Check browser console for errors
+2. Verify Supabase library loaded (line ~192)
+3. Check Supabase credentials (lines ~194-195)
+4. Verify vertical_events table exists
+5. Check table has SELECT permission for anon role
+6. Verify vertical_name matches data-vertical attribute
+7. Try hard refresh (Ctrl+Shift+R)
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 2: "No event photos uploaded" message
+────────────────────────────────────────────
+SOLUTION:
+1. Check Supabase dashboard
+2. Verify vertical_events table has data
+3. Check vertical_name column matches exactly
+4. Verify image_url is valid and accessible
+5. Check event_date is in correct format
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 3: Images not displaying
+───────────────────────────────
+SOLUTION:
+1. Check image URLs in database
+2. Verify URLs are accessible (not 404)
+3. Check CORS settings on image host
+4. Verify image file exists
+5. Check browser console for errors
+6. Try different image URL
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 4: Welcome notification not showing
+──────────────────────────────────────────
+SOLUTION:
+1. Check if verticals.js loaded (line ~190)
+2. Verify VerticalPageManager class exists
+3. Check browser console for JavaScript errors
+4. Verify flash-container div is created
+5. Try hard refresh
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 5: Styles not loading / Page looks broken
+────────────────────────────────────────────────
+SOLUTION:
+1. Check if verticals.css loaded (line 10)
+2. Check if /style.css loaded (line 8)
+3. Check if Mobile.css loaded (line 9)
+4. Clear browser cache
+5. Check browser console for 404 errors
+6. Verify file paths are correct
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 6: Icons not showing
+───────────────────────────
+SOLUTION:
+1. Check if Font Awesome CDN loaded (line 12)
+2. Verify internet connection
+3. Check if ad blocker is blocking CDN
+4. Try different CDN URL
+5. Check browser console for errors
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 7: Gallery shows wrong vertical's images
+───────────────────────────────────────────────
+SOLUTION:
+1. Check data-vertical attribute on gallery section
+2. Verify it matches vertical_name in database
+3. Case-sensitive match required
+4. Check for typos in attribute or database
+
+================================================================================
+10. RESPONSIVE DESIGN
+================================================================================
+
+All vertical pages are fully responsive:
+
+DESKTOP (1920px+):
+- Full hero section with large text
+- 2-column dual sections
+- 3-4 column gallery grid
+- Sidebar visible by default
+
+LAPTOP (1024px - 1920px):
+- Slightly reduced spacing
+- 2-column dual sections
+- 2-3 column gallery grid
+- Sidebar visible
+
+TABLET (768px - 1024px):
+- Single column dual sections (stacked)
+- 2 column gallery grid
+- Reduced font sizes
+- Sidebar collapsible
+
+MOBILE LANDSCAPE (600px - 768px):
+- Single column layout
+- 1-2 column gallery grid
+- Smaller hero text
+- Sidebar hidden by default
+
+MOBILE PORTRAIT (< 600px):
+- Single column layout
+- Single column gallery
+- Stacked all sections
+- Hamburger menu
+- Touch-optimized buttons
+- Reduced padding
+
+GALLERY RESPONSIVE BREAKPOINTS:
+- Desktop: 4 columns
+- Laptop: 3 columns
+- Tablet: 2 columns
+- Mobile: 1 column
+
+================================================================================
+11. SEO & ACCESSIBILITY
+================================================================================
+
+SEO FEATURES (All verticals):
+─────────────────────────────
+✓ Title: "YUVA India" (generic, could be improved)
+✓ Bing verification tag
+✓ Favicon (YUVA logo)
+✓ Semantic HTML structure
+✓ Descriptive alt text on images
+
+RECOMMENDED IMPROVEMENTS:
+- Add unique title for each vertical
+- Add meta description
+- Add Open Graph tags
+- Add Twitter Card tags
+- Add structured data
+
+ACCESSIBILITY FEATURES:
+───────────────────────
+✓ Keyboard navigation (Tab, Enter)
+✓ ARIA labels on hamburger menu
+✓ Semantic HTML (header, section, main)
+✓ Alt text on images (from event_name)
+✓ Touch targets: minimum 44x44px
+✓ Focus indicators visible
+✓ Logical heading hierarchy (h1, h2, h3)
+
+PERFORMANCE OPTIMIZATIONS:
+──────────────────────────
+✓ Async data fetching (doesn't block page load)
+✓ CSS animations (hardware accelerated)
+✓ Minimal JavaScript
+✓ Lazy loading of gallery images
+✓ Shared CSS and JS files (cached across pages)
+
+================================================================================
+END OF USER MANUAL
+================================================================================
+
+For technical support or questions, contact:
+YUVA Technical Team
+Email: tech@yuva.ind.in
+
+Last Updated: December 26, 2025
+Version: 2025.1

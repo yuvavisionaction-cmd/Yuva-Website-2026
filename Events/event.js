@@ -6,7 +6,7 @@
 const SUPABASE_URL = 'https://jgsrsjwmywiirtibofth.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_5KtvO0cEHfnECBoyp2CQnw_RC3_x2me';
 
-const supabase = window.supabase ?
+const supabaseClient = window.supabase ?
     window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 const LIVE_SITE_URL = 'https://yuvaind.netlify.app';
@@ -231,12 +231,12 @@ class EventsPage {
         this.showLoader(true);
 
         try {
-            if (!supabase) throw new Error('Supabase not available');
+            if (!supabaseClient) throw new Error('Supabase not available');
 
             const now = new Date().toISOString();
 
             // Fetch from published_events view which joins events with event_publications
-            const { data, error } = await supabase
+            const { data, error } = await supabaseClient
                 .from('published_events')
                 .select('*')
                 .eq('display_on_upcoming', true)  // Only get events marked for upcoming page
@@ -317,12 +317,12 @@ class EventsPage {
  */
     async fetchHomePageEvents() {
         try {
-            if (!supabase) throw new Error('Supabase not available');
+            if (!supabaseClient) throw new Error('Supabase not available');
 
             const now = new Date().toISOString();
 
             // Fetch events marked for home page
-            const { data, error } = await supabase
+            const { data, error } = await supabaseClient
                 .from('published_events')
                 .select('id, title, description, banner_url, start_at, end_at, location, category, college_name')
                 .eq('display_on_home', true)  // Only get events marked for home page
@@ -353,7 +353,7 @@ class EventsPage {
     async populateFilterDropdowns() {
         // 1. Populate CATEGORIES from the database
         try {
-            const { data: categories, error } = await supabase
+            const { data: categories, error } = await supabaseClient
                 .from('event_categories')
                 .select('name')
                 .order('name', { ascending: true });
@@ -496,12 +496,50 @@ class EventsPage {
     }
 
     renderFeatured() {
-        if (this.filteredEvents.length === 0) return;
-
-        const featured = this.filteredEvents[0];
         const container = document.getElementById('featured-event-container');
         if (!container) return;
 
+        // Show empty state if no events
+        if (this.filteredEvents.length === 0) {
+            container.innerHTML = `
+                <div style="
+                    grid-column: 1 / -1;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    text-align: center;
+                    padding: 80px 20px;
+                    min-height: 400px;
+                    background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+                    border-radius: 16px;
+                    border: 2px dashed #cbd5e1;
+                    margin: 0 auto;
+                    width: 100%;
+                ">
+                    <i class="far fa-calendar-times" style="
+                        font-size: 5rem;
+                        margin-bottom: 24px;
+                        color: #cbd5e1;
+                    "></i>
+                    <h3 style="
+                        color: #000080;
+                        margin-bottom: 12px;
+                        font-size: 1.75rem;
+                        font-weight: 700;
+                    ">No Featured Events</h3>
+                    <p style="
+                        color: #64748b;
+                        font-size: 1rem;
+                        max-width: 400px;
+                        line-height: 1.6;
+                    ">Check back soon for upcoming events and exciting opportunities!</p>
+                </div>
+            `;
+            return;
+        }
+
+        const featured = this.filteredEvents[0];
         const startDate = new Date(featured.start_at);
         const dateStr = startDate.toLocaleDateString('en-IN', { weekday: 'long', month: 'long', day: 'numeric' });
 
@@ -1403,12 +1441,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 button.disabled = true;
                 button.textContent = 'Subscribing...';
 
-                if (!supabase) {
+                if (!supabaseClient) {
                     throw new Error('Supabase not available');
                 }
 
                 // Insert email into subscriptions table (without .select() to avoid RLS issues)
-                const { error } = await supabase
+                const { error } = await supabaseClient
                     .from('subscriptions')
                     .insert([{ email: email }]);
 
