@@ -4027,4 +4027,323 @@
     }
 }
 
-/* End of file - Events styles */
+/* =================================================================
+   MODERN LATEST EVENT SECTION - PAST EVENTS PAGE
+   ================================================================= */
+
+.latest-event-section {
+    padding: 80px 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+    background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+}
+
+.latest-event-container {
+    position: relative;
+}
+
+.latest-event-header {
+    margin-bottom: 48px;
+    text-align: center;
+}
+
+.section-badge {
+    display: inline-block;
+    padding: 8px 20px;
+    background: var(--gradient-green);
+    color: white;
+    border-radius: 50px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 15px rgba(19, 136, 8, 0.3);
+}
+
+.latest-event-header h2 {
+    font-size: 3rem;
+    font-weight: 800;
+    background: var(--gradient-saffron);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 0 0 12px 0;
+}
+
+.latest-event-header p {
+    font-size: 1.1rem;
+    color: #64748b;
+    margin: 0;
+}
+
+.latest-event-card {
+    background: white;
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05);
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 0;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.latest-event-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+
+.latest-event-visual {
+    position: relative;
+    overflow: hidden;
+}
+
+.event-image-wrapper {
+    position: relative;
+    height: 100%;
+    min-height: 500px;
+}
+
+.event-image-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.latest-event-card:hover .event-image-wrapper img {
+    transform: scale(1.05);
+}
+
+.image-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.2) 50%, transparent 100%);
+}
+
+.completed-badge-modern {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    padding: 12px 24px;
+    border-radius: 50px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    z-index: 2;
+}
+
+.completed-badge-modern i {
+    color: #10b981;
+    font-size: 1.1rem;
+}
+
+.completed-badge-modern span {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: #0f172a;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.latest-event-details {
+    padding: 48px 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+}
+
+.event-date-badge {
+    position: absolute;
+    top: -30px;
+    left: 40px;
+    background: var(--gradient-saffron);
+    color: white;
+    padding: 16px 20px;
+    border-radius: 16px;
+    text-align: center;
+    box-shadow: 0 12px 32px rgba(255, 153, 51, 0.4);
+    min-width: 100px;
+}
+
+.date-number {
+    font-size: 2.5rem;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 4px;
+}
+
+.date-month {
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 2px;
+}
+
+.date-year {
+    font-size: 0.85rem;
+    opacity: 0.9;
+}
+
+.event-info {
+    margin-top: 40px;
+}
+
+.event-meta-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.meta-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: #f1f5f9;
+    border-radius: 50px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #475569;
+}
+
+.meta-tag i {
+    font-size: 0.9rem;
+}
+
+.meta-tag.time-ago {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    color: #92400e;
+}
+
+.meta-tag.location {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    color: #1e40af;
+}
+
+.meta-tag.mode {
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+    color: #065f46;
+}
+
+.event-title {
+    font-size: 2rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0 0 16px 0;
+    line-height: 1.2;
+}
+
+.event-description {
+    font-size: 1rem;
+    line-height: 1.7;
+    color: #475569;
+    margin: 0 0 24px 0;
+}
+
+.event-stats-modern {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin-bottom: 32px;
+    padding-top: 24px;
+    border-top: 2px solid #f1f5f9;
+}
+
+.stat-modern {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 20px;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-radius: 12px;
+    transition: all 0.3s ease;
+}
+
+.stat-modern:hover {
+    background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+    transform: translateY(-2px);
+}
+
+.stat-modern i {
+    font-size: 1.1rem;
+    color: var(--saffron-primary);
+}
+
+.stat-modern span {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.event-actions-modern {
+    display: flex;
+    gap: 16px;
+}
+
+.btn-modern-primary,
+.btn-modern-secondary {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 16px 32px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: none;
+}
+
+.btn-modern-primary {
+    background: var(--gradient-saffron);
+    color: white;
+    box-shadow: 0 8px 24px rgba(255, 153, 51, 0.3);
+}
+
+.btn-modern-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px rgba(255, 153, 51, 0.4);
+}
+
+.btn-modern-secondary {
+    background: white;
+    color: var(--green-primary);
+    border: 2px solid var(--green-primary);
+}
+
+.btn-modern-secondary:hover {
+    background: var(--green-primary);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(19, 136, 8, 0.2);
+}
+
+@media (max-width: 1024px) {
+    .latest-event-card {
+        grid-template-columns: 1fr;
+    }
+
+    .event-image-wrapper {
+        min-height: 400px;
+    }
+
+    .event-date-badge {
+        top: auto;
+        bottom: -30px;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .latest-event-details {
+        padding: 60px 32px 40px;
+    }
+}

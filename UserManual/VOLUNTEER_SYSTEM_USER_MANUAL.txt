@@ -1,0 +1,1023 @@
+================================================================================
+                           YUVA INDIA WEBSITE
+                 VOLUNTEER SYSTEM - USER MANUAL
+                  Doc Version: 1.0 | Date: 2025-12-27
+================================================================================
+
+1. INTRODUCTION
+────────────────
+The YUVA Volunteer System (/GetInvolve/Volunteer.html) is a comprehensive
+volunteer recruitment and management platform designed to onboard passionate
+individuals who want to contribute to YUVA's mission of youth empowerment.
+
+The system features a modern, multi-step application form with real-time
+validation, automated email notifications, and seamless integration with
+Supabase for data storage.
+
+Key Features:
+- Animated Hero Section with Ashoka Chakra
+- Interactive Role Filtering System
+- 3-Step Progressive Form with Validation
+- Real-time Field Validation
+- Flash Notification System
+- Supabase Backend Integration
+- Automated Email Confirmations
+- Mobile-Responsive Design
+
+================================================================================
+2. TECHNICAL ARCHITECTURE
+─────────────────────────
+The Volunteer system uses a modern tech stack with client-side validation
+and server-side processing through Google Apps Script.
+
+FILES:
+- HTML: /GetInvolve/Volunteer.html
+- CSS:  /GetInvolve/volunteer.css
+- JS:   /GetInvolve/volunteer.js
+- Backend: /GetInvolve/codegs_Yuva_Volunteer.txt (Google Apps Script)
+
+CORE CLASSES:
+1. FlashNotification - Manages toast notifications
+2. VolunteerPage - Main controller for all page interactions
+
+BACKEND:
+- Google Apps Script (GAS) Web App
+- Supabase Database (volunteers table)
+- Email Service (MailApp)
+
+DEPENDENCIES:
+- Font Awesome 6.4.0 (Icons)
+- Google Fonts (Inter, Poppins)
+- Supabase REST API
+- Browser APIs: IntersectionObserver, FormData, Fetch
+
+================================================================================
+3. PAGE STRUCTURE & SECTIONS
+────────────────────────────
+
+A. HERO SECTION
+---------------
+Location: HTML Lines ~127-247
+Class: `.volunteer-hero`
+
+Components:
+- Animated Ashoka Chakra Background (SVG)
+- Hero Badge: "Join the Movement"
+- Title: "Be the Change, Inspire the Future."
+- Description Text
+- Gradient Background
+
+The Chakra rotates continuously (60s animation) and is positioned using CSS Grid.
+
+EDITING THE HERO:
+To change the hero text, edit lines 238-245 in Volunteer.html:
+```html
+<h1 class="hero-title">
+    <span class="hero-title-line">Be the Change,</span>
+    <span class="hero-title-line hero-title-accent">Inspire the Future.</span>
+</h1>
+```
+
+B. WHY VOLUNTEER / PERKS SECTION
+---------------------------------
+Location: HTML Lines ~248-272
+Class: `.perks-section`
+
+Features 3 Perk Cards:
+1. Develop New Skills
+2. Expand Your Network
+3. Gain Recognition
+
+Each card has:
+- Icon (Font Awesome)
+- Title
+- Description
+
+ADDING A NEW PERK:
+Copy this template inside `.perks-grid`:
+```html
+<div class="perk-card">
+    <div class="perk-icon"><i class="fas fa-icon-name"></i></div>
+    <h3>Perk Title</h3>
+    <p>Description of the perk.</p>
+</div>
+```
+
+C. OPEN ROLES SECTION
+----------------------
+Location: HTML Lines ~274-346
+Class: `.roles-section`
+
+Features:
+- Role Filter Chips (All, Events, Media, Outreach, Tech)
+- 6 Role Cards with Categories
+
+Role Card Structure:
+```html
+<div class="role-card" data-category="events">
+    <div class="role-card-content">
+        <h3>Role Title</h3>
+        <p>Role description</p>
+        <span class="role-tag">Tag1</span>
+        <span class="role-tag">Tag2</span>
+    </div>
+</div>
+```
+
+The filtering is handled by JavaScript (volunteer.js, line 545).
+
+D. APPLICATION FORM
+-------------------
+Location: HTML Lines ~348-582
+Class: `.form-section`
+
+FORM STRUCTURE:
+The form is divided into 3 steps:
+
+STEP 1: Personal Details (Lines 372-423)
+- Full Name *
+- Age *
+- Gender * (Radio: Male, Female, Prefer not to say)
+- Email Address *
+- Phone Number *
+- City/Town
+- Occupation/Profession *
+- College/Institute *
+
+STEP 2: Involvement & Skills (Lines 425-507)
+- How to get involved * (Radio: 8 options)
+- Skills * (Radio: 8 options)
+- Causes * (Radio: 8 options)
+- Available Time * (Radio: 4 options)
+
+STEP 3: Background & Consent (Lines 509-578)
+- Why join YUVA? * (Textarea)
+- Hope to achieve? * (Textarea)
+- Past volunteer experience? * (Radio: Yes/No)
+  - Conditional: Details (Textarea)
+- Other groups? * (Radio: Yes/No)
+  - Conditional: Details (Textarea)
+- Additional comments (Textarea)
+- Email updates? * (Radio: Yes/No)
+- Data consent * (Checkbox)
+
+================================================================================
+4. JAVASCRIPT FUNCTIONALITY (volunteer.js)
+──────────────────────────────────────────
+
+A. FLASH NOTIFICATION SYSTEM
+-----------------------------
+Class: `FlashNotification`
+
+Methods:
+- `showSuccess(title, message, duration)` - Green notification
+- `showError(title, message, duration)` - Red notification
+- `showWarning(title, message, duration)` - Orange notification
+- `showInfo(title, message, duration)` - Blue notification
+
+Usage Example:
+```javascript
+flash.showSuccess('Success!', 'Form submitted successfully.');
+```
+
+B. VOLUNTEER PAGE CLASS
+-----------------------
+Class: `VolunteerPage`
+
+Key Features:
+
+1. SMOOTH SCROLL OPTIMIZATION (Lines 182-234)
+   - Enables CSS smooth scrolling
+   - Throttles scroll events for performance
+   - Pauses heavy animations during scroll
+   - Optimizes touch scrolling on mobile
+
+2. FORM VALIDATION (Lines 343-452)
+   - Real-time field validation on blur
+   - Inline error messages
+   - Pattern matching for email, phone, age
+   - Radio/checkbox group validation
+
+   Validation Rules (Lines 102-174):
+   - Full Name: Required
+   - Age: Required, Pattern: /^\d{1,2}$/
+   - Email: Required, Pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+   - Phone: Required, Pattern: /^[6-9]\d{9}$/
+   - All radio groups: Required
+
+3. CONDITIONAL FIELDS (Lines 266-298)
+   - Shows/hides "Past Volunteer Details" based on selection
+   - Shows/hides "Other Groups Details" based on selection
+
+4. ROLE FILTERING (Lines 545-557)
+   - Filters role cards by category
+   - Updates active filter chip
+   - Shows/hides cards with smooth transitions
+
+5. FORM SUBMISSION (Lines 488-543)
+   - Validates all fields before submission
+   - Sends data to Google Apps Script
+   - Shows loading state on submit button
+   - Displays success/error notifications
+   - Resets form on success
+
+C. FORM STEP NAVIGATION
+------------------------
+Methods:
+- `changeStep(direction)` - Move between form steps
+- `updateFormSteps()` - Show/hide step content
+- `updateProgressBar()` - Update progress indicators
+- `smoothScrollToForm()` - Scroll to form top on step change
+
+================================================================================
+5. BACKEND SYSTEM (Google Apps Script)
+──────────────────────────────────────
+
+File: codegs_Yuva_Volunteer.txt
+
+CONFIGURATION (Lines 12-18):
+```javascript
+const SUPABASE_URL = 'https://jgsrsjwmywiirtibofth.supabase.co';
+const SUPABASE_SERVICE_KEY = '[YOUR_SERVICE_KEY]';
+const SUPABASE_TABLE = 'volunteers';
+const SEND_CONFIRMATION_EMAIL = true;
+const ADMIN_EMAIL = 'yuva.vision.action@gmail.com';
+```
+
+MAIN HANDLERS:
+
+A. doPost(e) - Lines 27-89
+   - Receives form submission
+   - Parses form data
+   - Validates required fields
+   - Checks for duplicate email
+   - Inserts into Supabase
+   - Sends confirmation emails
+   - Returns JSON response
+
+B. doOptions(e) - Lines 94-98
+   - Handles CORS preflight requests
+
+HELPER FUNCTIONS:
+
+1. parseFormData(e) - Lines 107-132
+   - Extracts all form fields from request
+
+2. validateFormData(data) - Lines 137-183
+   - Server-side validation
+   - Email format check
+   - Phone number validation (10 digits, starts with 6-9)
+   - Age range check (15-100)
+
+3. checkDuplicateEmail(email) - Lines 188-209
+   - Queries Supabase for existing email
+   - Returns true if duplicate found
+
+4. insertVolunteerToSupabase(data) - Lines 214-245
+   - POST request to Supabase REST API
+   - Returns success/error response
+
+5. sendConfirmationEmail(data) - Lines 250-312
+   - Sends formatted email to volunteer
+   - Includes application details
+   - Provides next steps
+
+6. notifyAdmin(data) - Lines 317-385
+   - Sends notification to admin email
+   - Includes full application details
+   - Provides Supabase link
+
+SUPABASE DATABASE STRUCTURE:
+Table: `volunteers`
+
+Columns:
+- id (UUID, Primary Key)
+- full_name (TEXT)
+- age (INTEGER)
+- gender (TEXT)
+- email (TEXT, UNIQUE)
+- phone (TEXT)
+- city (TEXT)
+- occupation (TEXT)
+- college (TEXT)
+- involvement (TEXT)
+- skills (TEXT)
+- causes (TEXT)
+- available_time (TEXT)
+- why_join (TEXT)
+- hope_to_achieve (TEXT)
+- past_volunteer (BOOLEAN)
+- past_volunteer_details (TEXT)
+- other_groups (BOOLEAN)
+- other_groups_details (TEXT)
+- comments (TEXT)
+- email_updates (BOOLEAN)
+- data_consent (BOOLEAN)
+- status (TEXT, DEFAULT 'pending')
+- created_at (TIMESTAMP)
+- updated_at (TIMESTAMP)
+
+================================================================================
+6. SUPABASE DATABASE SYSTEM
+────────────────────────────
+
+A. DATABASE SCHEMA
+------------------
+Table: `volunteers`
+Location: setup.sql (Lines 1361+)
+
+The volunteers table stores all volunteer application data with the following
+structure:
+
+PRIMARY KEY:
+- id (UUID) - Auto-generated unique identifier
+
+PERSONAL INFORMATION:
+- full_name (TEXT, NOT NULL) - Volunteer's full name
+- age (INTEGER) - Age of volunteer
+- gender (TEXT) - Gender selection
+- email (TEXT, NOT NULL, UNIQUE) - Email address (unique constraint)
+- phone (TEXT, NOT NULL) - Phone number (min 10 digits)
+- city (TEXT) - Current city/town
+
+PROFESSIONAL/ACADEMIC:
+- occupation (TEXT) - Current occupation/profession
+- college (TEXT, NOT NULL) - College/Institute name
+
+VOLUNTEER PREFERENCES:
+- involvement (TEXT) - How they want to get involved
+- skills (TEXT) - Their skills
+- causes (TEXT) - Causes they care about
+- available_time (TEXT) - Weekly availability
+
+MOTIVATION:
+- why_join (TEXT) - Why they want to join YUVA
+- hope_to_achieve (TEXT) - What they hope to achieve
+
+EXPERIENCE:
+- past_volunteer (BOOLEAN, DEFAULT FALSE) - Previous volunteer experience
+- past_volunteer_details (TEXT) - Details if past_volunteer is true
+- other_groups (BOOLEAN, DEFAULT FALSE) - Associated with other groups
+- other_groups_details (TEXT) - Details if other_groups is true
+
+PREFERENCES:
+- email_updates (BOOLEAN, DEFAULT TRUE) - Opt-in for email updates
+- data_consent (BOOLEAN, DEFAULT TRUE) - Data usage consent
+- comments (TEXT) - Additional comments
+
+STATUS:
+- status (TEXT, DEFAULT 'pending') - Application status
+  Values: 'pending', 'approved', 'contacted', 'rejected'
+
+TIMESTAMPS:
+- created_at (TIMESTAMP WITH TIME ZONE, DEFAULT NOW())
+- updated_at (TIMESTAMP WITH TIME ZONE, DEFAULT NOW())
+
+CONSTRAINTS:
+- email_format CHECK - Validates email format
+- phone_length CHECK - Ensures phone is at least 10 digits
+- age_range CHECK - Age must be between 15 and 100
+
+B. INDEXES FOR PERFORMANCE
+---------------------------
+The following indexes are created for optimal query performance:
+
+1. idx_volunteers_email
+   - ON volunteers(email)
+   - Purpose: Fast duplicate email checks
+   - Used by: checkDuplicateEmail() function
+
+2. idx_volunteers_status
+   - ON volunteers(status)
+   - Purpose: Filter by application status
+   - Used by: Admin queries for pending/approved volunteers
+
+3. idx_volunteers_created_at
+   - ON volunteers(created_at DESC)
+   - Purpose: Sort by submission date
+   - Used by: Recent applications queries
+
+4. idx_volunteers_skills
+   - ON volunteers USING gin(to_tsvector('english', skills))
+   - Purpose: Full-text search on skills
+   - Used by: Skill-based matching (future feature)
+
+5. idx_volunteers_active
+   - ON volunteers(status, created_at DESC) WHERE status = 'approved'
+   - Purpose: Fast retrieval of approved volunteers
+   - Used by: Active volunteer listings
+
+C. ROW LEVEL SECURITY (RLS) POLICIES
+-------------------------------------
+RLS is ENABLED on the volunteers table for security.
+
+POLICIES:
+
+1. "Service role can insert volunteers"
+   - FOR INSERT
+   - WITH CHECK (true)
+   - Allows: Google Apps Script to insert new applications
+   - Used by: Form submission (doPost function)
+
+2. "Service role can view volunteers"
+   - FOR SELECT
+   - USING (true)
+   - Allows: Backend to read all volunteer data
+   - Used by: Admin queries, duplicate checks
+
+3. "Service role can update volunteers"
+   - FOR UPDATE
+   - USING (true) WITH CHECK (true)
+   - Allows: Backend to update volunteer records
+   - Used by: Status updates, data corrections
+
+4. "Service role can delete volunteers"
+   - FOR DELETE
+   - USING (true)
+   - Allows: Backend to delete records
+   - Used by: Data cleanup, GDPR requests
+
+IMPORTANT: Public users CANNOT access this table directly. All access must go
+through the Google Apps Script backend using the service_role key.
+
+D. TRIGGERS
+-----------
+1. update_volunteers_updated_at
+   - BEFORE UPDATE ON volunteers
+   - Automatically updates updated_at timestamp
+   - Ensures accurate modification tracking
+
+E. SUPABASE SETUP INSTRUCTIONS
+-------------------------------
+
+STEP 1: CREATE PROJECT
+1. Go to https://supabase.com
+2. Click "New Project"
+3. Enter project details:
+   - Name: YUVA-Volunteer-System
+   - Database Password: [Strong password]
+   - Region: [Closest to your users]
+4. Wait for project creation (~2 minutes)
+
+STEP 2: RUN SQL SCHEMA
+1. In Supabase Dashboard, go to "SQL Editor"
+2. Click "New Query"
+3. Copy the SQL from setup.sql (lines 1361-1806)
+4. Paste and click "Run"
+5. Verify success message
+
+STEP 3: GET API CREDENTIALS
+1. Go to "Project Settings" > "API"
+2. Copy the following:
+   - Project URL (e.g., https://xxxxx.supabase.co)
+   - service_role key (NOT anon key)
+3. Store these securely
+
+STEP 4: VERIFY SETUP
+Run these queries in SQL Editor:
+
+```sql
+-- Check table exists
+SELECT COUNT(*) FROM volunteers;
+
+-- Check indexes
+SELECT indexname FROM pg_indexes 
+WHERE tablename = 'volunteers';
+
+-- Check RLS is enabled
+SELECT tablename, rowsecurity 
+FROM pg_tables 
+WHERE tablename = 'volunteers';
+
+-- Check policies
+SELECT policyname FROM pg_policies 
+WHERE tablename = 'volunteers';
+```
+
+Expected Results:
+- Table exists (count = 0 initially)
+- 5 indexes created
+- rowsecurity = true
+- 4 policies created
+
+F. SUPABASE REST API USAGE
+---------------------------
+The Google Apps Script backend uses Supabase REST API.
+
+BASE URL FORMAT:
+```
+https://[PROJECT_ID].supabase.co/rest/v1/[TABLE_NAME]
+```
+
+REQUIRED HEADERS:
+```javascript
+{
+  'apikey': SUPABASE_SERVICE_KEY,
+  'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+  'Content-Type': 'application/json'
+}
+```
+
+COMMON OPERATIONS:
+
+1. INSERT NEW VOLUNTEER
+```javascript
+// POST /rest/v1/volunteers
+const options = {
+  method: 'post',
+  headers: {
+    'apikey': SUPABASE_SERVICE_KEY,
+    'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+    'Content-Type': 'application/json',
+    'Prefer': 'return=representation'
+  },
+  payload: JSON.stringify(volunteerData)
+};
+```
+
+2. CHECK DUPLICATE EMAIL
+```javascript
+// GET /rest/v1/volunteers?email=eq.user@example.com&select=id
+const url = `${SUPABASE_URL}/rest/v1/volunteers?email=eq.${email}&select=id`;
+```
+
+3. UPDATE STATUS
+```javascript
+// PATCH /rest/v1/volunteers?id=eq.UUID
+const options = {
+  method: 'patch',
+  headers: { /* same as above */ },
+  payload: JSON.stringify({ status: 'approved' })
+};
+```
+
+4. QUERY WITH FILTERS
+```javascript
+// GET /rest/v1/volunteers?status=eq.pending&order=created_at.desc
+const url = `${SUPABASE_URL}/rest/v1/volunteers?status=eq.pending&order=created_at.desc`;
+```
+
+G. COMMON SUPABASE QUERIES
+---------------------------
+
+1. GET ALL PENDING APPLICATIONS
+```sql
+SELECT * FROM volunteers 
+WHERE status = 'pending' 
+ORDER BY created_at DESC;
+```
+
+2. APPROVE A VOLUNTEER
+```sql
+UPDATE volunteers 
+SET status = 'approved', updated_at = NOW() 
+WHERE email = 'volunteer@example.com';
+```
+
+3. SEARCH BY SKILL
+```sql
+SELECT full_name, email, skills, phone 
+FROM volunteers 
+WHERE skills ILIKE '%design%' 
+  AND status = 'approved'
+ORDER BY created_at DESC;
+```
+
+4. GET STATISTICS BY STATUS
+```sql
+SELECT 
+  status, 
+  COUNT(*) as count,
+  ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER(), 2) as percentage
+FROM volunteers 
+GROUP BY status 
+ORDER BY count DESC;
+```
+
+5. RECENT APPLICATIONS (LAST 7 DAYS)
+```sql
+SELECT full_name, email, college, created_at 
+FROM volunteers 
+WHERE created_at > NOW() - INTERVAL '7 days'
+ORDER BY created_at DESC;
+```
+
+6. VOLUNTEERS BY AVAILABILITY
+```sql
+SELECT 
+  available_time, 
+  COUNT(*) as count 
+FROM volunteers 
+WHERE status = 'approved'
+GROUP BY available_time 
+ORDER BY count DESC;
+```
+
+7. EXPORT FOR EMAIL CAMPAIGN
+```sql
+SELECT email, full_name 
+FROM volunteers 
+WHERE status = 'approved' 
+  AND email_updates = true
+ORDER BY full_name;
+```
+
+H. SUPABASE DASHBOARD FEATURES
+-------------------------------
+
+TABLE EDITOR:
+- View/Edit data in spreadsheet format
+- Filter and sort columns
+- Export to CSV/JSON
+- Bulk operations
+
+SQL EDITOR:
+- Run custom queries
+- Save frequently used queries
+- View query history
+- Export results
+
+DATABASE:
+- View schema
+- Manage tables, columns, indexes
+- Configure RLS policies
+- Monitor performance
+
+AUTHENTICATION (Not used in this system):
+- User management
+- OAuth providers
+- Email templates
+
+STORAGE (Not used in this system):
+- File uploads
+- Image optimization
+- CDN delivery
+
+I. BACKUP & RECOVERY
+--------------------
+
+AUTOMATIC BACKUPS:
+- Supabase automatically backs up your database
+- Free tier: Daily backups (7-day retention)
+- Pro tier: Point-in-time recovery
+
+MANUAL BACKUP:
+1. Go to Database > Backups
+2. Click "Create Backup"
+3. Download backup file
+
+EXPORT DATA:
+```sql
+-- Export to CSV via SQL Editor
+COPY (SELECT * FROM volunteers) 
+TO '/tmp/volunteers_backup.csv' 
+WITH CSV HEADER;
+```
+
+Or use Table Editor > Export button
+
+RESTORE FROM BACKUP:
+1. Go to Database > Backups
+2. Select backup
+3. Click "Restore"
+4. Confirm restoration
+
+J. MONITORING & LOGS
+---------------------
+
+VIEW API LOGS:
+1. Go to "Logs" in Supabase Dashboard
+2. Select "API Logs"
+3. Filter by:
+   - Table: volunteers
+   - Method: POST, GET, PATCH
+   - Status: 200, 400, 500
+
+MONITOR PERFORMANCE:
+1. Go to "Reports"
+2. View:
+   - API requests per day
+   - Database size
+   - Active connections
+   - Slow queries
+
+SET UP ALERTS:
+1. Go to "Project Settings" > "Alerts"
+2. Configure alerts for:
+   - Database size threshold
+   - API error rate
+   - Connection limits
+
+K. SECURITY BEST PRACTICES
+---------------------------
+
+1. NEVER expose service_role key in frontend code
+2. Always use HTTPS for API requests
+3. Validate data before inserting into database
+4. Use parameterized queries to prevent SQL injection
+5. Regularly review RLS policies
+6. Monitor API logs for suspicious activity
+7. Rotate service_role key periodically
+8. Enable 2FA on Supabase account
+9. Limit service_role key usage to backend only
+10. Use environment variables for credentials
+
+L. TROUBLESHOOTING SUPABASE ISSUES
+-----------------------------------
+
+ISSUE: "relation 'volunteers' does not exist"
+SOLUTION: Run the SQL schema in SQL Editor
+
+ISSUE: "permission denied for table volunteers"
+SOLUTION: Check RLS policies are correctly configured
+
+ISSUE: "duplicate key value violates unique constraint"
+SOLUTION: Email already exists, this is expected behavior
+
+ISSUE: "insert or update on table violates check constraint"
+SOLUTION: Data doesn't meet validation rules (age, email, phone)
+
+ISSUE: Connection timeout
+SOLUTION: 
+- Check Supabase project status
+- Verify SUPABASE_URL is correct
+- Check network connectivity
+
+ISSUE: 401 Unauthorized
+SOLUTION:
+- Verify service_role key is correct
+- Check Authorization header format
+- Ensure key hasn't been rotated
+
+M. SUPABASE LIMITS (FREE TIER)
+-------------------------------
+- Database Size: 500 MB
+- API Requests: 500,000 per month
+- Bandwidth: 5 GB per month
+- Concurrent Connections: 60
+- Backups: 7-day retention
+
+For higher limits, upgrade to Pro tier.
+
+================================================================================
+7. STYLING SYSTEM (volunteer.css)
+─────────────────────────────────
+
+CSS VARIABLES (Lines 6-62):
+The page uses a comprehensive design system with India-themed colors.
+
+Key Variables:
+- --saffron-primary: #FF9933
+- --green-primary: #138808
+- --navy-chakra: #000080
+- --color-primary: var(--navy-chakra)
+- --color-error: #ef4444
+- --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1)
+- --radius-xl: 1rem
+- --transition-base: 300ms cubic-bezier(0.4, 0, 0.2, 1)
+
+HERO SECTION STYLES (Lines 82-195):
+- Uses CSS Grid for centering
+- Chakra animation: 60s rotation
+- Gradient background
+- Responsive typography with clamp()
+
+FORM STYLES (Lines 403-721):
+- Multi-step form with fade-in animations
+- Progress bar with connecting line
+- Inline error messages (red background)
+- Focus states with box-shadow
+- Radio/checkbox custom styling
+
+ERROR STYLING (Lines 619-633):
+```css
+.form-group input.error {
+    border-color: var(--color-error);
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.error-message {
+    background: var(--color-error);
+    color: var(--white-primary);
+    padding: 8px 12px;
+    border-radius: var(--radius-lg);
+}
+```
+
+FLASH NOTIFICATIONS (Lines 732-835):
+- Fixed position (top-right)
+- Slide-in animation
+- Color-coded by type
+- Auto-dismiss after duration
+
+================================================================================
+7. DEPLOYMENT & CONFIGURATION
+─────────────────────────────
+
+STEP 1: SETUP SUPABASE
+1. Create a Supabase project
+2. Run the SQL schema (in setup.sql, lines 1361+)
+3. Copy your Supabase URL and Service Key
+
+STEP 2: DEPLOY GOOGLE APPS SCRIPT
+1. Open Google Apps Script (script.google.com)
+2. Create a new project
+3. Paste the code from codegs_Yuva_Volunteer.txt
+4. Update SUPABASE_URL and SUPABASE_SERVICE_KEY
+5. Deploy as Web App:
+   - Execute as: Me
+   - Who has access: Anyone
+6. Copy the Web App URL
+
+STEP 3: UPDATE FRONTEND
+1. Open volunteer.js
+2. Update GAS_WEB_APP_URL on line 498:
+   ```javascript
+   const GAS_WEB_APP_URL = 'YOUR_WEB_APP_URL_HERE';
+   ```
+
+STEP 4: TEST THE SYSTEM
+1. Open Volunteer.html in a browser
+2. Fill out the form
+3. Submit and verify:
+   - Success notification appears
+   - Email received (volunteer)
+   - Email received (admin)
+   - Data appears in Supabase
+
+================================================================================
+8. TROUBLESHOOTING
+──────────────────
+
+ISSUE 1: Form submission fails
+SYMPTOMS:
+- "Submission Failed" error
+- Console shows fetch error
+
+SOLUTIONS:
+1. Check GAS_WEB_APP_URL in volunteer.js (line 498)
+2. Verify Google Apps Script is deployed as "Anyone"
+3. Check browser console for CORS errors
+4. Verify Supabase credentials in GAS
+
+ISSUE 2: Validation errors not showing
+SYMPTOMS:
+- Can proceed without filling required fields
+- No red error messages
+
+SOLUTIONS:
+1. Check browser console for JavaScript errors
+2. Verify volunteer.js is loaded (check Network tab)
+3. Ensure validation rules are defined (lines 102-174)
+
+ISSUE 3: Emails not sending
+SYMPTOMS:
+- Form submits successfully
+- No confirmation email received
+
+SOLUTIONS:
+1. Check SEND_CONFIRMATION_EMAIL is true in GAS
+2. Verify ADMIN_EMAIL is correct
+3. Check spam folder
+4. Review GAS execution logs for email errors
+
+ISSUE 4: Duplicate email error
+SYMPTOMS:
+- "This email is already registered" message
+
+SOLUTIONS:
+1. This is expected behavior (prevents duplicates)
+2. To allow resubmission, delete the record from Supabase
+3. Or use a different email address
+
+ISSUE 5: Conditional fields not showing
+SYMPTOMS:
+- "Past Volunteer Details" doesn't appear when selecting "Yes"
+
+SOLUTIONS:
+1. Check JavaScript console for errors
+2. Verify setupConditionalFields() is called (line 253)
+3. Ensure IDs match: pastVolunteerDetails, otherGroupsDetails
+
+================================================================================
+9. CUSTOMIZATION GUIDE
+──────────────────────
+
+A. ADDING A NEW FORM FIELD
+1. Add HTML input in the appropriate form-step
+2. Add validation rule in volunteer.js (lines 102-174)
+3. Update parseFormData() in GAS (lines 107-132)
+4. Update volunteerData object in GAS (lines 45-68)
+5. Add column to Supabase table
+
+Example:
+```html
+<!-- In HTML -->
+<div class="form-group">
+    <label for="linkedin">LinkedIn Profile</label>
+    <input type="url" id="linkedin" name="linkedin">
+</div>
+```
+
+```javascript
+// In volunteer.js validation rules
+'linkedin': {
+    required: false,
+    pattern: /^https:\/\/www\.linkedin\.com\/.+$/,
+    message: 'Please enter a valid LinkedIn URL.'
+}
+```
+
+B. CHANGING COLOR SCHEME
+Edit CSS variables in volunteer.css (lines 6-62):
+```css
+:root {
+    --color-primary: #YOUR_COLOR;
+    --color-accent: #YOUR_COLOR;
+}
+```
+
+C. MODIFYING EMAIL TEMPLATES
+Edit sendConfirmationEmail() in GAS (lines 250-312):
+```javascript
+const body = `
+Your custom email template here
+${data.full_name}
+`;
+```
+
+================================================================================
+10. ADMIN OPERATIONS
+────────────────────
+
+VIEWING APPLICATIONS:
+1. Log into Supabase Dashboard
+2. Navigate to Table Editor > volunteers
+3. View all applications with status
+
+APPROVING A VOLUNTEER:
+```sql
+UPDATE volunteers 
+SET status = 'approved' 
+WHERE email = 'volunteer@example.com';
+```
+
+FILTERING BY STATUS:
+```sql
+SELECT * FROM volunteers 
+WHERE status = 'pending' 
+ORDER BY created_at DESC;
+```
+
+EXPORTING DATA:
+1. In Supabase, go to Table Editor
+2. Click "Export" button
+3. Choose CSV or JSON format
+
+STATISTICS QUERIES:
+```sql
+-- Count by status
+SELECT status, COUNT(*) as count 
+FROM volunteers 
+GROUP BY status;
+
+-- Count by skill
+SELECT skills, COUNT(*) as count 
+FROM volunteers 
+WHERE status = 'approved'
+GROUP BY skills 
+ORDER BY count DESC;
+
+-- Recent applications (last 7 days)
+SELECT * FROM volunteers 
+WHERE created_at > NOW() - INTERVAL '7 days'
+ORDER BY created_at DESC;
+```
+
+================================================================================
+11. BEST PRACTICES
+──────────────────
+
+FOR DEVELOPERS:
+1. Always test form validation before deployment
+2. Monitor GAS execution logs for errors
+3. Keep Supabase service key secure (never commit to Git)
+4. Use environment variables for sensitive data
+5. Test email delivery to multiple providers (Gmail, Outlook, etc.)
+
+FOR ADMINS:
+1. Review applications within 3-5 business days
+2. Respond to all applicants (approved or rejected)
+3. Keep volunteer database updated
+4. Export data regularly for backup
+5. Monitor spam folder for legitimate applications
+
+FOR CONTENT EDITORS:
+1. Keep role descriptions concise (2-3 sentences)
+2. Update perks section quarterly
+3. Ensure all links in emails are working
+4. Test form on mobile devices regularly
+
+================================================================================
+END OF MANUAL
+================================================================================

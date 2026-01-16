@@ -1,142 +1,572 @@
-// ===== YUVA ALUMNI HUB BACKEND - CODE.GS (FINAL VERSION) =====
-
-// --- CONFIGURATION ---
-// PASTE THE ID OF YOUR GOOGLE SHEET HERE
-const SHEET_ID = '1-GQjJ9sWX1jcuFSESxsPbdebFyzZ9isWzWyM6qvvvpI'; 
-
 /**
- * Run this function once from the editor after setting your SHEET_ID.
- * It will create and style the headers for both the submissions and featured alumni sheets.
+ * YUVA ALUMNI REGISTRATION - SUPABASE BACKEND
+ * This script receives alumni form submissions and stores them in Supabase
+ * Updated from Google Sheets to Supabase for better scalability and features
  */
-function initialSetup() {
-  try {
-    const doc = SpreadsheetApp.openById(SHEET_ID);
-    Logger.log(`Successfully opened spreadsheet: ${doc.getName()}`);
 
-    // Setup for the AlumniSubmissions sheet
-    setupSheetTab(doc, 'AlumniSubmissions', [
-      'Timestamp', 'Full Name', 'Email', 'Phone', 'Batch Year', 'Current City', 
-      'Current Profession', 'Organization', 'Areas of Interest','ImageURL'
-    ]);
+// ============================================
+// CONFIGURATION - UPDATE THESE VALUES
+// ============================================
 
-    // Setup for the FeaturedAlumni sheet
-    setupSheetTab(doc, 'FeaturedAlumni', [
-      'Name', 'Role', 'Batch', 'City', 'Quote', 'ImageURL', 'Badge'
-    ]);
+const SUPABASE_URL = 'https://jgsrsjwmywiirtibofth.supabase.co'; // e.g., https://xxxxx.supabase.co
+const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impnc3JzandteXdpaXJ0aWJvZnRoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTA3NjY0OCwiZXhwIjoyMDc0NjUyNjQ4fQ.tQ9aD4OP1okfdgNr8O4LqIkYAF4rUvbRBN4XBW-KrZo'; // Service role key (not anon key)
+const SUPABASE_TABLE = 'alumni';
+const STORAGE_BUCKET = 'alumni-images';
 
-    Logger.log(`Setup complete. View your sheet at: ${doc.getUrl()}`);
+// Email configuration
+const SEND_CONFIRMATION_EMAIL = true; // Enabled - send confirmation emails
+const ADMIN_EMAIL = 'yuva.vision.action@gmail.com'; // Admin notification email
 
-  } catch (e) {
-    Logger.log(`Error during setup: ${e.message}. Please double-check your SHEET_ID.`);
-  }
-}
+// ============================================
+// MAIN HANDLERS
+// ============================================
 
 /**
- * Helper function to create and format a sheet tab.
- */
-function setupSheetTab(spreadsheet, sheetName, headers) {
-  let sheet = spreadsheet.getSheetByName(sheetName);
-  if (!sheet) {
-    sheet = spreadsheet.insertSheet(sheetName);
-    Logger.log(`Created new tab: "${sheetName}"`);
-  }
-
-  if (sheet.getLastRow() === 0) {
-    sheet.appendRow(headers);
-    sheet.setFrozenRows(1);
-    const headerRange = sheet.getRange(1, 1, 1, headers.length);
-    headerRange.setBackground('#555879').setFontColor('#ffffff').setFontWeight('bold');
-    Logger.log(`Styled headers created for "${sheetName}".`);
-  } else {
-    Logger.log(`"${sheetName}" already has data. Headers not changed.`);
-  }
-}
-
-/**
- * Main router for GET requests from the frontend.
- */
-function doGet(e) {
-  const action = e.parameter.action;
-  if (action === 'getFeaturedAlumni') {
-    return getFeaturedAlumni();
-  }
-  return ContentService
-    .createTextOutput(JSON.stringify({ success: false, error: 'Invalid action' }))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
-/**
- * Fetches data from the 'FeaturedAlumni' sheet for the dynamic success stories.
- */
-function getFeaturedAlumni() {
-  try {
-    const doc = SpreadsheetApp.openById(SHEET_ID);
-    const sheet = doc.getSheetByName('FeaturedAlumni');
-    const data = sheet.getDataRange().getValues();
-
-    const headers = data.shift(); // Remove header row
-    const stories = data.map(row => {
-      let story = {};
-      headers.forEach((header, index) => {
-        story[header] = row[index];
-      });
-      return story;
-    });
-
-    return ContentService
-      .createTextOutput(JSON.stringify({ success: true, data: stories }))
-      .setMimeType(ContentService.MimeType.JSON);
-
-  } catch (error) {
-    return ContentService
-      .createTextOutput(JSON.stringify({ success: false, error: error.message }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-}
-
-/**
- * Handles POST requests from the alumni registration form.
+ * Handles POST requests from the alumni registration form
  */
 function doPost(e) {
   try {
-    const sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName('AlumniSubmissions');
-    
-    // The headers are created by initialSetup, but this is a fallback.
-    if (sheet.getLastRow() === 0) {
-      const headers = ['Timestamp', 'Full Name', 'Email', 'Phone', 'Batch Year', 'Current City', 'Current Profession', 'Organization', 'Areas of Interest','ImageURL'];
-      sheet.appendRow(headers);
+    // Check if this is an image upload request
+    if (e.parameter.action === 'uploadImage') {
+      return handleImageUpload(e);
     }
-
-    const newRow = [
-      new Date(),
-      e.parameter.fullName,
-      e.parameter.email,
-      e.parameter.phone,
-      e.parameter.batch,
-      e.parameter.city,
-      e.parameter.profession,
-      e.parameter.organization,
-      e.parameter.interests,
-      e.parameter.imageUrl
-    ];
     
-    sheet.appendRow(newRow);
-
-    return ContentService
-      .createTextOutput(JSON.stringify({ success: true, message: 'Form submitted successfully!' }))
-      .setMimeType(ContentService.MimeType.JSON);
+    // Parse form data
+    const formData = parseFormData(e);
+    
+    // Validate required fields
+    const validation = validateFormData(formData);
+    if (!validation.valid) {
+      return createResponse(false, validation.error);
+    }
+    
+    // Check for duplicate email
+    const duplicate = checkDuplicateEmail(formData.email);
+    if (duplicate) {
+      return createResponse(false, 'This email is already registered in our alumni network.');
+    }
+    
+    // Prepare alumni data for Supabase
+    const alumniData = {
+      full_name: formData.fullName,
+      email: formData.email.toLowerCase().trim(),
+      phone: formData.phone,
+      batch_year: formData.batch,
+      current_city: formData.city,
+      profession: formData.profession,
+      organization: formData.organization,
+      image_url: formData.imageUrl || null,
+      interests: formData.interests ? formData.interests.split(',').map(i => i.trim()) : [],
+      is_featured: false,
+      is_approved: true, // Auto-approve all registrations
+      badge: null,
+      quote: null
+    };
+    
+    // Insert into Supabase
+    const result = insertAlumniToSupabase(alumniData);
+    
+    if (result.success) {
+      // Send confirmation email (optional)
+      if (SEND_CONFIRMATION_EMAIL) {
+        sendConfirmationEmail(alumniData);
+        notifyAdmin(alumniData);
+      }
+      
+      return createResponse(true, 'Registration successful! Welcome to YUVA Alumni Network.', result.data);
+    } else {
+      throw new Error(result.error || 'Failed to save alumni data');
+    }
+    
   } catch (error) {
-    return ContentService
-      .createTextOutput(JSON.stringify({ success: false, error: error.message }))
-      .setMimeType(ContentService.MimeType.JSON);
+    Logger.log('Error in doPost: ' + error.toString());
+    return createResponse(false, 'An error occurred during registration. Please try again.');
   }
 }
 
 /**
- * Handles OPTIONS requests for CORS pre-flight checks.
+ * Handle image upload to Supabase Storage
+ */
+function handleImageUpload(e) {
+  try {
+    const imageData = e.parameter.imageData; // Base64 encoded image
+    const fileName = e.parameter.fileName;
+    const fileType = e.parameter.fileType;
+    
+    if (!imageData || !fileName) {
+      return createResponse(false, 'Missing image data');
+    }
+    
+    // Decode base64 to blob
+    const imageBlob = Utilities.newBlob(
+      Utilities.base64Decode(imageData),
+      fileType,
+      fileName
+    );
+    
+    // Upload to Supabase Storage
+    const filePath = `profiles/${fileName}`;
+    const uploadUrl = `${SUPABASE_URL}/storage/v1/object/${STORAGE_BUCKET}/${filePath}`;
+    
+    const options = {
+      method: 'post',
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+        'Content-Type': fileType
+      },
+      payload: imageBlob.getBytes(),
+      muteHttpExceptions: true
+    };
+    
+    const response = UrlFetchApp.fetch(uploadUrl, options);
+    const responseCode = response.getResponseCode();
+    
+    if (responseCode === 200 || responseCode === 201) {
+      // Generate public URL
+      const publicURL = `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${filePath}`;
+      
+      return createResponse(true, 'Image uploaded successfully', { imageUrl: publicURL });
+    } else {
+      const errorText = response.getContentText();
+      Logger.log('Upload error: ' + errorText);
+      return createResponse(false, 'Failed to upload image: ' + errorText);
+    }
+    
+  } catch (error) {
+    Logger.log('Image upload error: ' + error.toString());
+    return createResponse(false, 'Image upload failed: ' + error.toString());
+  }
+}
+
+/**
+ * Handles GET requests from the frontend
+ */
+function doGet(e) {
+  try {
+    // Safety check for when running in Apps Script editor
+    if (!e || !e.parameter) {
+      return createResponse(false, 'Missing parameters. Use testGetFeaturedAlumni() to test in editor.');
+    }
+    
+    const action = e.parameter.action;
+    
+    if (action === 'getFeaturedAlumni') {
+      return getFeaturedAlumni();
+    } else if (action === 'getAlumniByBatch') {
+      const batch = e.parameter.batch;
+      return getAlumniByBatch(batch);
+    } else if (action === 'searchAlumni') {
+      const query = e.parameter.query;
+      return searchAlumni(query);
+    } else {
+      return createResponse(false, 'Invalid action');
+    }
+    
+  } catch (error) {
+    Logger.log('Error in doGet: ' + error.toString());
+    return createResponse(false, 'An error occurred while fetching data.');
+  }
+}
+
+/**
+ * Handles OPTIONS requests for CORS pre-flight checks
  */
 function doOptions(e) {
   return ContentService
     .createTextOutput(JSON.stringify({ status: 'SUCCESS' }))
     .setMimeType(ContentService.MimeType.JSON);
 }
+
+// ============================================
+// TEST FUNCTIONS (For Apps Script Editor)
+// ============================================
+
+/**
+ * Test function to check Supabase connection
+ * Run this in Apps Script editor to verify setup
+ */
+function testSupabaseConnection() {
+  Logger.log('Testing Supabase connection...');
+  Logger.log('URL: ' + SUPABASE_URL);
+  Logger.log('Table: ' + SUPABASE_TABLE);
+  
+  try {
+    const url = `${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}?select=count&limit=1`;
+    
+    const options = {
+      method: 'get',
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`
+      },
+      muteHttpExceptions: true
+    };
+    
+    const response = UrlFetchApp.fetch(url, options);
+    const responseCode = response.getResponseCode();
+    
+    if (responseCode === 200) {
+      Logger.log('✅ SUCCESS! Supabase connection working.');
+      Logger.log('Response: ' + response.getContentText());
+      return true;
+    } else {
+      Logger.log('❌ ERROR! Response code: ' + responseCode);
+      Logger.log('Response: ' + response.getContentText());
+      return false;
+    }
+  } catch (error) {
+    Logger.log('❌ ERROR! ' + error.toString());
+    return false;
+  }
+}
+
+/**
+ * Test function to get featured alumni
+ * Run this in Apps Script editor to test
+ */
+function testGetFeaturedAlumni() {
+  Logger.log('Testing getFeaturedAlumni...');
+  const result = getFeaturedAlumni();
+  Logger.log('Result: ' + result.getContent());
+  return result;
+}
+
+// ============================================
+// SUPABASE OPERATIONS
+// ============================================
+
+/**
+ * Insert alumni data into Supabase
+ */
+function insertAlumniToSupabase(alumniData) {
+  try {
+    const url = `${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`;
+    
+    const options = {
+      method: 'post',
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      },
+      payload: JSON.stringify(alumniData),
+      muteHttpExceptions: true
+    };
+    
+    const response = UrlFetchApp.fetch(url, options);
+    const responseCode = response.getResponseCode();
+    const responseText = response.getContentText();
+    
+    if (responseCode === 201) {
+      const data = JSON.parse(responseText);
+      return { success: true, data: data[0] };
+    } else {
+      Logger.log('Supabase Error: ' + responseText);
+      return { success: false, error: 'Database error: ' + responseText };
+    }
+    
+  } catch (error) {
+    Logger.log('Insert Error: ' + error.toString());
+    return { success: false, error: error.toString() };
+  }
+}
+
+/**
+ * Check if email already exists in Supabase
+ */
+function checkDuplicateEmail(email) {
+  try {
+    const url = `${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}?email=eq.${encodeURIComponent(email.toLowerCase().trim())}&select=id`;
+    
+    const options = {
+      method: 'get',
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`
+      },
+      muteHttpExceptions: true
+    };
+    
+    const response = UrlFetchApp.fetch(url, options);
+    const data = JSON.parse(response.getContentText());
+    
+    return data.length > 0;
+    
+  } catch (error) {
+    Logger.log('Duplicate check error: ' + error.toString());
+    return false; // Allow registration if check fails
+  }
+}
+
+/**
+ * Get featured alumni from Supabase
+ */
+function getFeaturedAlumni() {
+  try {
+    const url = `${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}?is_featured=eq.true&is_approved=eq.true&select=*&order=created_at.desc&limit=6`;
+    
+    const options = {
+      method: 'get',
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`
+      },
+      muteHttpExceptions: true
+    };
+    
+    const response = UrlFetchApp.fetch(url, options);
+    const data = JSON.parse(response.getContentText());
+    
+    // Transform data to match frontend expectations
+    const transformedData = data.map(alumni => ({
+      Name: alumni.full_name,
+      Role: alumni.profession,
+      Organization: alumni.organization,
+      Quote: alumni.quote || `Proud to be part of YUVA Alumni Network!`,
+      Badge: alumni.badge || 'Alumni',
+      Batch: alumni.batch_year,
+      City: alumni.current_city,
+      ImageURL: alumni.image_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(alumni.full_name) + '&size=400&background=FF9933&color=fff'
+    }));
+    
+    return createResponse(true, 'Featured alumni loaded', transformedData);
+    
+  } catch (error) {
+    Logger.log('Get featured alumni error: ' + error.toString());
+    return createResponse(false, 'Failed to load featured alumni');
+  }
+}
+
+/**
+ * Get alumni by batch year
+ */
+function getAlumniByBatch(batch) {
+  try {
+    const url = `${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}?batch_year=eq.${batch}&is_approved=eq.true&select=*&order=full_name.asc`;
+    
+    const options = {
+      method: 'get',
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`
+      },
+      muteHttpExceptions: true
+    };
+    
+    const response = UrlFetchApp.fetch(url, options);
+    const data = JSON.parse(response.getContentText());
+    
+    return createResponse(true, 'Alumni loaded', data);
+    
+  } catch (error) {
+    Logger.log('Get alumni by batch error: ' + error.toString());
+    return createResponse(false, 'Failed to load alumni');
+  }
+}
+
+/**
+ * Search alumni by name, city, or profession
+ */
+function searchAlumni(query) {
+  try {
+    // Supabase text search using ilike (case-insensitive)
+    const searchQuery = encodeURIComponent(`%${query}%`);
+    const url = `${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}?is_approved=eq.true&or=(full_name.ilike.${searchQuery},current_city.ilike.${searchQuery},profession.ilike.${searchQuery})&select=*&order=full_name.asc&limit=20`;
+    
+    const options = {
+      method: 'get',
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`
+      },
+      muteHttpExceptions: true
+    };
+    
+    const response = UrlFetchApp.fetch(url, options);
+    const data = JSON.parse(response.getContentText());
+    
+    return createResponse(true, 'Search results', data);
+    
+  } catch (error) {
+    Logger.log('Search alumni error: ' + error.toString());
+    return createResponse(false, 'Search failed');
+  }
+}
+
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
+
+/**
+ * Parse form data from POST request
+ */
+function parseFormData(e) {
+  const params = e.parameter;
+  return {
+    fullName: params.fullName || '',
+    email: params.email || '',
+    phone: params.phone || '',
+    batch: params.batch || '',
+    city: params.city || '',
+    profession: params.profession || '',
+    organization: params.organization || '',
+    imageUrl: params.imageUrl || '',
+    interests: params.interests || ''
+  };
+}
+
+/**
+ * Validate form data
+ */
+function validateFormData(data) {
+  const required = ['fullName', 'email', 'phone', 'batch', 'city', 'profession', 'organization'];
+  
+  for (let field of required) {
+    if (!data[field] || data[field].trim() === '') {
+      return { valid: false, error: `${field} is required` };
+    }
+  }
+  
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(data.email)) {
+    return { valid: false, error: 'Invalid email format' };
+  }
+  
+  // Validate phone (basic check)
+  if (data.phone.length < 10) {
+    return { valid: false, error: 'Invalid phone number' };
+  }
+  
+  return { valid: true };
+}
+
+/**
+ * Send confirmation email to alumni
+ */
+function sendConfirmationEmail(alumniData) {
+  try {
+    const subject = '🎉 Welcome to YUVA Alumni Network!';
+    const body = `
+Dear ${alumniData.full_name},
+
+🎊 Congratulations! You are now officially part of the YUVA Alumni Network!
+
+Your registration details:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📧 Email: ${alumniData.email}
+🎓 Batch: ${alumniData.batch_year}
+📍 Current City: ${alumniData.current_city}
+💼 Profession: ${alumniData.profession}
+🏢 Organization: ${alumniData.organization}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+As a YUVA Alumni member, you now have access to:
+✅ Global network of 5000+ alumni
+✅ Exclusive events and workshops
+✅ Mentorship programs
+✅ Career opportunities
+✅ Networking events
+✅ Skill development sessions
+✅ And much more!
+
+Stay connected with us:
+🌐 Website: https://yuva.ind.in
+💼 LinkedIn: https://www.linkedin.com/company/youthunitedforvisionandaction
+💬 WhatsApp: https://whatsapp.com/channel/0029Vb6mApvDzgTCSKtAAb2y
+
+We're excited to have you in our community!
+
+Best regards,
+YUVA Team
+Youth United for Vision and Action
+    `;
+    
+    MailApp.sendEmail(alumniData.email, subject, body);
+    
+  } catch (error) {
+    Logger.log('Email sending error: ' + error.toString());
+  }
+}
+
+/**
+ * Notify admin of new registration
+ */
+function notifyAdmin(alumniData) {
+  try {
+    const subject = '✅ New Alumni Registration - Auto-Approved';
+    const body = `
+New alumni has joined the YUVA Alumni Network!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📝 REGISTRATION DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+👤 Name: ${alumniData.full_name}
+📧 Email: ${alumniData.email}
+📱 Phone: ${alumniData.phone}
+🎓 Batch: ${alumniData.batch_year}
+📍 City: ${alumniData.current_city}
+💼 Profession: ${alumniData.profession}
+🏢 Organization: ${alumniData.organization}
+🎯 Interests: ${alumniData.interests.join(', ')}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Status: ✅ Auto-Approved
+Confirmation Email: ✅ Sent
+
+View in Supabase: ${SUPABASE_URL}/project/default/editor/${SUPABASE_TABLE}
+
+To feature this alumni, update their profile in Supabase:
+- Set is_featured = true
+- Add badge (e.g., "CEO", "Founder")
+- Add quote
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+YUVA Admin System
+    `;
+    
+    MailApp.sendEmail(ADMIN_EMAIL, subject, body);
+    
+  } catch (error) {
+    Logger.log('Admin notification error: ' + error.toString());
+  }
+}
+
+/**
+ * Create JSON response
+ */
+function createResponse(success, message, data = null) {
+  const response = {
+    success: success,
+    message: message
+  };
+  
+  if (data) {
+    response.data = data;
+  }
+  
+  return ContentService
+    .createTextOutput(JSON.stringify(response))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ============================================
+// MIGRATION NOTE
+// ============================================
+// This code has been updated from Google Sheets to Supabase.
+// The old initialSetup() function is no longer needed.
+// All data is now stored in Supabase instead of Google Sheets.
+// 
+// To use this script:
+// 1. Update SUPABASE_URL and SUPABASE_SERVICE_KEY above
+// 2. Run the SQL schema in Supabase (see supabase-alumni-schema.sql)
+// 3. Deploy this script as a web app
+// 4. Update the GAS_WEB_APP_URL in alumini.js
+// 
+// See ALUMNI_SUPABASE_MIGRATION_GUIDE.md for complete instructions
+// ============================================

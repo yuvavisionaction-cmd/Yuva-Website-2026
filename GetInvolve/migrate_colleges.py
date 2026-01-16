@@ -33,14 +33,27 @@ def main():
         zone_code_map = {zone['zone_code'].lower(): zone for zone in zones_response.data}
         print(f"Found {len(zones_map)} zones.")
 
-        # 2. Read the Excel file
-        print(f"Reading Excel file: {excel_file_path}")
+        # 2. Fetch existing colleges from Supabase
+        print("Fetching existing colleges from Supabase...")
+        colleges_response = supabase.table('colleges').select('college_name, college_code, zone_id').execute()
+        existing_colleges_names = set()
+        existing_colleges_codes = set()
+        
+        if colleges_response.data:
+            for college in colleges_response.data:
+                existing_colleges_names.add(college['college_name'].lower().strip())
+                existing_colleges_codes.add(college['college_code'].lower().strip())
+            print(f"Found {len(colleges_response.data)} existing colleges in database.")
+
+        # 3. Read the Excel file
+        print(f"\nReading Excel file: {excel_file_path}")
         xls = pd.ExcelFile(excel_file_path)
         
         all_colleges_to_insert = []
+        skipped_colleges = []
         zone_counters = {} # To track the unit number for each zone
 
-        # 3. Process each sheet (each sheet is a zone)
+        # 4. Process each sheet (each sheet is a zone)
         for sheet_name in xls.sheet_names:
             print(f"\nProcessing sheet (zone): '{sheet_name}'...")
             zone_info = zone_code_map.get(sheet_name.lower().strip())
@@ -65,6 +78,12 @@ def main():
                 
                 college_name = str(college_name).strip()
                 
+                # Check if college already exists
+                if college_name.lower() in existing_colleges_names:
+                    print(f"  ⏭️  Skipped (already exists): {college_name}")
+                    skipped_colleges.append(college_name)
+                    continue
+                
                 # Increment counter for the zone
                 zone_counters[zone_id] = zone_counters.get(zone_id, 0) + 1
                 unit_number = str(zone_counters[zone_id]).zfill(3)
@@ -72,6 +91,12 @@ def main():
                 # Generate the code
                 college_initials = get_initials(college_name)
                 college_code = f"{college_initials}{zone_initials}{unit_number}"
+                
+                # Check if the generated code already exists
+                while college_code.lower() in existing_colleges_codes:
+                    zone_counters[zone_id] += 1
+                    unit_number = str(zone_counters[zone_id]).zfill(3)
+                    college_code = f"{college_initials}{zone_initials}{unit_number}"
 
                 college_record = {
                     "college_name": college_name,
@@ -80,11 +105,19 @@ def main():
                     "is_active": True
                 }
                 all_colleges_to_insert.append(college_record)
-                print(f"  - Prepared: {college_name} -> {college_code}")
+                existing_colleges_codes.add(college_code.lower())  # Add to set to avoid duplicates within this run
+                print(f"  ✅ Prepared: {college_name} -> {college_code}")
 
-        # 4. Insert all collected data into Supabase
+        # 5. Insert all collected data into Supabase
         if all_colleges_to_insert:
-            print(f"\nAttempting to insert {len(all_colleges_to_insert)} colleges into Supabase...")
+            print(f"\n{'='*60}")
+            print(f"Summary:")
+            print(f"  - Total colleges processed: {len(all_colleges_to_insert) + len(skipped_colleges)}")
+            print(f"  - Colleges to insert: {len(all_colleges_to_insert)}")
+            print(f"  - Colleges skipped (already exist): {len(skipped_colleges)}")
+            print(f"{'='*60}\n")
+            
+            print(f"Inserting {len(all_colleges_to_insert)} new colleges into Supabase...")
             insert_response = supabase.table('colleges').insert(all_colleges_to_insert).execute()
             
             if insert_response.data:
@@ -93,7 +126,12 @@ def main():
                 print("❌ Failed to insert colleges.")
                 print("   Error:", insert_response)
         else:
-            print("\nNo new colleges to insert.")
+            print(f"\n{'='*60}")
+            print(f"Summary:")
+            print(f"  - Total colleges processed: {len(skipped_colleges)}")
+            print(f"  - Colleges skipped (already exist): {len(skipped_colleges)}")
+            print("✅ No new colleges to insert - all colleges already exist in the database.")
+            print(f"{'='*60}\n")
 
     except Exception as e:
         print(f"An error occurred: {e}")

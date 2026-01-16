@@ -650,6 +650,16 @@ class HomePageAnimations {
         }, speed);
     }
 
+    // ===== SHUFFLE ARRAY UTILITY (Fisher-Yates Algorithm) =====
+    shuffleArray(array) {
+        const shuffled = [...array];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        return shuffled;
+    }
+
     // ===== HOME STATS =====
     async initializeHomeStats() {
         // Define the elements
@@ -713,64 +723,369 @@ class HomePageAnimations {
         }
     }
 
-    // ===== HOMEPAGE GALLERY =====
+    // ===== HOMEPAGE GALLERY - SUPABASE STORAGE WITH REFRESH RANDOMIZATION =====
     async initializeHomepageGallery() {
         const grid = document.getElementById('gallery-preview-grid');
         if (!grid) return;
 
-        try {
-            const response = await fetch('/Gallary/images.json');
+        // Show loading state
+        grid.innerHTML = '<p style="text-align: center; color: var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> Loading latest photos...</p>';
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
+        try {
+            // Check if Supabase client is available
+            if (!supabaseClient) {
+                throw new Error('Supabase client not initialized');
             }
 
-            const allEvents = await response.json();
+            const storageBucket = 'gallery_photos';
+            const allPhotos = [];
 
-            // --- Updated Image Selection Logic ---
-            const vimarsh2024 = allEvents.vimarsh2024?.images || [];
-            const vimarsh2023 = allEvents.vimarsh2023?.images || [];
+            // List all category folders in the photos directory
+            const { data: categories, error: categoriesError } = await supabaseClient.storage
+                .from(storageBucket)
+                .list('photos', {
+                    limit: 100,
+                    offset: 0,
+                });
 
-            // Get the first 5 photos from 2024 (excluding the logo)
-            const photos2024 = vimarsh2024
-                .filter(img => img.category !== 'logo')
-                .slice(0, 5);
+            if (categoriesError) throw categoriesError;
 
-            // Get the first 5 photos from 2023 (excluding the logo)
-            const photos2023 = vimarsh2023
-                .filter(img => img.category !== 'logo')
-                .slice(0, 5);
+            // Process each category folder
+            for (const categoryFolder of categories) {
+                if (!categoryFolder.name) continue;
 
-            const selectedImages = [...photos2024, ...photos2023];
+                // List years within this category
+                const { data: years, error: yearsError } = await supabaseClient.storage
+                    .from(storageBucket)
+                    .list(`photos/${categoryFolder.name}`, {
+                        limit: 100,
+                        offset: 0,
+                    });
 
-            if (selectedImages.length === 0) {
-                grid.innerHTML = '<p style="text-align: center; color: var(--text-muted);">No photos found for recent events.</p>';
+                if (yearsError) {
+                    console.warn(`Error loading years for ${categoryFolder.name}:`, yearsError);
+                    continue;
+                }
+
+                // Process each year folder
+                for (const yearFolder of years) {
+                    if (!yearFolder.name) continue;
+
+                    // List images within this year folder
+                    const { data: images, error: imagesError } = await supabaseClient.storage
+                        .from(storageBucket)
+                        .list(`photos/${categoryFolder.name}/${yearFolder.name}`, {
+                            limit: 1000,
+                            offset: 0,
+                            sortBy: { column: 'created_at', order: 'desc' }
+                        });
+
+                    if (imagesError) {
+                        console.warn(`Error loading images for ${categoryFolder.name}/${yearFolder.name}:`, imagesError);
+                        continue;
+                    }
+
+                    // Add each image to the collection
+                    images.forEach((image) => {
+                        if (!image.name || !image.name.match(/\.(jpg|jpeg|png|webp)$/i)) return;
+
+                        const fullPath = `photos/${categoryFolder.name}/${yearFolder.name}/${image.name}`;
+                        const { data: urlData } = supabaseClient.storage
+                            .from(storageBucket)
+                            .getPublicUrl(fullPath);
+
+                        allPhotos.push({
+                            src: urlData.publicUrl,
+                            alt: `${this.formatCategoryName(categoryFolder.name)} ${yearFolder.name}`,
+                            category: categoryFolder.name,
+                            year: yearFolder.name,
+                            createdAt: image.created_at || new Date().toISOString()
+                        });
+                    });
+                }
+            }
+
+            if (allPhotos.length === 0) {
+                grid.innerHTML = '<p style="text-align: center; color: var(--text-muted);">No photos available yet. Check back soon!</p>';
                 return;
             }
 
+            // --- SMART SELECTION STRATEGY ---
+            // Take top 30 most recent photos, then shuffle them to show 10 random ones
+            // This ensures fresh content while prioritizing recent uploads
+            allPhotos.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            const recentPhotos = allPhotos.slice(0, Math.min(30, allPhotos.length));
+
+            // Fisher-Yates shuffle algorithm for true randomization
+            const shuffledPhotos = this.shuffleArray([...recentPhotos]);
+            const displayPhotos = shuffledPhotos.slice(0, 10);
+
             // --- Create and Append Image Elements ---
             const fragment = document.createDocumentFragment();
-            selectedImages.forEach((imgData, index) => {
+            displayPhotos.forEach((photoData, index) => {
                 const item = document.createElement('figure');
                 item.className = 'gallery-preview-item';
                 item.style.animationDelay = `${index * 100}ms`;
 
                 const img = document.createElement('img');
-                img.src = imgData.src;
-                img.alt = imgData.alt;
+                img.src = photoData.src;
+                img.alt = photoData.alt;
                 img.loading = 'lazy';
                 img.decoding = 'async';
+
+                // Add error handling for failed image loads
+                img.onerror = () => {
+                    console.warn('Failed to load image:', photoData.src);
+                    item.style.display = 'none';
+                };
+
+                // Add click handler for lightbox
+                item.addEventListener('click', () => {
+                    this.openHomeLightbox(index, displayPhotos);
+                });
+
+                // Add keyboard support
+                item.setAttribute('tabindex', '0');
+                item.setAttribute('role', 'button');
+                item.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        this.openHomeLightbox(index, displayPhotos);
+                    }
+                });
 
                 item.appendChild(img);
                 fragment.appendChild(item);
             });
 
-            grid.innerHTML = ''; // Clear previous message
+            grid.innerHTML = ''; // Clear loading message
             grid.appendChild(fragment);
 
+            // Initialize lightbox controls
+            this.initializeHomeLightbox();
+
         } catch (error) {
-            console.error('Failed to load homepage gallery:', error);
+            console.error('Failed to load homepage gallery from Supabase:', error);
+
+            // Fallback: Try loading from images.json as backup
+            try {
+                const response = await fetch('/Gallary/images.json');
+                if (response.ok) {
+                    const allEvents = await response.json();
+                    const vimarsh2024 = allEvents.vimarsh2024?.images || [];
+                    const vimarsh2023 = allEvents.vimarsh2023?.images || [];
+
+                    const photos2024 = vimarsh2024.filter(img => img.category !== 'logo').slice(0, 5);
+                    const photos2023 = vimarsh2023.filter(img => img.category !== 'logo').slice(0, 5);
+                    const selectedImages = [...photos2024, ...photos2023];
+
+                    if (selectedImages.length > 0) {
+                        const fragment = document.createDocumentFragment();
+                        selectedImages.forEach((imgData, index) => {
+                            const item = document.createElement('figure');
+                            item.className = 'gallery-preview-item';
+                            item.style.animationDelay = `${index * 100}ms`;
+
+                            const img = document.createElement('img');
+                            img.src = imgData.src;
+                            img.alt = imgData.alt;
+                            img.loading = 'lazy';
+                            img.decoding = 'async';
+
+                            item.appendChild(img);
+                            fragment.appendChild(item);
+                        });
+
+                        grid.innerHTML = '';
+                        grid.appendChild(fragment);
+                        console.info('Loaded gallery from fallback images.json');
+                        return;
+                    }
+                }
+            } catch (fallbackError) {
+                console.error('Fallback also failed:', fallbackError);
+            }
+
             grid.innerHTML = '<p style="text-align: center; color: var(--text-muted);">Could not load gallery at this time.</p>';
+        }
+    }
+
+    // Helper function to format category names
+    formatCategoryName(folderName) {
+        const nameMap = {
+            'vimarsh': 'Vimarsh',
+            'samarpan': 'Samarpan',
+            'bharatparv': 'Bharat Parv',
+            'events': 'Events',
+            'activities': 'Activities'
+        };
+        return nameMap[folderName.toLowerCase()] || folderName.charAt(0).toUpperCase() + folderName.slice(1);
+    }
+
+    // ===== HOME GALLERY LIGHTBOX CONTROLS =====
+    initializeHomeLightbox() {
+        const lightbox = document.getElementById('home-lightbox');
+        if (!lightbox || this.lightboxInitialized) return;
+
+        this.lightboxInitialized = true;
+        this.currentLightboxPhotos = [];
+        this.currentLightboxIndex = 0;
+
+        const closeBtn = lightbox.querySelector('.lightbox-close');
+        const prevBtn = lightbox.querySelector('.lightbox-prev');
+        const nextBtn = lightbox.querySelector('.lightbox-next');
+        const overlay = lightbox.querySelector('.lightbox-overlay');
+
+        // Close button
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => this.closeHomeLightbox());
+        }
+
+        // Overlay click to close
+        if (overlay) {
+            overlay.addEventListener('click', () => this.closeHomeLightbox());
+        }
+
+        // Navigation buttons
+        if (prevBtn) {
+            prevBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.navigateHomeLightbox(-1);
+            });
+        }
+
+        if (nextBtn) {
+            nextBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.navigateHomeLightbox(1);
+            });
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (!lightbox.classList.contains('open')) return;
+
+            if (e.key === 'Escape') {
+                this.closeHomeLightbox();
+            } else if (e.key === 'ArrowLeft') {
+                this.navigateHomeLightbox(-1);
+            } else if (e.key === 'ArrowRight') {
+                this.navigateHomeLightbox(1);
+            }
+        });
+
+        // Touch swipe support for mobile
+        let touchstartX = 0;
+        let touchendX = 0;
+        const minSwipeDistance = 50;
+
+        lightbox.addEventListener('touchstart', (e) => {
+            touchstartX = e.changedTouches[0].screenX;
+        }, { passive: true });
+
+        lightbox.addEventListener('touchend', (e) => {
+            touchendX = e.changedTouches[0].screenX;
+            const distance = touchendX - touchstartX;
+
+            if (Math.abs(distance) > minSwipeDistance) {
+                if (distance < 0) {
+                    this.navigateHomeLightbox(1); // Swipe left -> next
+                } else {
+                    this.navigateHomeLightbox(-1); // Swipe right -> previous
+                }
+            }
+        }, { passive: true });
+    }
+
+    openHomeLightbox(index, photos) {
+        const lightbox = document.getElementById('home-lightbox');
+        if (!lightbox) return;
+
+        this.currentLightboxPhotos = photos;
+        this.currentLightboxIndex = index;
+
+        const img = lightbox.querySelector('.lightbox-image');
+        const caption = lightbox.querySelector('.lightbox-caption');
+        const loader = lightbox.querySelector('.lightbox-loader');
+
+        if (loader) loader.style.display = 'block';
+        if (img) img.classList.remove('loaded');
+
+        const photo = photos[index];
+
+        if (img) {
+            img.src = photo.src;
+            img.alt = photo.alt;
+
+            img.onload = () => {
+                img.classList.add('loaded');
+                if (loader) loader.style.display = 'none';
+            };
+        }
+
+        if (caption) {
+            caption.textContent = photo.alt;
+        }
+
+        lightbox.classList.add('open');
+        lightbox.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+    }
+
+    closeHomeLightbox() {
+        const lightbox = document.getElementById('home-lightbox');
+        if (!lightbox) return;
+
+        lightbox.classList.remove('open');
+        lightbox.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+
+        // Clear image after animation
+        setTimeout(() => {
+            const img = lightbox.querySelector('.lightbox-image');
+            if (img) {
+                img.src = '';
+                img.classList.remove('loaded');
+            }
+        }, 300);
+    }
+
+    navigateHomeLightbox(direction) {
+        if (!this.currentLightboxPhotos || this.currentLightboxPhotos.length === 0) return;
+
+        let newIndex = this.currentLightboxIndex + direction;
+
+        // Loop navigation
+        if (newIndex < 0) {
+            newIndex = this.currentLightboxPhotos.length - 1;
+        } else if (newIndex >= this.currentLightboxPhotos.length) {
+            newIndex = 0;
+        }
+
+        this.currentLightboxIndex = newIndex;
+
+        const lightbox = document.getElementById('home-lightbox');
+        const img = lightbox.querySelector('.lightbox-image');
+        const caption = lightbox.querySelector('.lightbox-caption');
+        const loader = lightbox.querySelector('.lightbox-loader');
+
+        if (loader) loader.style.display = 'block';
+        if (img) img.classList.remove('loaded');
+
+        const photo = this.currentLightboxPhotos[newIndex];
+
+        if (img) {
+            img.src = photo.src;
+            img.alt = photo.alt;
+
+            img.onload = () => {
+                img.classList.add('loaded');
+                if (loader) loader.style.display = 'none';
+            };
+        }
+
+        if (caption) {
+            caption.textContent = photo.alt;
         }
     }
 }

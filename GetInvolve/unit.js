@@ -4,7 +4,7 @@
 const SUPABASE_URL = 'https://jgsrsjwmywiirtibofth.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_5KtvO0cEHfnECBoyp2CQnw_RC3_x2me';
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwbeXIEqX6H2pdxdTYexn0WrVE3gwcVE4RLtJZy9dkiIzEJ1rj03UTmYO_bJUcnCQm8/exec';
+const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxEtSYgDm3xUvJtBKL9MtJX30ybxUx5OOSVtyL8fSEWwUeEsA3ovtTtt0GJ0ANSmTZU/exec';
 
 // ===== FLASH NOTIFICATION SYSTEM =====
 class FlashNotification {
@@ -62,38 +62,94 @@ const flashNotification = new FlashNotification();
 // ===== SUPABASE API INTEGRATION =====
 class SupabaseService {
 
+    /**
+     * login: Now uses Supabase Auth natively for authentication.
+     * After successful auth, verifies admin status using the backend.
+     */
     static async login(email, password) {
         try {
-            // 1) Try GET first (works reliably with Apps Script web apps)
-            const qs = new URLSearchParams({ action: 'auth', method: 'login', email, password }).toString();
-            const respGet = await fetch(`${GAS_WEB_APP_URL}?${qs}`, { method: 'GET' });
-            const rawGet = await respGet.text();
-            let jsonGet = null; try { jsonGet = JSON.parse(rawGet); } catch (_) { jsonGet = null; }
-            if (respGet.ok && jsonGet && jsonGet.success) {
-                return { success: true, user: jsonGet.user, token: jsonGet.token };
-            }
-
-            // 2) Fallback to POST x-www-form-urlencoded
-            const bodyParams = new URLSearchParams({ action: 'auth', method: 'login', email, password });
-            const respPost = await fetch(GAS_WEB_APP_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
-                body: bodyParams.toString()
+            // Step 1: Authenticate with Supabase Auth
+            const { data, error } = await supabaseClient.auth.signInWithPassword({
+                email: email,
+                password: password
             });
-            const rawPost = await respPost.text();
-            let jsonPost = null; try { jsonPost = JSON.parse(rawPost); } catch (_) { jsonPost = null; }
-            if (respPost.ok && jsonPost && jsonPost.success) {
-                return { success: true, user: jsonPost.user, token: jsonPost.token };
+
+            if (error || !data.user) {
+                return { success: false, error: error?.message || 'Authentication failed' };
             }
 
-            const errMsg = (jsonGet && (jsonGet.error || jsonGet.details)) || (jsonPost && (jsonPost.error || jsonPost.details)) || rawPost || rawGet || `HTTP ${respPost.status}`;
-            return { success: false, error: String(errMsg).slice(0, 300) };
+            // Step 2: Verify admin status with backend (uses authenticated user)
+            const verifyResult = await this.verifyAdminStatus(data.user.id, email);
+
+            if (!verifyResult.success) {
+                // User authenticated but is not an admin - sign them out
+                try {
+                    await supabaseClient.auth.signOut();
+                } catch (_) { }
+                return verifyResult;
+            }
+
+            // Step 3: Check if email is verified using our custom is_verified column
+            // Allow login if: is_verified === true OR is_verified === null/undefined (old users)
+            // Block login if: is_verified === false (new unverified users)
+            if (verifyResult.user.is_verified === false) {
+                // Email not verified - sign them out
+                try {
+                    await supabaseClient.auth.signOut();
+                } catch (_) { }
+                return {
+                    success: false,
+                    error: 'Your email is not verified. Please check your inbox and click the verification link before logging in.',
+                    code: 'EMAIL_NOT_VERIFIED'
+                };
+            }
+
+            return {
+                success: true,
+                user: verifyResult.user,
+                sessionId: data.session?.access_token
+            };
+
         } catch (error) {
-            console.error("Login fetch error:", error);
-            const msg = (error && error.message) ? error.message : 'Login failed due to a network error.';
-            return { success: false, error: msg };
+            console.error("Login error:", error);
+            return { success: false, error: error?.message || 'Login failed due to a network error.' };
         }
     }
+
+    /**
+     * verifyAdminStatus: Calls backend to verify that the authenticated user
+     * has an admin profile in admin_users table and fetch their role.
+     */
+    static async verifyAdminStatus(userId, email) {
+        try {
+            const params = new URLSearchParams({
+                action: 'auth',
+                method: 'getAdminUser',
+                email: email  // Use email instead of userId for backward compatibility
+            }).toString();
+
+            const response = await fetch(`${GAS_WEB_APP_URL}?${params}`);
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                return {
+                    success: true,
+                    user: result.user
+                };
+            }
+
+            return {
+                success: false,
+                error: result.error || 'This email is not registered as an admin.',
+                code: result.code || 'NOT_ADMIN'
+            };
+
+        } catch (error) {
+            console.error("Admin verification error:", error);
+            return { success: false, error: 'Could not verify admin status.' };
+        }
+    }
+
     // Add this function inside the SupabaseService class
     static async checkEmail(email) {
         try {
@@ -129,14 +185,36 @@ class SupabaseService {
     // Replace the SupabaseService.register function
     static async register(userData) {
         try {
+            // First, create user in Supabase Auth (without auto email confirmation)
+            const { data: authData, error: authError } = await supabaseClient.auth.signUp({
+                email: userData.email,
+                password: userData.password,
+                options: {
+                    emailRedirectTo: `${window.location.origin}/GetInvolve/UnitRegistration.html`,
+                    data: {
+                        full_name: userData.full_name
+                    }
+                }
+            });
+
+            if (authError) {
+                return {
+                    success: false,
+                    error: 'Supabase Auth Error',
+                    details: authError.message
+                };
+            }
+
+            // Then, create admin record in backend and send custom verification email
             const params = new URLSearchParams({
                 action: 'auth',
                 method: 'register',
                 email: userData.email,
-                password: userData.password,
                 full_name: userData.full_name,
                 role: userData.role,
-                zone: userData.zone || ''
+                zone: userData.zone || '',
+                college_id: userData.college_id || '',
+                origin: window.location.origin
             });
 
             // Using GET as it is more reliable with Google Apps Script
@@ -335,15 +413,32 @@ class SupabaseService {
     }
     static async recoverPassword(email) {
         try {
+            // Use GAS custom email instead of Supabase Auth
+            // Pass the current origin URL for dynamic reset link generation
             const params = new URLSearchParams({
                 action: 'auth',
                 method: 'recoverPassword',
-                email: email
+                email: email,
+                origin: window.location.origin
             });
-            // Use GET or POST; GET is fine here since we aren't sending sensitive data, we are requesting it sent to email
+
             const response = await fetch(`${GAS_WEB_APP_URL}?${params.toString()}`);
-            return await response.json();
+            const result = await response.json();
+
+            if (result.success) {
+                return {
+                    success: true,
+                    message: result.message || 'A password reset link has been sent to your email. Please check your inbox.'
+                };
+            }
+
+            return {
+                success: false,
+                error: result.error || 'Failed to send reset email.'
+            };
+
         } catch (error) {
+            console.error("Password recovery error:", error);
             return { success: false, error: 'Network connection error' };
         }
     }
@@ -376,7 +471,46 @@ class AuthManager {
 
     init() {
         this.bindEvents();
+        this.setupAuthStateListener();
         this.checkExistingSession();
+    }
+
+    /**
+     * Sets up a persistent auth state listener that monitors login/logout across the app.
+     * This ensures sessions persist even when navigating between pages.
+     */
+    setupAuthStateListener() {
+        supabaseClient.auth.onAuthStateChange(async (event, session) => {
+            if (event === 'SIGNED_IN' && session) {
+                // User just signed in - ensure they have admin status
+                const email = session.user.email;
+                const adminData = await this.fetchAdminUserData(email);
+
+                if (adminData) {
+                    this.currentUser = {
+                        id: adminData.id,
+                        email: email,
+                        full_name: adminData.full_name || 'User',
+                        role: adminData.role || 'viewer',
+                        zone: adminData.zone || '',
+                        college_id: adminData.college_id || null
+                    };
+                    localStorage.setItem('yuva_user', JSON.stringify(this.currentUser));
+                }
+            } else if (event === 'SIGNED_OUT') {
+                // User signed out
+                this.currentUser = null;
+                localStorage.removeItem('yuva_user');
+                if (typeof document !== 'undefined') {
+                    const pageLoader = document.getElementById('page-loader');
+                    if (pageLoader) pageLoader.style.display = 'none';
+                }
+                this.showAccessDenied();
+            } else if (event === 'TOKEN_REFRESHED' && session) {
+                // Session token refreshed - keep user data fresh
+                localStorage.setItem('yuva_user', JSON.stringify(this.currentUser));
+            }
+        });
     }
 
     bindEvents() {
@@ -514,6 +648,9 @@ class AuthManager {
     }
     // ===== NEW: Fetches college data when user enters a code =====
     async handleCollegeCodeBlur() {
+        // Small delay to allow click handlers to complete first
+        await new Promise(resolve => setTimeout(resolve, 50));
+
         const codeInput = document.getElementById('register-college-code');
         const nameInput = document.getElementById('register-college-name');
         const zoneNameInput = document.getElementById('register-zone-name');
@@ -521,26 +658,61 @@ class AuthManager {
         const loader = document.getElementById('college-loader');
 
         const code = codeInput.value.trim().toUpperCase();
-        // Clear previous values
+
+        // Skip if autocomplete has just filled the data
+        if (codeInput.dataset.autocompleteFilled === 'true') {
+            return;
+        }
+
+        // Skip if this code was already verified successfully
+        if (code && codeInput.dataset.lastVerifiedCode === code && collegeIdInput.value) {
+            return;
+        }
+
+        // Skip if all fields are already filled with valid data for this code
+        if (code && collegeIdInput.value && nameInput.value && zoneNameInput.value) {
+            return;
+        }
+
+        // Clear previous values only if we're going to verify
         nameInput.value = '';
         zoneNameInput.value = '';
         collegeIdInput.value = '';
+        delete codeInput.dataset.lastVerifiedCode;
 
         if (!code) return;
 
         try {
             if (loader) loader.style.display = 'inline';
-            const response = await SupabaseService.getCollegeByCode(code);
 
-            if (response.success && response.college) {
-                nameInput.value = response.college.college_name;
-                zoneNameInput.value = response.college.zone_name;
-                collegeIdInput.value = response.college.id;
-                flashNotification.showSuccess('Found', `${response.college.college_name}`, 2000);
-            } else {
-                flashNotification.showError('Not Found', response.error || 'Invalid College Code.');
+            // Query Supabase directly for better reliability
+            const { data, error } = await supabaseClient
+                .from('colleges')
+                .select('id, college_code, college_name, zone_id, zones(zone_name)')
+                .eq('college_code', code)
+                .eq('is_active', true)
+                .maybeSingle();
+
+            if (error) {
+                console.error('Supabase error:', error);
+                flashNotification.showError('Error', 'Could not verify college code.');
+                return;
             }
+
+            if (!data) {
+                flashNotification.showError('Not Found', 'College code not found or inactive.');
+                return;
+            }
+
+            // Successfully found college
+            nameInput.value = data.college_name;
+            zoneNameInput.value = data.zones?.zone_name || 'Unknown';
+            collegeIdInput.value = data.id;
+            codeInput.dataset.lastVerifiedCode = code;
+            flashNotification.showSuccess('Found', `${data.college_name}`, 2000);
+
         } catch (error) {
+            console.error('College verification error:', error);
             flashNotification.showError('Error', 'Could not verify college code.');
         } finally {
             if (loader) loader.style.display = 'none';
@@ -573,46 +745,45 @@ class AuthManager {
 
             if (response.success) {
                 this.currentUser = response.user;
-                localStorage.setItem('yuva_session', JSON.stringify({
-                    user: this.currentUser
-                }));
+                // Store user in localStorage as backup
+                localStorage.setItem('yuva_user', JSON.stringify(this.currentUser));
 
                 flashNotification.showSuccess('Welcome', 'You are now signed in.', 3000);
                 this.closeModal('login-modal');
-                this.showAdminInterface();
+
+                // Delay to ensure DOM update completes before showing admin interface
+                setTimeout(() => {
+                    this.showAdminInterface();
+                }, 100);
             } else {
-                // Log the full error for debugging
                 console.error('Login error details:', response.error);
 
-                // Sanitize error message for user display
                 let userMessage = 'Invalid email or password';
+                const errorLower = (response.error || '').toLowerCase();
 
-                // Check for specific error types
-                if (response.error) {
-                    const errorLower = response.error.toLowerCase();
-
-                    if (errorLower.includes('database') || errorLower.includes('db')) {
-                        userMessage = 'Service temporarily unavailable. Please try again in a moment.';
-                    } else if (errorLower.includes('network') || errorLower.includes('connection')) {
-                        userMessage = 'Network error. Please check your internet connection.';
-                    } else if (errorLower.includes('invalid') || errorLower.includes('incorrect') || errorLower.includes('wrong')) {
-                        userMessage = 'Invalid email or password';
-                    } else if (errorLower.includes('not found') || errorLower.includes('no user')) {
-                        userMessage = 'No account found with this email';
-                    } else if (errorLower.includes('timeout')) {
-                        userMessage = 'Request timed out. Please try again.';
-                    }
+                // Check for email not verified error first (highest priority)
+                if (response.code === 'EMAIL_NOT_VERIFIED' || errorLower.includes('not verified') || errorLower.includes('verify your email')) {
+                    userMessage = 'Email Not Verified. Please check your inbox and click the verification link before logging in.';
+                } else if (errorLower.includes('database') || errorLower.includes('db')) {
+                    userMessage = 'Service temporarily unavailable. Please try again in a moment.';
+                } else if (errorLower.includes('network') || errorLower.includes('connection')) {
+                    userMessage = 'Network error. Please check your internet connection.';
+                } else if (errorLower.includes('invalid') || errorLower.includes('incorrect')) {
+                    userMessage = 'Invalid email or password';
+                } else if (errorLower.includes('not found') || errorLower.includes('no user')) {
+                    userMessage = 'No account found with this email';
+                } else if (errorLower.includes('not registered as an admin') || response.code === 'NOT_ADMIN') {
+                    userMessage = 'This email is not registered as an admin. Please contact the administrator.';
+                } else if (errorLower.includes('timeout')) {
+                    userMessage = 'Request timed out. Please try again.';
                 }
 
                 flashNotification.showError('Login Failed', userMessage);
             }
         } catch (error) {
-            // Log the full error for debugging
             console.error('Login exception:', error);
-            // If any other error occurs, the 'finally' block will also run
             flashNotification.showError('Error', 'Unable to sign in. Please try again.');
         } finally {
-            // This block ALWAYS runs, guaranteeing the button is reset for the next time.
             if (btn) {
                 btn.disabled = false;
                 btn.innerHTML = 'Login';
@@ -628,10 +799,18 @@ class AuthManager {
             email: document.getElementById('register-email').value.trim(),
             password: document.getElementById('register-password').value.trim(),
             full_name: document.getElementById('register-name').value.trim(),
-            role: document.getElementById('register-role').value,
-            zone: document.getElementById('register-zone').value,
-            college_id: document.getElementById('register-college-id').value
+            role: document.getElementById('register-role').value
         };
+
+        // Add role-specific fields
+        if (formData.role === 'zone_convener') {
+            formData.zone = document.getElementById('register-zone').value;
+        } else if (formData.role === 'mentor') {
+            // Mentors need both college_id and zone (zone is auto-filled from college selection)
+            formData.college_id = document.getElementById('register-college-id').value;
+            // For mentors, zone is in the display field, not the select dropdown
+            formData.zone = document.getElementById('register-zone-name').value;
+        }
 
         if (!formData.email || !formData.password || !formData.full_name) {
             flashNotification.showError('Error', 'Please fill in Name, Email, and Password.');
@@ -683,8 +862,17 @@ class AuthManager {
             const response = await SupabaseService.register(formData);
 
             if (response.success) {
-                localStorage.setItem('registrationSuccess', 'true');
-                window.location.href = '/GetInvolve/UnitRegistration.html';
+                // Show success message with email verification notice
+                flashNotification.showSuccess(
+                    'Registration Successful! 📧',
+                    'Please check your email to verify your account before logging in.',
+                    8000
+                );
+
+                // Redirect after delay
+                setTimeout(() => {
+                    window.location.href = '/GetInvolve/UnitRegistration.html';
+                }, 3000);
             } else {
                 const title = response.error || 'Registration Failed';
                 const message = response.details || 'An unknown error occurred.';
@@ -729,83 +917,174 @@ class AuthManager {
         const pageLoader = document.getElementById('page-loader');
 
         try {
-            // Prefer Supabase auth session if present
-            const {
-                data: sessionResp
-            } = await supabaseClient.auth.getSession();
+            // Check Supabase Auth session first
+            const { data: sessionResp, error: sessionError } = await supabaseClient.auth.getSession();
+
             if (sessionResp && sessionResp.session && sessionResp.session.user) {
                 const authUser = sessionResp.session.user;
-                const email = authUser.email || (authUser.user_metadata && authUser.user_metadata.email) || '';
+                const email = authUser.email;
 
-                // Check if email is registered in admin_users table
-                let adminMatch = null;
-                try {
-                    const {
-                        data: matchData
-                    } = await supabaseClient
-                        .from('admin_users')
-                        .select('role, zone, college_id, full_name')
-                        .eq('email', email)
-                        .maybeSingle();
-                    adminMatch = matchData;
-                } catch (_) { }
+                // Verify admin status with backend using email
+                const adminData = await this.fetchAdminUserData(email);
 
-                // If no admin record found, show access denied
-                if (!adminMatch) {
-                    flashNotification.showError('Access Denied', 'Your email is not registered as an admin. Please contact the administrator.');
-                    // Sign out the user
-                    try {
-                        await supabaseClient.auth.signOut();
-                    } catch (_) { }
-                    this.showAccessDenied();
+                if (adminData) {
+                    // Check if user is verified (treat undefined/null as verified)
+                    if (adminData.is_verified === false) {
+                        flashNotification.showError('Email Not Verified', 'Please verify your email before logging in.');
+                        try {
+                            await supabaseClient.auth.signOut();
+                        } catch (_) { }
+                        this.showAccessDenied();
+                        return;
+                    }
+
+                    this.currentUser = {
+                        id: adminData.id,
+                        email: email,
+                        full_name: adminData.full_name || 'User',
+                        role: adminData.role || 'viewer',
+                        zone: adminData.zone || '',
+                        college_id: adminData.college_id || null,
+                        is_verified: adminData.is_verified // Store actual value
+                    };
+                    localStorage.setItem('yuva_user', JSON.stringify(this.currentUser));
+                    this.showAdminInterface();
                     return;
                 }
 
-                this.currentUser = {
-                    id: authUser.id,
-                    email: email,
-                    full_name: (authUser.user_metadata && (authUser.user_metadata.full_name || authUser.user_metadata.name)) || adminMatch.full_name || 'User',
-                    role: adminMatch.role || 'viewer',
-                    zone: adminMatch.zone || '',
-                    college_id: adminMatch.college_id || null
-                };
-                this.showAdminInterface();
-                return; // Exit after successful session check
+                // User is authenticated but not an admin
+                flashNotification.showError('Access Denied', 'Your email is not registered as an admin. Please contact the administrator.');
+                try {
+                    await supabaseClient.auth.signOut();
+                } catch (_) { }
+                this.showAccessDenied();
+                return;
             }
 
-            // Fallback to legacy local storage session
-            const sessionData = localStorage.getItem('yuva_session');
-            if (sessionData) {
-                const {
-                    user
-                } = JSON.parse(sessionData);
-                if (user) {
-                    this.currentUser = user;
-                    this.showAdminInterface();
-                    return; // Exit after successful session check
+            // Fallback: Check localStorage backup
+            const storedUser = localStorage.getItem('yuva_user');
+            if (storedUser) {
+                try {
+                    const user = JSON.parse(storedUser);
+                    if (user && user.email) {
+                        // Verify that stored user is still valid using email
+                        const verifyResult = await this.fetchAdminUserData(user.email);
+                        if (verifyResult) {
+                            // Check if user is verified
+                            if (verifyResult.is_verified === false) {
+                                flashNotification.showError('Email Not Verified', 'Please verify your email before logging in.');
+                                localStorage.removeItem('yuva_user');
+                                this.showAccessDenied();
+                                return;
+                            }
+
+                            this.currentUser = verifyResult;
+                            this.showAdminInterface();
+                            return;
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Could not parse stored user data:', e);
                 }
             }
 
-            // If no session is found, show access denied
+            // No valid session found
             this.showAccessDenied();
 
         } catch (error) {
-            // In case of an error during session check, still show access denied
             console.error("Session check failed:", error);
             this.showAccessDenied();
         } finally {
-            // **THIS IS THE KEY FIX**
-            // This block will always run after the session check is complete,
-            // hiding the loader and revealing the correct content.
+            // Always hide the loader
             if (pageLoader) {
                 pageLoader.style.display = 'none';
             }
         }
     }
 
+    /**
+     * Fetch admin user data from backend using authenticated user email.
+     * Returns null if user is not found or is not an admin.
+     */
+    async fetchAdminUserData(email) {
+        try {
+            const params = new URLSearchParams({
+                action: 'auth',
+                method: 'getAdminUser',
+                email: email
+            }).toString();
+
+            const response = await fetch(`${GAS_WEB_APP_URL}?${params}`);
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                return result.user;
+            }
+
+            return null;
+
+        } catch (error) {
+            console.error("Error fetching admin user data:", error);
+            return null;
+        }
+    }
+
     showAdminInterface() {
-        document.getElementById('access-denied').style.display = 'none';
-        document.getElementById('zone-section').style.display = 'block';
+        // === CLEANUP PREVIOUS UI STATE ===
+        // Clear any mentor-specific UI elements from previous login
+        const collegeGrid = document.getElementById('college-grid');
+        if (collegeGrid) collegeGrid.innerHTML = '';
+
+        // Remove mentor-specific styles
+        const mentorStyles = document.getElementById('mentor-card-styles');
+        if (mentorStyles) mentorStyles.remove();
+
+        // Reset zone section visibility
+        const zoneButtons = document.querySelector('.zone-buttons');
+        const zoneSelectMsg = document.getElementById('zone-select-message');
+        if (zoneButtons) zoneButtons.style.display = '';
+        if (zoneSelectMsg) zoneSelectMsg.style.display = '';
+
+        // Clear any inline sections from mentor view
+        document.querySelectorAll('.mentor-inline-sections').forEach(el => el.remove());
+
+        // Reset zone header if it was changed by mentor dashboard
+        const zoneHeader = document.querySelector('.zone-header');
+        if (zoneHeader) {
+            const h3 = zoneHeader.querySelector('h3');
+            const p = zoneHeader.querySelector('p');
+            // Check if these headings are mentor-specific before resetting
+            if (h3 && (h3.textContent.includes('Dashboard') || h3.textContent === 'Loading...')) {
+                h3.textContent = 'Select a Zone';
+            }
+            if (p && (p.textContent.includes('Manage your college') || p.textContent === 'Fetching college information')) {
+                p.textContent = 'Choose a zone to view and manage college registrations';
+            }
+        }
+
+        // Hide or Remove mentor-specific buttons that might be lingering
+        ['mentor-generate-report-btn', 'contact-zone-convener-btn'].forEach(id => {
+            const btn = document.getElementById(id);
+            if (btn) btn.remove(); // Remove them entirely to be safe
+        });
+
+        // Reset global buttons that might have been changed in mentor view
+        const addMemberGlobal = document.getElementById('add-member-btn-global');
+        if (addMemberGlobal) {
+            addMemberGlobal.innerHTML = '<i class="fas fa-plus"></i> Add Member';
+            addMemberGlobal.style.display = 'none'; // Will be shown by applyRolePermissions if needed
+        }
+
+        // Ensure the embedded college dashboard is hidden
+        const dash = document.getElementById('college-dashboard');
+        if (dash) dash.style.display = 'none';
+
+        // Safe access for elements that might not exist on all pages
+        const accessDeniedEl = document.getElementById('access-denied');
+        const zoneSectionEl = document.getElementById('zone-section');
+
+        if (accessDeniedEl) accessDeniedEl.style.display = 'none';
+        if (zoneSectionEl) zoneSectionEl.style.display = 'block';
 
         // --- NEW CODE ---
         // Remove the logged-out class so buttons behave normally for admins
@@ -826,26 +1105,48 @@ class AuthManager {
 
         // Update user info
         if (this.currentUser) {
-            document.getElementById('admin-name').textContent = this.currentUser.full_name;
-            document.getElementById('admin-role').textContent = this.currentUser.role;
+            const adminNameEl = document.getElementById('admin-name');
+            const adminRoleEl = document.getElementById('admin-role');
+            if (adminNameEl) adminNameEl.textContent = this.currentUser.full_name;
+            if (adminRoleEl) adminRoleEl.textContent = this.currentUser.role;
         }
 
-        // Initialize zone management, scoping to allowed zone for zone conveners
+        // Initialize zone management if available
         try {
-            const role = (this.currentUser && this.currentUser.role) || 'viewer';
-            const allowedZoneId = (role === 'zone_convener' && this.currentUser && this.currentUser.zone) ? this.currentUser.zone : null;
-            zoneManager.init({ allowedZoneId });
-        } catch (_) {
-            zoneManager.init();
-        }
+            if (typeof zoneManager !== 'undefined') {
+                const role = (this.currentUser && this.currentUser.role) || 'viewer';
+
+                // Mentor: Load their specific college dashboard
+                if (role === 'mentor') {
+                    this.loadMentorDashboard();
+                } else {
+                    // Super admin or zone convener: Show zone management
+                    const allowedZoneId = (role === 'zone_convener' && this.currentUser && this.currentUser.zone) ? this.currentUser.zone : null;
+                    zoneManager.init({ allowedZoneId });
+
+                    // Show zone convener features if applicable
+                    if (role === 'zone_convener') {
+                        setTimeout(() => {
+                            document.getElementById('export-zone-data-btn').style.display = 'inline-flex';
+                            document.getElementById('contact-superadmin-btn').style.display = 'inline-flex';
+                        }, 100);
+                    }
+                }
+            }
+        } catch (_) { }
 
         // Apply permissions based on role
-        this.applyRolePermissions();
+        if (typeof this.applyRolePermissions === 'function') {
+            this.applyRolePermissions();
+        }
     }
 
     showAccessDenied() {
-        document.getElementById('access-denied').style.display = 'block';
-        document.getElementById('zone-section').style.display = 'none';
+        const accessDeniedEl = document.getElementById('access-denied');
+        const zoneSectionEl = document.getElementById('zone-section');
+
+        if (accessDeniedEl) accessDeniedEl.style.display = 'block';
+        if (zoneSectionEl) zoneSectionEl.style.display = 'none';
 
         // --- NEW CODE ---
         // Add the class that triggers the CSS media query we added in Step 1
@@ -866,6 +1167,622 @@ class AuthManager {
         // --- END NEW CODE ---
     }
 
+    async loadMentorDashboard() {
+        if (!this.currentUser || !this.currentUser.college_id) {
+            flashNotification.showError('Error', 'No college assigned to this mentor');
+            return;
+        }
+
+        try {
+            // Hide zone management UI
+            const zoneHeader = document.querySelector('.zone-header');
+            const zoneSelectionCard = document.querySelector('.zone-selection-card');
+            const zoneButtons = document.querySelector('.zone-buttons');
+            const zoneSelectMsg = document.getElementById('zone-select-message');
+
+            if (zoneSelectionCard) zoneSelectionCard.style.display = 'none';
+            if (zoneButtons) zoneButtons.style.display = 'none';
+            if (zoneSelectMsg) zoneSelectMsg.style.display = 'none';
+
+            // Header will be updated after fetching college details
+            if (zoneHeader) {
+                const h3 = zoneHeader.querySelector('h3');
+                const p = zoneHeader.querySelector('p');
+                if (h3) h3.textContent = 'Loading...';
+                if (p) p.textContent = 'Fetching college information';
+            }
+
+            // Fetch college details
+            const { data: college, error } = await supabaseClient
+                .from('colleges')
+                .select('*, zones(zone_name, zone_code)')
+                .eq('id', this.currentUser.college_id)
+                .single();
+
+            if (error) throw error;
+
+            if (college) {
+                // Store college data for use in other functions
+                this.currentUser.collegeData = college;
+
+                // Update header with actual college name
+                if (zoneHeader) {
+                    const h3 = zoneHeader.querySelector('h3');
+                    const p = zoneHeader.querySelector('p');
+                    if (h3) h3.textContent = `${college.college_name} Dashboard`;
+                    if (p) p.textContent = 'Manage your college registrations and members';
+                }
+
+                // Add buttons for mentors in Indian flag color sequence
+                const exportControls = document.querySelector('.export-controls');
+                if (exportControls) {
+                    const addMemberBtn = document.getElementById('add-member-btn-global');
+
+                    // 1. SAFFRON/ORANGE - Generate Report button (first - top of flag)
+                    let generateReportBtn = document.getElementById('mentor-generate-report-btn');
+                    if (!generateReportBtn) {
+                        generateReportBtn = document.createElement('button');
+                        generateReportBtn.id = 'mentor-generate-report-btn';
+                        generateReportBtn.className = 'btn export-btn';
+                        generateReportBtn.innerHTML = '<i class="fas fa-file-pdf"></i> Generate Report';
+
+                        // Insert before Add Member button
+                        if (addMemberBtn) {
+                            exportControls.insertBefore(generateReportBtn, addMemberBtn);
+                        } else {
+                            exportControls.appendChild(generateReportBtn);
+                        }
+                    }
+                    generateReportBtn.style.display = 'inline-flex';
+
+                    // Generate Report button handler
+                    generateReportBtn.onclick = async () => {
+                        const user = authManager.currentUser;
+                        if (!user) {
+                            flashNotification.showError('Error', 'User not authenticated');
+                            return;
+                        }
+
+                        const originalHTML = generateReportBtn.innerHTML;
+                        generateReportBtn.disabled = true;
+                        generateReportBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Generating...';
+
+                        try {
+                            const payload = new URLSearchParams();
+                            payload.append('action', 'generateCollegeReport');
+                            payload.append('collegeId', college.id);
+                            payload.append('userEmail', user.email);
+                            payload.append('userRole', user.role);
+                            payload.append('userName', user.full_name || user.email);
+
+                            const response = await fetch(GAS_WEB_APP_URL, {
+                                method: 'POST',
+                                mode: 'cors',
+                                headers: {
+                                    'Content-Type': 'application/x-www-form-urlencoded'
+                                },
+                                body: payload
+                            });
+
+                            const result = await response.json();
+
+                            if (result.success) {
+                                flashNotification.showSuccess('Report Generated', `College report for ${college.college_name} has been sent to ${user.email}`);
+                            } else {
+                                flashNotification.showError('Error', result.error || 'Failed to generate report');
+                            }
+                        } catch (error) {
+                            console.error('Error generating report:', error);
+                            flashNotification.showError('Error', 'Failed to generate report. Please try again.');
+                        } finally {
+                            generateReportBtn.disabled = false;
+                            generateReportBtn.innerHTML = originalHTML;
+                        }
+                    };
+
+                    // 2. NAVY BLUE - Contact Zone Convener button (second - middle of flag)
+                    let contactZoneBtn = document.getElementById('contact-zone-convener-btn');
+                    if (!contactZoneBtn) {
+                        contactZoneBtn = document.createElement('button');
+                        contactZoneBtn.id = 'contact-zone-convener-btn';
+                        contactZoneBtn.className = 'btn secondary';
+                        contactZoneBtn.innerHTML = '<i class="fas fa-envelope"></i> Contact Zone Convener';
+
+                        // Insert before Add Member button
+                        if (addMemberBtn) {
+                            exportControls.insertBefore(contactZoneBtn, addMemberBtn);
+                        } else {
+                            exportControls.appendChild(contactZoneBtn);
+                        }
+                    }
+                    contactZoneBtn.style.display = 'inline-flex';
+
+                    // Store college and zone info for the message
+                    contactZoneBtn.onclick = () => {
+                        // Set context data for the modal
+                        window.__mentorContactContext = {
+                            collegeId: college.id,
+                            collegeName: college.college_name,
+                            zoneId: college.zone_id,
+                            zoneName: college.zones ? college.zones.zone_name : ''
+                        };
+
+                        // Open the contact modal
+                        const modal = document.getElementById('contact-zone-convener-modal');
+                        if (modal) {
+                            modal.style.display = 'block';
+                            document.body.classList.add('modal-open');
+                        }
+                    };
+
+                    // 3. GREEN - Add Member button already exists (third - bottom of flag)
+                }
+
+                // Setup Add Member button for mentor
+                const addMemberGlobal = document.getElementById('add-member-btn-global');
+                if (addMemberGlobal) {
+                    // Remove any existing click handlers
+                    addMemberGlobal.replaceWith(addMemberGlobal.cloneNode(true));
+                    const newAddMemberBtn = document.getElementById('add-member-btn-global');
+
+                    if (newAddMemberBtn) {
+                        newAddMemberBtn.onclick = () => {
+                            if (typeof openMemberModal === 'function') {
+                                openMemberModal({
+                                    college_id: college.id,
+                                    college_name: college.college_name,
+                                    zone_id: college.zone_id,
+                                    zone_name: college.zones ? college.zones.zone_name : ''
+                                });
+                            }
+                        };
+                    }
+                }
+
+                // Load and display the college directly
+                await this.displayMentorCollege(college);
+            }
+        } catch (error) {
+            console.error('Error loading mentor dashboard:', error);
+            flashNotification.showError('Error', 'Failed to load college dashboard');
+        }
+    }
+
+    async displayMentorCollege(college) {
+        const collegeGrid = document.getElementById('college-grid');
+        const collegeContainer = document.getElementById('college-container');
+        const searchContainer = document.getElementById('search-container');
+        const zoneStats = document.getElementById('zone-stats');
+
+        if (searchContainer) searchContainer.style.display = 'none';
+        if (collegeContainer) collegeContainer.style.display = 'block';
+        if (zoneStats) zoneStats.style.display = 'block';
+
+        if (!collegeGrid) return;
+
+        // Clear existing content
+        collegeGrid.innerHTML = '';
+
+        // Fetch registrations for this college
+        const { data: registrations, error } = await supabaseClient
+            .from('registrations')
+            .select('*')
+            .eq('college_id', college.id)
+            .order('created_at', { ascending: false });
+
+        const regCount = registrations ? registrations.length : 0;
+        const approvedCount = registrations ? registrations.filter(r => r.status === 'approved').length : 0;
+        const rejectedCount = registrations ? registrations.filter(r => r.status === 'rejected').length : 0;
+        const pendingCount = registrations ? registrations.filter(r => r.status === 'pending').length : 0;
+
+        // Update stats
+        const totalCollegesEl = document.getElementById('total-colleges');
+        const totalMembersEl = document.getElementById('total-members');
+        const activeUnitsEl = document.getElementById('active-units');
+        const lastSyncEl = document.getElementById('last-sync');
+
+        if (totalCollegesEl) {
+            totalCollegesEl.textContent = regCount;
+            const label = totalCollegesEl.parentElement.querySelector('.stat-label');
+            if (label) label.textContent = 'Total Members';
+        }
+        if (totalMembersEl) {
+            totalMembersEl.textContent = approvedCount;
+            const label = totalMembersEl.parentElement.querySelector('.stat-label');
+            if (label) label.textContent = 'Approved';
+        }
+        if (activeUnitsEl) {
+            activeUnitsEl.textContent = rejectedCount;
+            const label = activeUnitsEl.parentElement.querySelector('.stat-label');
+            if (label) label.textContent = 'Rejected';
+        }
+
+        // Add Pending stat (need to check if there's a 4th stat card or create one)
+        const statsGrid = document.querySelector('.stats-grid');
+        if (statsGrid) {
+            // Check if we need to add a pending card before last sync
+            let pendingCard = statsGrid.querySelector('[data-stat="pending"]');
+            if (!pendingCard) {
+                // Create pending card before last sync card
+                const lastSyncCard = lastSyncEl?.parentElement;
+                if (lastSyncCard) {
+                    pendingCard = document.createElement('div');
+                    pendingCard.className = 'stat-card';
+                    pendingCard.setAttribute('data-stat', 'pending');
+                    pendingCard.innerHTML = `
+                        <div class="stat-number">${pendingCount}</div>
+                        <div class="stat-label">Pending</div>
+                    `;
+                    statsGrid.insertBefore(pendingCard, lastSyncCard);
+                }
+            } else {
+                // Update existing pending card
+                const pendingNum = pendingCard.querySelector('.stat-number');
+                if (pendingNum) pendingNum.textContent = pendingCount;
+            }
+        }
+
+        if (lastSyncEl) lastSyncEl.textContent = new Date().toLocaleTimeString();
+
+        // Create college card
+        const card = this.createMentorCollegeCard(college, regCount);
+        collegeGrid.appendChild(card);
+    }
+
+    createMentorCollegeCard(college, memberCount) {
+        const card = document.createElement('div');
+        card.className = 'college-card mentor-college-card';
+        card.setAttribute('data-college-id', college.id);
+
+        const zoneName = college.zones ? college.zones.zone_name : 'Unknown Zone';
+
+        card.innerHTML = `
+            <div class="college-card-inner">
+                <div class="college-card-header">
+                    <div class="college-badge">${college.college_code}</div>
+                    <div class="college-status ${college.is_active ? 'active' : 'inactive'}">
+                        <i class="fas fa-circle"></i> ${college.is_active ? 'Active' : 'Inactive'}
+                    </div>
+                </div>
+                <div class="college-card-body">
+                    <h3 class="college-card-title">${college.college_name}</h3>
+                    <div class="college-card-location">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <span>${zoneName}</span>
+                    </div>
+                    <div class="college-card-stats">
+                        <div class="stat-badge">
+                            <i class="fas fa-users"></i>
+                            <span class="stat-number">${memberCount}</span>
+                            <span class="stat-text">Members</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="college-card-footer">
+                    <button class="btn primary view-college-btn" data-college-id="${college.id}">
+                        <i class="fas fa-eye"></i> View Details
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // Add modern card styles
+        const style = document.createElement('style');
+        style.textContent = `
+            .mentor-college-card {
+                background: #ffffff;
+                border-radius: 20px;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+                border: 1px solid #e5e7eb;
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+                            box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                            border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                overflow: hidden;
+                will-change: transform;
+            }
+
+            .mentor-college-card:hover {
+                transform: translateY(-4px);
+                box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+                border-color: #FF9933;
+            }
+
+            .college-card-inner {
+                padding: 24px;
+            }
+
+            .college-card-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 20px;
+            }
+
+            .college-badge {
+                background: linear-gradient(135deg, #FF9933 0%, #E67300 100%);
+                color: white;
+                padding: 8px 16px;
+                border-radius: 12px;
+                font-weight: 700;
+                font-size: 14px;
+                letter-spacing: 0.5px;
+                box-shadow: 0 2px 8px rgba(255, 153, 51, 0.3);
+            }
+
+            .college-status {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                padding: 6px 12px;
+                border-radius: 20px;
+                font-size: 12px;
+                font-weight: 600;
+            }
+
+            .college-status.active {
+                background: #D1FAE5;
+                color: #065F46;
+            }
+
+            .college-status.inactive {
+                background: #FEE2E2;
+                color: #991B1B;
+            }
+
+            .college-status i {
+                font-size: 8px;
+            }
+
+            .college-card-body {
+                margin-bottom: 20px;
+            }
+
+            .college-card-title {
+                font-size: 22px;
+                font-weight: 700;
+                color: #1f2937;
+                margin: 0 0 12px 0;
+                line-height: 1.3;
+            }
+
+            .college-card-location {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                color: #6b7280;
+                font-size: 14px;
+                margin-bottom: 16px;
+            }
+
+            .college-card-location i {
+                color: #FF9933;
+                font-size: 16px;
+            }
+
+            .college-card-stats {
+                display: flex;
+                gap: 12px;
+                flex-wrap: wrap;
+            }
+
+            .stat-badge {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                background: linear-gradient(135deg, #EBF4FF 0%, #E0F2FE 100%);
+                padding: 10px 16px;
+                border-radius: 12px;
+                border: 1px solid #BFDBFE;
+            }
+
+            .stat-badge i {
+                color: #000080;
+                font-size: 18px;
+            }
+
+            .stat-number {
+                font-size: 20px;
+                font-weight: 700;
+                color: #1f2937;
+            }
+
+            .stat-text {
+                font-size: 13px;
+                color: #6b7280;
+                font-weight: 500;
+            }
+
+            .college-card-footer {
+                padding-top: 16px;
+                border-top: 1px solid #e5e7eb;
+            }
+
+            .college-card-footer .btn {
+                width: 100%;
+                justify-content: center;
+                padding: 12px 24px;
+                font-size: 15px;
+                font-weight: 600;
+                border-radius: 12px;
+                transition: all 0.2s;
+            }
+
+            .college-card-footer .btn:hover {
+                transform: scale(1.02);
+            }
+        `;
+
+        if (!document.getElementById('mentor-card-styles')) {
+            style.id = 'mentor-card-styles';
+            document.head.appendChild(style);
+        }
+
+        // Add click handler for view button
+        const viewBtn = card.querySelector('.view-college-btn');
+        if (viewBtn) {
+            viewBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+
+                // Role-aware click behavior:
+                // For mentors: show ONLY members and events sections below the card
+                // For zone conveners: this code path shouldn't execute (they use different cards)
+
+                // Check if sections already exist for this card
+                let mentorSections = card.nextElementSibling;
+                if (mentorSections && mentorSections.classList.contains('mentor-inline-sections')) {
+                    // Already expanded, collapse it
+                    mentorSections.remove();
+                    card.style.display = 'block'; // Show the card again
+                    viewBtn.innerHTML = '<i class="fas fa-eye"></i> View Details';
+                    return;
+                }
+
+                // Create container for inline sections
+                const sectionsContainer = document.createElement('div');
+                sectionsContainer.className = 'mentor-inline-sections';
+                sectionsContainer.id = 'college-dashboard'; // Add ID to match existing CSS
+                sectionsContainer.style.cssText = 'margin: 24px 0; display: grid; gap: 24px;';
+
+                // Create Members Section
+                const membersSection = document.createElement('section');
+                membersSection.className = 'cd-members';
+                membersSection.style.cssText = 'background: #fff !important; border-radius: 16px !important; padding: 24px !important; box-shadow: 0 2px 12px rgba(0,0,0,0.08) !important; border: 1px solid #e5e7eb !important;';
+                membersSection.innerHTML = `
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;">
+                        <div>
+                            <h3 style="margin:0 0 4px 0;font-size:18px;font-weight:600;color:#1f2937;">Members</h3>
+                            <p class="cd-sub" style="margin:0;font-size:14px;color:#6b7280;">List of members associated with this college</p>
+                        </div>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn secondary mentor-load-members"><i class="fas fa-users"></i> Load Members</button>
+                            <button class="btn primary mentor-add-member"><i class="fas fa-user-plus"></i> Add Member</button>
+                        </div>
+                    </div>
+                    <div class="cd-members-list mentor-members-list"></div>
+                `;
+
+                // Create Events Section
+                const eventsSection = document.createElement('section');
+                eventsSection.className = 'cd-events';
+                eventsSection.style.cssText = 'background: #fff !important; border-radius: 16px !important; padding: 24px !important; box-shadow: 0 2px 12px rgba(0,0,0,0.08) !important; border: 1px solid #e5e7eb !important;';
+                eventsSection.innerHTML = `
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;">
+                        <div>
+                            <h3 style="margin:0 0 4px 0;font-size:18px;font-weight:600;color:#1f2937;">Events</h3>
+                            <p class="cd-sub" style="margin:0;font-size:14px;color:#6b7280;">Upcoming and past events for this college</p>
+                        </div>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn secondary mentor-refresh-events"><i class="fas fa-rotate"></i> Refresh</button>
+                            <button class="btn primary mentor-add-event"><i class="fas fa-calendar-plus"></i> Add Event</button>
+                        </div>
+                    </div>
+                    <div class="cd-events-wrap">
+                        <div class="cd-events-group" style="margin-bottom:20px;">
+                            <h4 style="margin:0 0 12px 0;font-size:16px;font-weight:600;color:#374151;">Upcoming</h4>
+                            <div class="cd-events-grid mentor-upcoming-events"></div>
+                        </div>
+                        <div class="cd-events-group">
+                            <h4 style="margin:0 0 12px 0;font-size:16px;font-weight:600;color:#374151;">Past</h4>
+                            <div class="cd-events-grid mentor-past-events"></div>
+                        </div>
+                    </div>
+                `;
+
+                // Add sections to container
+                sectionsContainer.appendChild(membersSection);
+                sectionsContainer.appendChild(eventsSection);
+
+                // Insert after the college card
+                card.parentNode.insertBefore(sectionsContainer, card.nextSibling);
+
+                // Hide the college card
+                card.style.display = 'none';
+
+                // Set active college context
+                window.__yuvaActiveCollegeId = college.id;
+
+                // Change button text
+                viewBtn.innerHTML = '<i class="fas fa-eye-slash"></i> Hide Details';
+
+                // Show info toast to guide user
+                if (typeof flashNotification !== 'undefined' && flashNotification.showInfo) {
+                    flashNotification.showInfo('Tip', 'Click "Load Members" to view the members list');
+                }
+
+                // Setup Load Members button within the inline sections
+                const loadMembersBtn = sectionsContainer.querySelector('.mentor-load-members');
+                if (loadMembersBtn) {
+                    loadMembersBtn.onclick = async () => {
+                        if (typeof loadCollegeMembers === 'function') {
+                            const membersList = sectionsContainer.querySelector('.mentor-members-list');
+                            if (membersList) {
+                                membersList.id = 'cd-members-list';
+                                await loadCollegeMembers(college.id, {
+                                    collegeName: college.college_name,
+                                    zoneName: college.zones ? college.zones.zone_name : '',
+                                    zoneId: college.zone_id
+                                });
+                            }
+                        }
+                    };
+                }
+
+                // Setup Add Member button
+                const addMemberBtn = sectionsContainer.querySelector('.mentor-add-member');
+                if (addMemberBtn) {
+                    addMemberBtn.onclick = () => {
+                        if (typeof openMemberModal === 'function') {
+                            openMemberModal({
+                                college_id: college.id,
+                                college_name: college.college_name,
+                                zone_id: college.zone_id,
+                                zone_name: college.zones ? college.zones.zone_name : ''
+                            });
+                        }
+                    };
+                }
+
+                // Setup Refresh Events button
+                const refreshEventsBtn = sectionsContainer.querySelector('.mentor-refresh-events');
+                if (refreshEventsBtn) {
+                    refreshEventsBtn.onclick = async () => {
+                        if (typeof loadCollegeEvents === 'function') {
+                            const upcomingGrid = sectionsContainer.querySelector('.mentor-upcoming-events');
+                            const pastGrid = sectionsContainer.querySelector('.mentor-past-events');
+                            if (upcomingGrid) upcomingGrid.id = 'cd-upcoming-events';
+                            if (pastGrid) pastGrid.id = 'cd-past-events';
+                            await loadCollegeEvents(college.id);
+                        }
+                    };
+                }
+
+                // Setup Add Event button
+                const addEventBtn2 = sectionsContainer.querySelector('.mentor-add-event');
+                if (addEventBtn2) {
+                    addEventBtn2.onclick = () => {
+                        if (typeof openEventModal === 'function') {
+                            openEventModal({ college_id: college.id });
+                        }
+                    };
+                }
+
+                // Load events automatically
+                if (typeof loadCollegeEvents === 'function') {
+                    const upcomingGrid = sectionsContainer.querySelector('.mentor-upcoming-events');
+                    const pastGrid = sectionsContainer.querySelector('.mentor-past-events');
+                    if (upcomingGrid) upcomingGrid.id = 'cd-upcoming-events';
+                    if (pastGrid) pastGrid.id = 'cd-past-events';
+                    await loadCollegeEvents(college.id);
+                }
+
+                // Scroll to the sections smoothly
+                sectionsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        }
+
+        return card;
+    }
+
     applyRolePermissions() {
         const role = (this.currentUser && this.currentUser.role) || 'viewer';
         const isSuperAdmin = role === 'super_admin';
@@ -878,7 +1795,10 @@ class AuthManager {
         const generateReportBtn = document.getElementById('generate-report-btn');
         const addCollegeBtn = document.getElementById('add-college-btn-global');
         const notifyAdminBtn = document.getElementById('notify-admin-btn');
+        const addMemberBtn = document.getElementById('add-member-btn-global');
         const sheetConfigSection = document.querySelector('.sheet-config');
+        const zoneSelectionCard = document.querySelector('.zone-selection-card');
+        const advancedAdminBtn = document.getElementById('advanced-admin-btn'); // New Button
 
         const superAdminPanel = document.getElementById('super-admin-panel');
         if (superAdminPanel) {
@@ -897,36 +1817,79 @@ class AuthManager {
             if (generateReportBtn) generateReportBtn.style.display = 'none';
             if (addCollegeBtn) addCollegeBtn.style.display = 'none';
             if (notifyAdminBtn) notifyAdminBtn.style.display = 'none';
+            if (addMemberBtn) addMemberBtn.style.display = 'none';
             if (sheetConfigSection) sheetConfigSection.style.display = 'none';
+            if (zoneSelectionCard) zoneSelectionCard.style.display = 'none';
+            if (advancedAdminBtn) advancedAdminBtn.style.display = 'none';
         } else {
             // General admin controls
             if (exportAllBtn) exportAllBtn.style.display = isSuperAdmin ? 'inline-flex' : 'none';
             if (generateReportBtn) generateReportBtn.style.display = isSuperAdmin ? 'inline-flex' : 'none';
             if (sheetConfigSection) sheetConfigSection.style.display = isSuperAdmin ? 'block' : 'none';
+            if (zoneSelectionCard) zoneSelectionCard.style.display = isMentor ? 'none' : 'block';
+
+            // Advanced Admin Button (Super Admin Only)
+            if (advancedAdminBtn) advancedAdminBtn.style.display = isSuperAdmin ? 'inline-flex' : 'none';
 
             // ===== REVISED LOGIC FOR COLLEGE BUTTONS =====
             // "Add College" button is ONLY for Super Admin
             if (addCollegeBtn) {
                 addCollegeBtn.style.display = isSuperAdmin ? 'inline-flex' : 'none';
             }
-            // "Notify Admin" button is for Zone Conveners and Mentors
+            // "Notify Admin" button is ONLY for Zone Conveners (they can request new colleges in their zone)
+            // Mentors already have a college, so they don't need this
             if (notifyAdminBtn) {
-                notifyAdminBtn.style.display = (isZoneConvener || isMentor) ? 'inline-flex' : 'none';
+                notifyAdminBtn.style.display = isZoneConvener ? 'inline-flex' : 'none';
+            }
+            // "Add Member" button is for all admin roles
+            if (addMemberBtn) {
+                addMemberBtn.style.display = 'inline-flex';
+            }
+
+            // Mentor Messages Section (Zone Convener Only)
+            const mentorMessagesSection = document.getElementById('mentor-messages-section');
+            if (mentorMessagesSection && isZoneConvener) {
+                mentorMessagesSection.style.display = 'block';
+                // Load messages if we have the zone context
+                if (this.currentUser && this.currentUser.zone) {
+                    // We might need the zone ID here. If it's not in currentUser, 
+                    // we'll rely on the zone selection logic to trigger the load.
+                    // But if we have it (e.g. from login), we can try loading.
+                    // Assuming this.currentUser.zone might be the name, checking if we have an ID elsewhere.
+                    // For now, just showing the section is good. The actual load should happen when zone data is ready.
+                }
+            } else if (mentorMessagesSection) {
+                mentorMessagesSection.style.display = 'none';
             }
         }
     }
 
     async logout() {
-        this.currentUser = null;
-        localStorage.removeItem('yuva_session');
-        await supabaseClient.auth.signOut();
+        try {
+            this.currentUser = null;
+            localStorage.removeItem('yuva_user');
+            localStorage.removeItem('yuva_session');
 
-        // THIS IS THE KEY FIX: Force a page reload to clear all cached data.
-        window.location.reload();
+            // Sign out from Supabase Auth
+            const { error } = await supabaseClient.auth.signOut();
 
-        // The lines below are no longer strictly necessary but can be kept
-        this.showAccessDenied();
-        flashNotification.showInfo('Logged Out', 'You have been logged out successfully');
+            if (error) {
+                console.error('Logout error:', error);
+                flashNotification.showError('Logout Error', 'Could not sign you out properly.');
+            } else {
+                flashNotification.showSuccess('Logged Out', 'Session cleared. Refreshing page...');
+                // Reload page after a short delay to allow success message to be seen
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            }
+
+        } catch (error) {
+            console.error('Logout exception:', error);
+            // Even on error, it's safer to clear local storage and reload
+            localStorage.clear();
+            window.location.reload();
+        }
     }
 
     closeModal(modalId) {
@@ -995,10 +1958,25 @@ class ZoneManager {
 
         zoneButtons.innerHTML = '';
 
-        this.zones.forEach(zone => {
+        // Tricolor classes for Indian flag colors
+        const tricolorClasses = ['zone-orange', 'zone-blue', 'zone-green'];
+
+        this.zones.forEach((zone, index) => {
             const button = document.createElement('button');
             button.textContent = zone.zone_name;
             button.setAttribute('data-zone', zone.zone_code);
+
+            // Add initials (first and last character) for the icon
+            const zoneName = zone.zone_name.trim();
+            const initials = zoneName.length > 1
+                ? zoneName[0] + zoneName[zoneName.length - 1]
+                : zoneName[0];
+            button.setAttribute('data-initials', initials);
+
+            // Add tricolor class (rotate through orange, blue, green)
+            const colorClass = tricolorClasses[index % 3];
+            button.classList.add(colorClass);
+
             button.addEventListener('click', () => this.selectZone(zone));
             zoneButtons.appendChild(button);
         });
@@ -1048,6 +2026,14 @@ class ZoneManager {
 
         await this.loadColleges(zone.id);
 
+        // Load mentor messages if available (and if user is zone convener)
+        if (typeof window.loadMentorMessages === 'function') {
+            const user = authManager?.currentUser;
+            if (user && (user.role === 'zone_convener' || user.role === 'super_admin')) {
+                window.loadMentorMessages(zone.id);
+            }
+        }
+
         this.showZoneStats();
         setZoneStatsLoading(false);
     }
@@ -1090,7 +2076,8 @@ class ZoneManager {
 
         const currentUserRole = (authManager.currentUser && authManager.currentUser.role) || 'viewer';
         const canManage = currentUserRole === 'super_admin' || currentUserRole === 'zone_convener';
-        const isSuperAdmin = currentUserRole === 'super_admin'; // <-- NEW: Check for Super Admin
+        const isSuperAdmin = currentUserRole === 'super_admin';
+        const isZoneConvener = currentUserRole === 'zone_convener'; // Check for Zone Convener
 
         this.colleges.forEach((college, idx) => {
             const card = document.createElement('div');
@@ -1109,8 +2096,9 @@ class ZoneManager {
                 let statusIndicatorHTML = '';
                 const deleteButtonHTML = `<button class="college-delete-btn" title="Delete College"><i class="fas fa-trash"></i></button>`;
 
-                if (isSuperAdmin) {
-                    // Super Admins get a clickable button to toggle status
+                // Both Super Admin and Zone Convener can toggle status
+                if (isSuperAdmin || isZoneConvener) {
+                    // Get a clickable button to toggle status
                     const newStatusText = college.is_active ? 'Inactive' : 'Active';
                     statusIndicatorHTML = `<button class="college-status-indicator college-status-toggle ${statusClass}" title="Click to change status to ${newStatusText}"></button>`;
                 } else {
@@ -1144,10 +2132,18 @@ class ZoneManager {
                 if (college.is_active) {
                     this.showCollegeDetails(college);
                 } else {
-                    flashNotification.showWarning(
-                        'College Inactive',
-                        'This college is inactive. Please contact the Super Admin for assistance.'
-                    );
+                    // Show different messages based on user role
+                    if (isSuperAdmin || isZoneConvener) {
+                        flashNotification.showWarning(
+                            'College Inactive',
+                            'This college is inactive. Click the status indicator to activate it.'
+                        );
+                    } else {
+                        flashNotification.showWarning(
+                            'College Inactive',
+                            'This college is inactive. Please contact your Zone Convener or Super Admin for assistance.'
+                        );
+                    }
                 }
             });
 
@@ -1180,8 +2176,8 @@ class ZoneManager {
                     }
                 });
 
-                // --- NEW: Event listener for toggling college active status (Super Admin only) ---
-                if (isSuperAdmin) {
+                // Event listener for toggling college active status (Super Admin and Zone Convener)
+                if (isSuperAdmin || isZoneConvener) {
                     card.querySelector('.college-status-toggle')?.addEventListener('click', async (e) => {
                         e.stopPropagation(); // Stop the card click event
                         const statusBtn = e.currentTarget; // <-- MOVED HERE
@@ -1318,6 +2314,52 @@ class ZoneManager {
                 }
             } catch (_) { }
         };
+
+        // Refresh button handler - reloads current college dashboard
+        const refreshBtn = document.getElementById('cd-refresh-btn');
+        if (refreshBtn) {
+            const currentCollegeId = college.id;
+            refreshBtn.onclick = async () => {
+                const icon = refreshBtn.querySelector('i');
+                if (icon) icon.classList.add('spinning');
+                refreshBtn.classList.add('spinning');
+
+                try {
+                    // Fetch fresh member data from database
+                    const { data: members, error } = await supabaseClient
+                        .from('registrations')
+                        .select('id, applicant_name, created_at, applying_for, college_id, email, phone, unit_name, status')
+                        .eq('college_id', currentCollegeId);
+
+                    if (error) {
+                        throw new Error(error.message);
+                    }
+
+                    // Update member count
+                    const membersCount = members ? members.length : 0;
+                    const approvedCount = members ? members.filter(m => m.status === 'approved').length : 0;
+                    document.getElementById('cd-members-count').textContent = approvedCount;
+                    document.getElementById('cd-last-updated').textContent = new Date().toLocaleString();
+
+                    // If members list is loaded, refresh it
+                    const container = document.getElementById('cd-members-list');
+                    if (container && container.dataset.collegeId === String(currentCollegeId)) {
+                        await loadCollegeMembers(currentCollegeId);
+                    }
+
+                    flashNotification.showSuccess('Refreshed', 'Dashboard data updated successfully');
+                } catch (error) {
+                    console.error('Refresh error:', error);
+                    flashNotification.showError('Error', 'Failed to refresh dashboard: ' + error.message);
+                } finally {
+                    setTimeout(() => {
+                        refreshBtn.classList.remove('spinning');
+                        if (icon) icon.classList.remove('spinning');
+                    }, 1000);
+                }
+            };
+        }
+
         const exportBtn = document.getElementById('cd-export-btn');
         if (exportBtn) exportBtn.onclick = () => exportCollegeCSV(college.id);
 
@@ -1751,50 +2793,129 @@ class ZoneManager {
     async generateReport() {
         try {
             const modal = document.getElementById('report-modal');
-            if (modal) {
-                // populate zones
-                const select = document.getElementById('report-zone');
-                if (select && select.options.length <= 1) {
-                    const zones = (this.zones || []);
-                    zones.forEach(z => {
-                        const opt = document.createElement('option');
-                        opt.value = z.id;
-                        opt.textContent = z.zone_name;
-                        select.appendChild(opt);
-                    });
-                }
-                modal.style.display = 'block';
-                document.body.classList.add('modal-open');
-            } else {
-                flashNotification.showInfo('Report', 'Opening report options...');
+            if (!modal) return;
+
+            // Initialize custom dropdowns once
+            if (!this._reportDropdownsInit) {
+                this.setupCustomDropdown('report-range-container');
+                this.setupCustomDropdown('report-zone-container');
+                this._reportDropdownsInit = true;
             }
+
+            // Populate zones in custom dropdown
+            const zoneOptionsContainer = document.getElementById('report-zone-options');
+            if (zoneOptionsContainer && zoneOptionsContainer.children.length <= 1) {
+                const zones = (this.zones || []);
+                zones.forEach(z => {
+                    const option = document.createElement('div');
+                    option.className = 'custom-select-option';
+                    option.dataset.value = z.id;
+                    option.textContent = z.zone_name;
+                    zoneOptionsContainer.appendChild(option);
+                });
+
+                // Re-bind click events for newly added options
+                this.setupCustomDropdown('report-zone-container');
+            }
+
+            modal.style.display = 'block';
+            document.body.classList.add('modal-open');
 
             const runBtn = document.getElementById('report-run');
             const link = document.getElementById('report-link');
+
             if (runBtn) {
                 runBtn.onclick = async () => {
-                    const prev = { html: runBtn.innerHTML, dis: runBtn.disabled };
-                    runBtn.disabled = true; runBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Generating...';
+                    const originalContent = runBtn.innerHTML;
+                    runBtn.disabled = true;
+                    runBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Generating Report...';
+
                     try {
                         const range = document.getElementById('report-range')?.value || '30d';
                         const zoneId = document.getElementById('report-zone')?.value || '';
-                        const qs = new URLSearchParams({ action: 'reports', method: 'renderPdf', range, zoneId }).toString();
-                        const res = await fetch(`${GAS_WEB_APP_URL}?${qs}`);
+
+                        const params = new URLSearchParams({
+                            action: 'reports',
+                            method: 'renderPdf',
+                            range,
+                            zoneId
+                        }).toString();
+
+                        const res = await fetch(`${GAS_WEB_APP_URL}?${params}`);
                         const json = await res.json();
+
                         if (json && json.success && json.url) {
-                            if (link) { link.href = json.url; link.style.display = 'inline-flex'; }
-                            flashNotification.showSuccess('Report Ready', 'Click Open PDF to view.');
+                            if (link) {
+                                link.href = json.url;
+                                link.style.display = 'inline-flex';
+                            }
+                            flashNotification.showSuccess('Report Ready', 'The summary report has been generated successfully.');
                         } else {
-                            flashNotification.showError('Failed', json && json.error ? json.error : 'Could not create PDF');
+                            flashNotification.showError('Generation Failed', json && json.error ? json.error : 'Could not create PDF report.');
                         }
                     } catch (err) {
-                        flashNotification.showError('Error', 'Network error while generating report');
+                        flashNotification.showError('Network Error', 'Unable to connect to the report generation service.');
+                    } finally {
+                        runBtn.disabled = false;
+                        runBtn.innerHTML = originalContent;
                     }
-                    runBtn.disabled = prev.dis; runBtn.innerHTML = prev.html;
                 };
             }
         } catch (_) {
-            flashNotification.showError('Report', 'Unable to open report dialog');
+            flashNotification.showError('UI Error', 'Unable to initialize report modal.');
+        }
+    }
+
+    // Helper for custom dropdowns
+    setupCustomDropdown(containerId) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        const trigger = container.querySelector('.custom-select-trigger');
+        const hiddenInput = container.querySelector('input[type="hidden"]');
+        const options = container.querySelectorAll('.custom-select-option');
+        const selectedLabel = container.querySelector('.selected-value');
+
+        // Toggle dropdown
+        trigger.onclick = (e) => {
+            e.stopPropagation();
+            // Close other open dropdowns
+            document.querySelectorAll('.custom-select-container').forEach(c => {
+                if (c !== container) c.classList.remove('active');
+            });
+            container.classList.toggle('active');
+        };
+
+        // Option selection
+        options.forEach(option => {
+            // Remove existing listeners by cloning and replacing (simple way to avoid duplicates)
+            const newOption = option.cloneNode(true);
+            option.parentNode.replaceChild(newOption, option);
+
+            newOption.onclick = (e) => {
+                e.stopPropagation();
+                const value = newOption.dataset.value;
+                const label = newOption.textContent;
+
+                // Update UI
+                selectedLabel.textContent = label;
+                hiddenInput.value = value;
+
+                // Update selected class
+                container.querySelectorAll('.custom-select-option').forEach(opt => opt.classList.remove('selected'));
+                newOption.classList.add('selected');
+
+                // Close dropdown
+                container.classList.remove('active');
+            };
+        });
+
+        // Close on outside click
+        if (!window._dropdownGlobalListener) {
+            document.addEventListener('click', () => {
+                document.querySelectorAll('.custom-select-container').forEach(c => c.classList.remove('active'));
+            });
+            window._dropdownGlobalListener = true;
         }
     }
 }
@@ -1803,21 +2924,25 @@ class ZoneManager {
 async function populateRegisterZones() {
     const select = document.getElementById('register-zone');
     if (!select) return;
-    const setOptions = (zones) => {
-        select.innerHTML = '<option value="">Select Zone</option>';
-        (zones || []).forEach(z => {
-            const opt = document.createElement('option');
-            opt.value = z.id;
-            opt.textContent = z.zone_name;
-            select.appendChild(opt);
-        });
-    };
+
     try {
         const res = await SupabaseService.getAllZones();
-        if (res && res.success) { setOptions(res.zones || []); return; }
-    } catch (_) { }
-    // fallback to zoneManager's cached list if available
-    try { setOptions((zoneManager && zoneManager.zones) ? zoneManager.zones : []); } catch (_) { }
+
+        if (res && res.success && res.zones && res.zones.length > 0) {
+            select.innerHTML = '<option value="">Select Zone</option>';
+            res.zones.forEach(z => {
+                const opt = document.createElement('option');
+                opt.value = z.id;
+                opt.textContent = z.zone_name;
+                select.appendChild(opt);
+            });
+            console.log('Zones loaded successfully:', res.zones.length);
+        } else {
+            console.error('Failed to load zones:', res?.error || 'No zones returned');
+        }
+    } catch (error) {
+        console.error('Zone loading exception:', error);
+    }
 }
 function closeModal(modalId) {
     document.getElementById(modalId).style.display = 'none';
@@ -1863,7 +2988,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Initialize managers
 const authManager = new AuthManager();
-const zoneManager = new ZoneManager();
+// Only initialize ZoneManager on dashboard pages (not on register page)
+const zoneManager = document.getElementById('zone-section') ? new ZoneManager() : null;
 
 // ===== Embedded College Dashboard Logic =====
 async function countRegistrations(collegeId) {
@@ -1938,6 +3064,55 @@ async function loadCollegeDashboard(collegeId) {
             if (addBtn) addBtn.onclick = () => openEventModal({ college_id: collegeId });
             await loadCollegeEvents(collegeId);
         } catch (_) { }
+
+        // Generate College Report button handler
+        const generateReportBtn = document.getElementById('cd-generate-report-btn');
+        if (generateReportBtn) {
+            generateReportBtn.onclick = async () => {
+                const user = authManager.currentUser;
+                if (!user) {
+                    flashNotification.showError('Error', 'User not authenticated');
+                    return;
+                }
+
+                const originalHTML = generateReportBtn.innerHTML;
+                generateReportBtn.disabled = true;
+                generateReportBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Generating...';
+
+                try {
+                    const payload = new URLSearchParams();
+                    payload.append('action', 'generateCollegeReport');
+                    payload.append('collegeId', collegeId);
+                    payload.append('userEmail', user.email);
+                    payload.append('userRole', user.role);
+                    payload.append('userName', user.full_name || user.email);
+
+                    const response = await fetch(GAS_WEB_APP_URL, {
+                        method: 'POST',
+                        mode: 'cors',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: payload
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        flashNotification.showSuccess('Report Generated', `College report has been sent to ${user.email}`);
+                    } else {
+                        flashNotification.showError('Error', result.error || 'Failed to generate report');
+                    }
+                } catch (error) {
+                    console.error('Error generating report:', error);
+                    flashNotification.showError('Error', 'Failed to generate report. Please try again.');
+                } finally {
+                    generateReportBtn.disabled = false;
+                    generateReportBtn.innerHTML = originalHTML;
+                }
+            };
+        }
+
         setCdLoading(false);
     } catch (e) {
         flashNotification.showError('Error', 'Failed to load college');
@@ -1946,7 +3121,7 @@ async function loadCollegeDashboard(collegeId) {
 }
 
 
-async function loadCollegeMembers(collegeId) {
+async function loadCollegeMembers(collegeId, contextNames = {}) {
     try {
         const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         // Show skeletons while loading
@@ -2052,7 +3227,9 @@ async function loadCollegeMembers(collegeId) {
                     unit_name: m.unit_name || '',
                     status: m.status || 'pending',
                     college_id: collegeId,
-                    zone_id: (zoneManager && zoneManager.currentZone ? zoneManager.currentZone.id : null)
+                    college_name: contextNames.collegeName || '',
+                    zone_id: (zoneManager && zoneManager.currentZone ? zoneManager.currentZone.id : null) || contextNames.zoneId,
+                    zone_name: (zoneManager && zoneManager.currentZone ? zoneManager.currentZone.name || zoneManager.currentZone.zone_name : '') || contextNames.zoneName || ''
                 });
             });
             card.querySelector('.cd-delete')?.addEventListener('click', async () => {
@@ -2110,7 +3287,7 @@ function renderCollegeGridSkeleton() {
     const grid = document.getElementById('college-grid');
     if (!grid) return;
     grid.innerHTML = '';
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 12; i++) {
         const s = document.createElement('div');
         s.className = 'zs-skeleton';
         s.style.cssText = 'height:120px;border-radius:16px';
@@ -2443,7 +3620,7 @@ async function populateCategoryDropdown(selectElementId, selectedId = null) {
     if (!select) return;
 
     try {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
             .from('event_categories')
             .select('id, name')
             .order('name', { ascending: true });
@@ -2470,7 +3647,7 @@ async function populateCategoryDropdown(selectElementId, selectedId = null) {
 
 // NEW FUNCTION for the edit flow
 async function manageDisplayForEvent(eventId) {
-    const { data: pub, error } = await supabase
+    const { data: pub, error } = await supabaseClient
         .from('event_publications')
         .select('*')
         .eq('event_id', eventId)
@@ -2482,7 +3659,7 @@ async function manageDisplayForEvent(eventId) {
     }
 
     if (!tempEventData || tempEventData.id !== eventId) {
-        const { data: ev, error: eventError } = await supabase
+        const { data: ev, error: eventError } = await supabaseClient
             .from('events')
             .select('*')
             .eq('id', eventId)
@@ -2514,9 +3691,9 @@ async function saveEventForm(e) {
             const file = fileInput.files[0];
             if (file.size > 500 * 1024) { flashNotification.showError('File too large', 'Image must be less than 500KB.'); setLoading(false); return; }
             const filePath = `event-${Date.now()}.${file.name.split('.').pop()}`;
-            const { error: uploadError } = await supabase.storage.from('event-banners').upload(filePath, file);
+            const { error: uploadError } = await supabaseClient.storage.from('event-banners').upload(filePath, file);
             if (uploadError) throw new Error('Image upload failed: ' + uploadError.message);
-            const { data: urlData } = supabase.storage.from('event-banners').getPublicUrl(filePath);
+            const { data: urlData } = supabaseClient.storage.from('event-banners').getPublicUrl(filePath);
             bannerUrl = urlData.publicUrl;
         }
 
@@ -2530,11 +3707,11 @@ async function saveEventForm(e) {
 
         let savedEvent;
         if (eventId) {
-            const { data, error } = await supabase.from('events').update(eventData).eq('id', eventId).select().single();
+            const { data, error } = await supabaseClient.from('events').update(eventData).eq('id', eventId).select().single();
             if (error) throw error;
             savedEvent = data;
         } else {
-            const { data, error } = await supabase.from('events').insert([eventData]).select().single();
+            const { data, error } = await supabaseClient.from('events').insert([eventData]).select().single();
             if (error) throw error;
             savedEvent = data;
         }
@@ -2679,7 +3856,7 @@ async function saveEventDisplayPreferences(displayOnHome, displayOnUpcoming, ext
             speakers: extendedDetails.speakers ?? existingPublication?.speakers ?? null
         };
 
-        const { error } = await supabase.rpc('upsert_event_publication', {
+        const { error } = await supabaseClient.rpc('upsert_event_publication', {
             p_event_id: tempEventData.id,
             p_college_id: tempEventData.college_id,
             p_display_on_home: displayOnHome,
@@ -2754,8 +3931,12 @@ function openMemberModal(prefill) {
     // Show display labels
     const collegeLabel = document.getElementById('member-college-display');
     const zoneLabel = document.getElementById('member-zone-display');
-    if (collegeLabel) collegeLabel.value = document.getElementById('cd-name')?.textContent || `ID ${resolvedCollegeId}`;
-    if (zoneLabel) zoneLabel.value = document.getElementById('cd-zone')?.textContent || `ID ${resolvedZoneId}`;
+    if (collegeLabel) {
+        collegeLabel.value = prefill.college_name || document.getElementById('cd-name')?.textContent || `ID ${resolvedCollegeId}`;
+    }
+    if (zoneLabel) {
+        zoneLabel.value = prefill.zone_name || document.getElementById('cd-zone')?.textContent || `ID ${resolvedZoneId}`;
+    }
     document.getElementById('member-name').value = prefill.applicant_name || '';
     document.getElementById('member-email').value = prefill.email || '';
     document.getElementById('member-phone').value = prefill.phone || '';
@@ -2764,8 +3945,120 @@ function openMemberModal(prefill) {
     // Setup unit helpers (datalist + required toggle based on role)
     try { setupMemberUnitHelpers(); } catch (_) { }
 
+    // Setup live validation
+    setupMemberFormLiveValidation();
+
     modal.style.display = 'block';
     document.body.classList.add('modal-open');
+}
+
+// Live validation for member form
+function setupMemberFormLiveValidation() {
+    const nameInput = document.getElementById('member-name');
+    const emailInput = document.getElementById('member-email');
+    const phoneInput = document.getElementById('member-phone');
+    const roleSelect = document.getElementById('member-role');
+    const unitInput = document.getElementById('member-unit');
+
+    // Helper to show validation message
+    const showValidation = (input, isValid, message) => {
+        if (!input) return;
+
+        // Remove existing validation message
+        let validationMsg = input.parentElement.querySelector('.validation-message');
+        if (!validationMsg) {
+            validationMsg = document.createElement('small');
+            validationMsg.className = 'validation-message';
+            validationMsg.style.cssText = 'display:block; margin-top:4px; font-size:12px;';
+            input.parentElement.appendChild(validationMsg);
+        }
+
+        if (isValid) {
+            input.style.borderColor = '#138808';
+            validationMsg.style.color = '#138808';
+            validationMsg.textContent = '✓ Valid';
+        } else {
+            input.style.borderColor = '#dc3545';
+            validationMsg.style.color = '#dc3545';
+            validationMsg.textContent = message;
+        }
+    };
+
+    const clearValidation = (input) => {
+        if (!input) return;
+        input.style.borderColor = '';
+        const validationMsg = input.parentElement.querySelector('.validation-message');
+        if (validationMsg) validationMsg.remove();
+    };
+
+    // Full Name validation
+    if (nameInput) {
+        nameInput.addEventListener('input', (e) => {
+            const value = e.target.value.trim();
+            if (value.length === 0) {
+                clearValidation(nameInput);
+            } else if (value.length < 3) {
+                showValidation(nameInput, false, 'Name must be at least 3 characters');
+            } else {
+                showValidation(nameInput, true, '');
+            }
+        });
+    }
+
+    // Email validation
+    if (emailInput) {
+        emailInput.addEventListener('input', (e) => {
+            const value = e.target.value.trim();
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (value.length === 0) {
+                clearValidation(emailInput);
+            } else if (!emailRegex.test(value)) {
+                showValidation(emailInput, false, 'Please enter a valid email address');
+            } else {
+                showValidation(emailInput, true, '');
+            }
+        });
+    }
+
+    // Phone validation
+    if (phoneInput) {
+        phoneInput.addEventListener('input', (e) => {
+            const value = e.target.value.trim();
+            const phoneRegex = /^[0-9]{10}$/;
+            if (value.length === 0) {
+                clearValidation(phoneInput);
+            } else if (!/^[0-9]+$/.test(value)) {
+                showValidation(phoneInput, false, 'Phone must contain only digits');
+            } else if (value.length !== 10) {
+                showValidation(phoneInput, false, `Phone must be 10 digits (currently ${value.length})`);
+            } else {
+                showValidation(phoneInput, true, '');
+            }
+        });
+    }
+
+    // Role validation
+    if (roleSelect) {
+        roleSelect.addEventListener('change', (e) => {
+            if (e.target.value) {
+                showValidation(roleSelect, true, '');
+            } else {
+                showValidation(roleSelect, false, 'Please select a role');
+            }
+        });
+    }
+
+    // Unit validation
+    if (unitInput) {
+        unitInput.addEventListener('input', (e) => {
+            const value = e.target.value.trim();
+            if (value.length === 0) {
+                clearValidation(unitInput);
+            } else {
+                showValidation(unitInput, true, '');
+            }
+        });
+    }
 }
 
 // Lightweight custom confirm dialog using existing modal styles
@@ -2836,6 +4129,8 @@ async function showConfirmDialog(opts) {
 
 document.getElementById('member-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
+
+    // Collect form data
     const payload = {
         id: document.getElementById('member-id').value.trim(),
         applicant_name: document.getElementById('member-name').value.trim(),
@@ -2843,16 +4138,69 @@ document.getElementById('member-form')?.addEventListener('submit', async (e) => 
         phone: document.getElementById('member-phone').value.trim(),
         applying_for: document.getElementById('member-role').value,
         unit_name: document.getElementById('member-unit').value.trim(),
-        // 'status' field removed from payload
         college_id: parseInt(document.getElementById('member-college-id').value, 10) || null,
         zone_id: parseInt(document.getElementById('member-zone-id').value, 10) || null
     };
 
+    // === VALIDATION ===
+
+    // 1. Validate Full Name (required, minimum 3 characters)
+    if (!payload.applicant_name) {
+        flashNotification.showError('Validation Error', 'Full Name is required');
+        document.getElementById('member-name').focus();
+        return;
+    }
+    if (payload.applicant_name.length < 3) {
+        flashNotification.showError('Validation Error', 'Full Name must be at least 3 characters');
+        document.getElementById('member-name').focus();
+        return;
+    }
+
+    // 2. Validate Email (required, valid format)
+    if (!payload.email) {
+        flashNotification.showError('Validation Error', 'Email is required');
+        document.getElementById('member-email').focus();
+        return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(payload.email)) {
+        flashNotification.showError('Validation Error', 'Please enter a valid email address');
+        document.getElementById('member-email').focus();
+        return;
+    }
+
+    // 3. Validate Phone (required, 10 digits)
+    if (!payload.phone) {
+        flashNotification.showError('Validation Error', 'Phone number is required');
+        document.getElementById('member-phone').focus();
+        return;
+    }
+    const phoneRegex = /^[0-9]{10}$/;
+    if (!phoneRegex.test(payload.phone)) {
+        flashNotification.showError('Validation Error', 'Phone number must be exactly 10 digits');
+        document.getElementById('member-phone').focus();
+        return;
+    }
+
+    // 4. Validate Applying For (required)
+    if (!payload.applying_for) {
+        flashNotification.showError('Validation Error', 'Please select a role');
+        document.getElementById('member-role').focus();
+        return;
+    }
+
+    // 5. Validate College ID (required)
     if (!payload.college_id && window.__yuvaActiveCollegeId) {
         payload.college_id = window.__yuvaActiveCollegeId;
         const hiddenCollege = document.getElementById('member-college-id');
         if (hiddenCollege) hiddenCollege.value = String(payload.college_id);
     }
+    if (!payload.college_id) {
+        flashNotification.showError('Validation Error', 'College information is missing');
+        return;
+    }
+
+    // 6. Validate Zone ID (required)
     if (!payload.zone_id) {
         if (zoneManager && zoneManager.currentZone) {
             payload.zone_id = zoneManager.currentZone.id;
@@ -2862,7 +4210,12 @@ document.getElementById('member-form')?.addEventListener('submit', async (e) => 
         const hiddenZone = document.getElementById('member-zone-id');
         if (hiddenZone) hiddenZone.value = String(payload.zone_id);
     }
+    if (!payload.zone_id) {
+        flashNotification.showError('Validation Error', 'Zone information is missing');
+        return;
+    }
 
+    // 7. Auto-fill Unit Name if empty based on role
     try {
         const roleNorm = (payload.applying_for || '').toLowerCase();
         if (!payload.unit_name) {
@@ -2874,10 +4227,14 @@ document.getElementById('member-form')?.addEventListener('submit', async (e) => 
         }
     } catch (_) { }
 
-    if (!payload.applicant_name || !payload.email || !payload.phone || !payload.unit_name || !payload.college_id) {
-        flashNotification.showError('Missing fields', 'Please fill in all required fields');
+    // 8. Final check for unit name
+    if (!payload.unit_name) {
+        flashNotification.showError('Validation Error', 'Unit/Organization name is required');
+        document.getElementById('member-unit').focus();
         return;
     }
+
+    // === END VALIDATION ===
 
     const saveBtn = document.getElementById('member-save-btn');
     const setLoading = (on, label) => {
@@ -3098,19 +4455,70 @@ function openCollegeModal() {
 
     const modal = document.getElementById('college-modal-add');
     if (!modal) return;
-    // populate zones into select
-    const zoneSelect = document.getElementById('college-zone-input');
-    if (zoneSelect) {
-        zoneSelect.innerHTML = '';
+
+    // Populate custom dropdown
+    const zoneOptions = document.getElementById('college-zone-options');
+    const zoneHiddenInput = document.getElementById('college-zone-input');
+    const zoneContainer = document.getElementById('college-zone-container');
+    const zoneTriggerLabel = zoneContainer ? zoneContainer.querySelector('.selected-value') : null;
+
+    if (zoneOptions && zoneHiddenInput && zoneTriggerLabel) {
+        zoneOptions.innerHTML = '';
         const zones = (zoneManager && zoneManager.zones) ? zoneManager.zones : [];
+
         zones.forEach(z => {
-            const opt = document.createElement('option');
-            opt.value = z.id;
-            opt.textContent = z.zone_name;
-            zoneSelect.appendChild(opt);
+            const optDiv = document.createElement('div');
+            optDiv.className = 'custom-select-option';
+            optDiv.dataset.value = z.id;
+            optDiv.textContent = z.zone_name;
+
+            // Selection logic
+            optDiv.onclick = (e) => {
+                e.stopPropagation();
+                zoneHiddenInput.value = z.id;
+                zoneTriggerLabel.textContent = z.zone_name;
+
+                // Update active classes
+                zoneOptions.querySelectorAll('.custom-select-option').forEach(el => el.classList.remove('selected'));
+                optDiv.classList.add('selected');
+
+                // Close dropdown
+                zoneContainer.classList.remove('active');
+            };
+
+            zoneOptions.appendChild(optDiv);
         });
-        if (zoneManager && zoneManager.currentZone) zoneSelect.value = zoneManager.currentZone.id;
+
+        // Set initial value
+        if (zoneManager && zoneManager.currentZone) {
+            const currentZone = zoneManager.currentZone;
+            zoneHiddenInput.value = currentZone.id;
+            zoneTriggerLabel.textContent = currentZone.zone_name;
+
+            // Mark as selected
+            const selectedOpt = Array.from(zoneOptions.children).find(opt => opt.dataset.value == currentZone.id);
+            if (selectedOpt) selectedOpt.classList.add('selected');
+        } else if (zones.length > 0) {
+            // Default to first
+            zoneHiddenInput.value = zones[0].id;
+            zoneTriggerLabel.textContent = zones[0].zone_name;
+            zoneOptions.children[0].classList.add('selected');
+        }
+
+        // Initialize the click handler for the trigger
+        const zoneTrigger = zoneContainer.querySelector('.custom-select-trigger');
+        if (zoneTrigger) {
+            zoneTrigger.onclick = (e) => {
+                e.stopPropagation();
+                // Close other open dropdowns
+                document.querySelectorAll('.custom-select-container').forEach(c => {
+                    if (c !== zoneContainer) c.classList.remove('active');
+                });
+                zoneContainer.classList.toggle('active');
+            };
+        }
     }
+
     modal.style.display = 'block';
     document.body.classList.add('modal-open');
 }
@@ -3142,7 +4550,7 @@ document.getElementById('college-form')?.addEventListener('submit', async (e) =>
         // Pre-check: avoid duplicate college_code
         setLoading(true, 'Checking');
         try {
-            const { data: existing } = await supabase
+            const { data: existing } = await supabaseClient
                 .from('colleges')
                 .select('id')
                 .eq('college_code', payload.college_code)
@@ -3398,5 +4806,384 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('export-colleges-btn')?.addEventListener('click', () => {
         // This remains the same, as the 'base' source correctly exports all college details.
         handleExport('base', 'export-colleges-btn');
+    });
+
+    // ========== ZONE CONVENER FEATURES ==========
+
+    // Export Zone Data Feature
+    document.getElementById('export-zone-data-btn')?.addEventListener('click', async () => {
+        const btn = document.getElementById('export-zone-data-btn');
+        const originalText = btn.innerHTML;
+
+        try {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting...';
+
+            const zoneId = zoneManager?.currentZone?.id;
+            const zoneName = zoneManager?.currentZone?.name || 'Zone';
+
+            if (!zoneId) {
+                flashNotification.showError('Error', 'Please select a zone first');
+                return;
+            }
+
+            // Get colleges and members data for this zone
+            const colleges = zoneManager?.colleges || [];
+
+            // Fetch all registrations and filter by colleges in this zone
+            const allRegsResponse = await SupabaseService.getAllRegistrations();
+            if (!allRegsResponse.success) {
+                throw new Error(allRegsResponse.error || 'Failed to fetch registrations');
+            }
+
+            const collegeIds = colleges.map(c => c.id);
+            const registrations = (allRegsResponse.registrations || []).filter(r =>
+                collegeIds.includes(r.college_id)
+            );
+
+            // Create CSV content
+            let csvContent = "College Name,College Code,Total Members,Approved Members,Active Status,Unit Head,Unit Head Email,Unit Head Phone\n";
+
+            colleges.forEach(college => {
+                const collegeRegs = registrations.filter(r => r.college_id === college.id);
+                const approvedRegs = collegeRegs.filter(r => r.status === 'approved');
+                const unitHead = collegeRegs.find(r => (r.applying_for === 'unit_head' || r.applying_for === 'Unit Head') && r.status === 'approved');
+                const totalMembers = collegeRegs.length;
+                const approvedCount = approvedRegs.length;
+                csvContent += `"${college.college_name}","${college.college_code}",${totalMembers},${approvedCount},${college.is_active ? 'Active' : 'Inactive'},"${unitHead?.applicant_name || 'N/A'}","${unitHead?.email || 'N/A'}","${unitHead?.phone || 'N/A'}"\n`;
+            });
+
+            // Add members section
+            csvContent += "\n\nAll Members\n";
+            csvContent += "Name,Email,Phone,College,Role,Status\n";
+            registrations.forEach(reg => {
+                const college = colleges.find(c => c.id === reg.college_id);
+                const roleName = reg.applying_for || 'N/A';
+                const status = reg.status || 'Unknown';
+                csvContent += `"${reg.applicant_name || 'N/A'}","${reg.email}","${reg.phone || 'N/A'}","${college?.college_name || 'N/A'}","${roleName}","${status}"\n`;
+            });
+
+            // Download CSV
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `${zoneName}_Data_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+
+            flashNotification.showSuccess('Export Complete', `Zone data exported successfully`);
+        } catch (error) {
+            console.error('Export error:', error);
+            flashNotification.showError('Export Failed', 'Could not export zone data');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    });
+
+    // Contact Super Admin Feature
+    document.getElementById('contact-superadmin-btn')?.addEventListener('click', () => {
+        const modal = document.getElementById('contact-superadmin-modal');
+        modal.style.display = 'block';
+        document.body.classList.add('modal-open');
+    });
+
+    // Character counter for message textarea
+    const messageTextarea = document.getElementById('contact-message');
+    const messageCounter = document.getElementById('contact-message-count');
+
+    if (messageTextarea && messageCounter) {
+        messageTextarea.addEventListener('input', () => {
+            const count = messageTextarea.value.length;
+            messageCounter.textContent = count;
+
+            // Change color based on character count
+            if (count > 4500) {
+                messageCounter.style.color = '#EF4444'; // Red
+            } else if (count > 4000) {
+                messageCounter.style.color = '#F59E0B'; // Orange
+            } else {
+                messageCounter.style.color = '#64748B'; // Gray
+            }
+        });
+    }
+
+    document.getElementById('contact-superadmin-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const btn = e.target.querySelector('button[type="submit"]');
+        const originalText = btn.innerHTML;
+
+        try {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+
+            const subject = document.getElementById('contact-subject').value;
+            const category = document.getElementById('contact-category').value;
+            const message = document.getElementById('contact-message').value;
+
+            const user = authManager.currentUser;
+            const zoneName = zoneManager?.currentZone?.zone_name || zoneManager?.currentZone?.name || 'Unknown Zone';
+            const zoneId = zoneManager?.currentZone?.id || null;
+
+            // Validation
+            if (!subject || !message) {
+                flashNotification.showError('Error', 'Please fill in all required fields');
+                return;
+            }
+
+            if (message.length > 5000) {
+                flashNotification.showError('Error', 'Message cannot exceed 5000 characters');
+                return;
+            }
+
+            if (!user || !user.email) {
+                flashNotification.showError('Error', 'User session not found. Please login again.');
+                return;
+            }
+
+            // Send to backend via Google Apps Script
+            const response = await fetch(`${GAS_WEB_APP_URL}?action=notify&method=contactSuperAdmin`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    senderName: user.full_name || user.email,
+                    senderEmail: user.email,
+                    senderRole: user.role || 'zone_convener',
+                    zoneName: zoneName,
+                    zoneId: zoneId,
+                    subject: subject,
+                    category: category,
+                    message: message
+                })
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Server returned ${response.status}: ${errorText}`);
+            }
+
+            const result = await response.json();
+
+            if (result.success) {
+                flashNotification.showSuccess('Message Sent', 'Your message has been sent to the Super Admin team');
+                document.getElementById('contact-superadmin-modal').style.display = 'none';
+                document.body.classList.remove('modal-open');
+                document.getElementById('contact-superadmin-form').reset();
+            } else {
+                flashNotification.showError('Failed', result.error || 'Could not send message');
+            }
+
+        } catch (error) {
+            flashNotification.showError('Error', error.message || 'Could not send message to Super Admin');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    });
+
+    // Contact Zone Convener Feature (for Mentors)
+    // Character counter for mentor message textarea
+    const mentorMessageTextarea = document.getElementById('mentor-contact-message');
+    const mentorMessageCounter = document.getElementById('mentor-contact-message-count');
+
+    if (mentorMessageTextarea && mentorMessageCounter) {
+        mentorMessageTextarea.addEventListener('input', () => {
+            const count = mentorMessageTextarea.value.length;
+            mentorMessageCounter.textContent = count;
+
+            // Change color based on character count
+            if (count > 4500) {
+                mentorMessageCounter.style.color = '#EF4444'; // Red
+            } else if (count > 4000) {
+                mentorMessageCounter.style.color = '#F59E0B'; // Orange
+            } else {
+                mentorMessageCounter.style.color = '#64748B'; // Gray
+            }
+        });
+    }
+
+    document.getElementById('contact-zone-convener-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const btn = e.target.querySelector('button[type="submit"]');
+        const originalText = btn.innerHTML;
+
+        try {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+
+            const subject = document.getElementById('mentor-contact-subject').value;
+            const category = document.getElementById('mentor-contact-category').value;
+            const message = document.getElementById('mentor-contact-message').value;
+
+            const user = authManager.currentUser;
+            const context = window.__mentorContactContext || {};
+
+            // Validation
+            if (!subject || !message) {
+                flashNotification.showError('Error', 'Please fill in all required fields');
+                return;
+            }
+
+            if (message.length > 5000) {
+                flashNotification.showError('Error', 'Message cannot exceed 5000 characters');
+                return;
+            }
+
+            if (!user || !user.email) {
+                flashNotification.showError('Error', 'User session not found. Please login again.');
+                return;
+            }
+
+            // Save to mentor_messages table in Supabase
+            const { data, error } = await supabaseClient
+                .from('mentor_messages')
+                .insert({
+                    sender_name: user.full_name || user.email,
+                    sender_email: user.email,
+                    sender_role: 'mentor',
+                    college_id: context.collegeId,
+                    college_name: context.collegeName,
+                    zone_id: context.zoneId,
+                    zone_name: context.zoneName,
+                    subject: subject,
+                    category: category,
+                    message: message,
+                    status: 'unread',
+                    created_at: new Date().toISOString()
+                });
+
+            if (error) {
+                throw new Error(error.message || 'Failed to send message');
+            }
+
+            flashNotification.showSuccess('Message Sent', 'Your message has been sent to the Zone Convener');
+            document.getElementById('contact-zone-convener-modal').style.display = 'none';
+            document.body.classList.remove('modal-open');
+            document.getElementById('contact-zone-convener-form').reset();
+            if (mentorMessageCounter) mentorMessageCounter.textContent = '0';
+
+        } catch (error) {
+            console.error('Error sending mentor message:', error);
+            flashNotification.showError('Error', error.message || 'Could not send message to Zone Convener');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    });
+
+    // Mentor Messages Management (for Zone Conveners)
+    async function loadMentorMessages(zoneId) {
+        const messagesList = document.getElementById('mentor-messages-list');
+        const unreadBadge = document.getElementById('unread-messages-count');
+
+        if (!messagesList || !zoneId) return;
+
+        messagesList.innerHTML = '<div class="loading-messages"><i class="fas fa-spinner fa-spin"></i> Loading messages...</div>';
+
+        try {
+            const { data: messages, error } = await supabaseClient
+                .from('mentor_messages')
+                .select('*')
+                .eq('zone_id', zoneId)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            if (!messages || messages.length === 0) {
+                messagesList.innerHTML = '<div class="empty-messages" style="text-align:center;padding:40px;color:#6b7280;"><i class="fas fa-inbox" style="font-size:48px;margin-bottom:16px;display:block;opacity:0.5;"></i>No messages from mentors yet</div>';
+                if (unreadBadge) unreadBadge.style.display = 'none';
+                return;
+            }
+
+            // Count unread messages
+            const unreadCount = messages.filter(m => m.status === 'unread').length;
+            if (unreadBadge) {
+                if (unreadCount > 0) {
+                    unreadBadge.textContent = `${unreadCount} unread`;
+                    unreadBadge.style.display = 'inline-block';
+                } else {
+                    unreadBadge.style.display = 'none';
+                }
+            }
+
+            // Render messages
+            messagesList.innerHTML = messages.map(msg => `
+                <div class="mentor-message-card ${msg.status === 'unread' ? 'unread' : ''}" data-message-id="${msg.id}" style="
+                    background: ${msg.status === 'unread' ? '#f0f9ff' : '#fff'};
+                    border: 1px solid ${msg.status === 'unread' ? '#0ea5e9' : '#e5e7eb'};
+                    border-radius: 12px;
+                    padding: 16px;
+                    margin-bottom: 12px;
+                    ${msg.status === 'unread' ? 'border-left: 4px solid #0ea5e9;' : ''}
+                ">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+                        <div>
+                            <strong style="font-size:16px;color:#1f2937;">${msg.subject}</strong>
+                            <span style="background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px;font-size:11px;margin-left:8px;">${msg.category}</span>
+                            ${msg.status === 'unread' ? '<span style="background:#0ea5e9;color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;margin-left:4px;">NEW</span>' : ''}
+                        </div>
+                        <span style="color:#9ca3af;font-size:12px;">${new Date(msg.created_at).toLocaleString()}</span>
+                    </div>
+                    <div style="color:#374151;font-size:14px;line-height:1.6;margin-bottom:12px;">${msg.message}</div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding-top:12px;border-top:1px solid #f3f4f6;">
+                        <div style="font-size:13px;color:#6b7280;">
+                            <i class="fas fa-user"></i> <strong>${msg.sender_name || msg.sender_email}</strong> 
+                            <span style="margin-left:8px;"><i class="fas fa-university"></i> ${msg.college_name || 'Unknown College'}</span>
+                        </div>
+                        <div style="display:flex;gap:8px;">
+                            ${msg.status === 'unread' ? `
+                                <button class="btn secondary mark-read-btn" data-id="${msg.id}" style="padding:6px 12px;font-size:12px;">
+                                    <i class="fas fa-check"></i> Mark Read
+                                </button>
+                            ` : ''}
+                            <a href="mailto:${msg.sender_email}?subject=Re: ${encodeURIComponent(msg.subject)}" class="btn primary" style="padding:6px 12px;font-size:12px;text-decoration:none;">
+                                <i class="fas fa-reply"></i> Reply
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            // Add click handlers for mark as read buttons
+            messagesList.querySelectorAll('.mark-read-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const messageId = e.target.closest('.mark-read-btn').dataset.id;
+                    await markMessageAsRead(messageId, zoneId);
+                });
+            });
+
+        } catch (error) {
+            console.error('Error loading mentor messages:', error);
+            messagesList.innerHTML = '<div class="error-messages" style="text-align:center;padding:20px;color:#ef4444;"><i class="fas fa-exclamation-triangle"></i> Failed to load messages</div>';
+        }
+    }
+
+    async function markMessageAsRead(messageId, zoneId) {
+        try {
+            const { error } = await supabaseClient
+                .from('mentor_messages')
+                .update({ status: 'read' })
+                .eq('id', messageId);
+
+            if (error) throw error;
+
+            flashNotification.showSuccess('Done', 'Message marked as read');
+            loadMentorMessages(zoneId);
+        } catch (error) {
+            console.error('Error marking message as read:', error);
+            flashNotification.showError('Error', 'Could not mark message as read');
+        }
+    }
+
+    // Make loadMentorMessages available globally
+    window.loadMentorMessages = loadMentorMessages;
+
+    // Refresh button handler
+    document.getElementById('refresh-mentor-messages')?.addEventListener('click', () => {
+        const zoneId = zoneManager?.currentZone?.id;
+        if (zoneId) {
+            loadMentorMessages(zoneId);
+        }
     });
 });

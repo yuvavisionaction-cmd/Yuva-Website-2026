@@ -1362,3 +1362,827 @@ create table public.security_keys (
   constraint security_keys_pkey primary key (id),
   constraint security_keys_email_key unique (email)
 ) TABLESPACE pg_default;
+
+
+
+-- ============================================
+-- YUVA ALUMNI - SUPABASE DATABASE SCHEMA
+-- ============================================
+-- This script creates the complete database structure
+-- for the YUVA Alumni system in Supabase
+-- ============================================
+-- Drop existing table if needed (CAUTION: This deletes all data!)
+-- DROP TABLE IF EXISTS public.alumni CASCADE;
+-- ============================================
+-- MAIN ALUMNI TABLE
+-- ============================================
+CREATE TABLE IF NOT EXISTS public.alumni (
+    -- Primary Key
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    -- Personal Information
+    full_name TEXT NOT NULL,
+    email TEXT NOT NULL UNIQUE,
+    phone TEXT NOT NULL,
+    -- Academic Information
+    batch_year TEXT NOT NULL,
+    -- Current Information
+    current_city TEXT NOT NULL,
+    profession TEXT NOT NULL,
+    organization TEXT NOT NULL,
+    -- Profile & Media
+    image_url TEXT,
+    -- Interests (stored as array)
+    interests TEXT [] DEFAULT '{}',
+    -- Status Flags
+    is_featured BOOLEAN DEFAULT FALSE,
+    is_approved BOOLEAN DEFAULT FALSE,
+    -- Featured Alumni Fields
+    badge TEXT,
+    quote TEXT,
+    -- Timestamps
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+    -- Constraints
+    CONSTRAINT email_format CHECK (
+        email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
+    ),
+    CONSTRAINT phone_length CHECK (LENGTH(phone) >= 10)
+);
+-- ============================================
+-- INDEXES FOR PERFORMANCE
+-- ============================================
+-- Index on email for fast duplicate checks
+CREATE INDEX IF NOT EXISTS idx_alumni_email ON public.alumni(email);
+-- Index on batch year for filtering
+CREATE INDEX IF NOT EXISTS idx_alumni_batch_year ON public.alumni(batch_year);
+-- Index on featured status for homepage queries
+CREATE INDEX IF NOT EXISTS idx_alumni_is_featured ON public.alumni(is_featured)
+WHERE is_featured = true;
+-- Index on approved status for public queries
+CREATE INDEX IF NOT EXISTS idx_alumni_is_approved ON public.alumni(is_approved)
+WHERE is_approved = true;
+-- Index on created_at for sorting
+CREATE INDEX IF NOT EXISTS idx_alumni_created_at ON public.alumni(created_at DESC);
+-- Composite index for featured + approved queries
+CREATE INDEX IF NOT EXISTS idx_alumni_featured_approved ON public.alumni(is_featured, is_approved)
+WHERE is_featured = true
+    AND is_approved = true;
+-- Full-text search index on name, city, and profession
+CREATE INDEX IF NOT EXISTS idx_alumni_search ON public.alumni USING gin(
+    to_tsvector(
+        'english',
+        full_name || ' ' || current_city || ' ' || profession
+    )
+);
+-- ============================================
+-- TRIGGERS
+-- ============================================
+-- Function to update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_updated_at_column() RETURNS TRIGGER AS $$ BEGIN NEW.updated_at = TIMEZONE('utc'::text, NOW());
+RETURN NEW;
+END;
+$$ language 'plpgsql';
+-- Trigger to auto-update updated_at
+DROP TRIGGER IF EXISTS update_alumni_updated_at ON public.alumni;
+CREATE TRIGGER update_alumni_updated_at BEFORE
+UPDATE ON public.alumni FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- ============================================
+-- ROW LEVEL SECURITY (RLS) POLICIES
+-- ============================================
+-- Enable RLS
+ALTER TABLE public.alumni ENABLE ROW LEVEL SECURITY;
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Public can view approved alumni" ON public.alumni;
+DROP POLICY IF EXISTS "Service role can insert alumni" ON public.alumni;
+DROP POLICY IF EXISTS "Service role can update alumni" ON public.alumni;
+DROP POLICY IF EXISTS "Service role can delete alumni" ON public.alumni;
+-- Policy 1: Public can view only approved alumni
+CREATE POLICY "Public can view approved alumni" ON public.alumni FOR
+SELECT USING (is_approved = true);
+-- Policy 2: Service role can insert new alumni
+CREATE POLICY "Service role can insert alumni" ON public.alumni FOR
+INSERT WITH CHECK (true);
+-- Policy 3: Service role can update alumni
+CREATE POLICY "Service role can update alumni" ON public.alumni FOR
+UPDATE USING (true) WITH CHECK (true);
+-- Policy 4: Service role can delete alumni
+CREATE POLICY "Service role can delete alumni" ON public.alumni FOR DELETE USING (true);
+-- ============================================
+-- STORAGE BUCKET FOR ALUMNI IMAGES
+-- ============================================
+-- Create storage bucket (if not exists)
+INSERT INTO storage.buckets (
+        id,
+        name,
+        public,
+        file_size_limit,
+        allowed_mime_types
+    )
+VALUES (
+        'alumni-images',
+        'alumni-images',
+        true,
+        512000,
+        -- 500 KB limit
+        ARRAY ['image/jpeg', 'image/png', 'image/webp', 'image/jpg']
+    ) ON CONFLICT (id) DO NOTHING;
+-- ============================================
+-- STORAGE POLICIES
+-- ============================================
+-- Drop existing storage policies if they exist
+DROP POLICY IF EXISTS "Public can view alumni images" ON storage.objects;
+DROP POLICY IF EXISTS "Service role can upload alumni images" ON storage.objects;
+DROP POLICY IF EXISTS "Service role can update alumni images" ON storage.objects;
+DROP POLICY IF EXISTS "Service role can delete alumni images" ON storage.objects;
+-- Policy 1: Public can view alumni images
+CREATE POLICY "Public can view alumni images" ON storage.objects FOR
+SELECT USING (bucket_id = 'alumni-images');
+-- Policy 2: Service role can upload alumni images
+CREATE POLICY "Service role can upload alumni images" ON storage.objects FOR
+INSERT WITH CHECK (bucket_id = 'alumni-images');
+-- Policy 3: Service role can update alumni images
+CREATE POLICY "Service role can update alumni images" ON storage.objects FOR
+UPDATE USING (bucket_id = 'alumni-images') WITH CHECK (bucket_id = 'alumni-images');
+-- Policy 4: Service role can delete alumni images
+CREATE POLICY "Service role can delete alumni images" ON storage.objects FOR DELETE USING (bucket_id = 'alumni-images');
+-- ============================================
+-- SAMPLE DATA (OPTIONAL - FOR TESTING)
+-- ============================================
+-- Uncomment to insert sample featured alumni
+/*
+ INSERT INTO public.alumni (
+ full_name, email, phone, batch_year, current_city, 
+ profession, organization, is_featured, is_approved, 
+ badge, quote, image_url
+ ) VALUES 
+ (
+ 'Rahul Sharma',
+ 'rahul.sharma@example.com',
+ '9876543210',
+ '2020',
+ 'Mumbai',
+ 'Software Engineer',
+ 'Google India',
+ true,
+ true,
+ 'Tech Leader',
+ 'YUVA gave me the platform to grow and connect with amazing people!',
+ 'https://ui-avatars.com/api/?name=Rahul+Sharma&size=400&background=FF9933&color=fff'
+ ),
+ (
+ 'Priya Patel',
+ 'priya.patel@example.com',
+ '9876543211',
+ '2019',
+ 'Bangalore',
+ 'Product Manager',
+ 'Amazon',
+ true,
+ true,
+ 'Innovator',
+ 'The network I built at YUVA has been invaluable in my career.',
+ 'https://ui-avatars.com/api/?name=Priya+Patel&size=400&background=FF9933&color=fff'
+ ),
+ (
+ 'Amit Kumar',
+ 'amit.kumar@example.com',
+ '9876543212',
+ '2021',
+ 'Delhi',
+ 'Entrepreneur',
+ 'Startup Founder',
+ true,
+ true,
+ 'Founder',
+ 'YUVA taught me leadership and gave me lifelong friends.',
+ 'https://ui-avatars.com/api/?name=Amit+Kumar&size=400&background=FF9933&color=fff'
+ );
+ */
+-- ============================================
+-- USEFUL QUERIES FOR ADMINS
+-- ============================================
+-- View all pending approvals
+-- SELECT full_name, email, batch_year, profession, created_at 
+-- FROM alumni 
+-- WHERE is_approved = false 
+-- ORDER BY created_at DESC;
+-- Approve an alumni
+-- UPDATE alumni SET is_approved = true WHERE email = 'user@example.com';
+-- Feature an alumni
+-- UPDATE alumni 
+-- SET is_featured = true, is_approved = true, 
+--     badge = 'Alumni', quote = 'Great experience!' 
+-- WHERE email = 'user@example.com';
+-- Get all featured alumni
+-- SELECT * FROM alumni 
+-- WHERE is_featured = true AND is_approved = true 
+-- ORDER BY created_at DESC;
+-- Search alumni
+-- SELECT * FROM alumni 
+-- WHERE is_approved = true 
+--   AND (full_name ILIKE '%search%' 
+--        OR current_city ILIKE '%search%' 
+--        OR profession ILIKE '%search%')
+-- ORDER BY full_name;
+-- Count alumni by batch
+-- SELECT batch_year, COUNT(*) as count 
+-- FROM alumni 
+-- WHERE is_approved = true 
+-- GROUP BY batch_year 
+-- ORDER BY batch_year DESC;
+-- ============================================
+-- VERIFICATION
+-- ============================================
+-- Verify table was created
+SELECT table_name,
+    column_name,
+    data_type,
+    is_nullable
+FROM information_schema.columns
+WHERE table_name = 'alumni'
+ORDER BY ordinal_position;
+-- Verify indexes were created
+SELECT indexname,
+    indexdef
+FROM pg_indexes
+WHERE tablename = 'alumni';
+-- Verify RLS is enabled
+SELECT tablename,
+    rowsecurity
+FROM pg_tables
+WHERE tablename = 'alumni';
+-- Verify policies were created
+SELECT policyname,
+    cmd,
+    qual,
+    with_check
+FROM pg_policies
+WHERE tablename = 'alumni';
+-- ============================================
+-- NOTES
+-- ============================================
+-- 1. This schema is designed for scalability and performance
+-- 2. RLS policies ensure data security
+-- 3. Indexes optimize common query patterns
+-- 4. The updated_at trigger keeps timestamps current
+-- 5. Storage bucket is configured for image uploads
+-- 6. All policies use service_role key for backend operations
+-- 7. Public users can only view approved alumni
+-- ============================================
+-- END OF SCHEMA
+-- ============================================
+
+
+-- ============================================
+-- YUVA VOLUNTEER - SUPABASE DATABASE SCHEMA
+-- ============================================
+-- This script creates the database structure
+-- for the YUVA Volunteer system in Supabase
+-- ============================================
+-- ============================================
+-- MAIN VOLUNTEERS TABLE
+-- ============================================
+CREATE TABLE IF NOT EXISTS public.volunteers (
+    -- Primary Key
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    -- Personal Information
+    full_name TEXT NOT NULL,
+    age INTEGER,
+    gender TEXT,
+    email TEXT NOT NULL UNIQUE,
+    phone TEXT NOT NULL,
+    -- Professional/Academic Information
+    occupation TEXT,
+    college TEXT NOT NULL,
+    -- Volunteer Preferences
+    involvement TEXT,
+    -- How they want to get involved
+    skills TEXT,
+    -- Their skills
+    causes TEXT,
+    -- Causes they care about
+    available_time TEXT,
+    -- When they're available
+    -- Motivation
+    why_join TEXT,
+    hope_to_achieve TEXT,
+    -- Experience
+    past_volunteer BOOLEAN DEFAULT FALSE,
+    past_volunteer_details TEXT,
+    other_groups BOOLEAN DEFAULT FALSE,
+    other_groups_details TEXT,
+    -- Preferences
+    email_updates BOOLEAN DEFAULT TRUE,
+    data_consent BOOLEAN DEFAULT TRUE,
+    -- Status
+    status TEXT DEFAULT 'pending',
+    -- pending, approved, contacted
+    -- Timestamps
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+    -- Constraints
+    CONSTRAINT email_format CHECK (
+        email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
+    ),
+    CONSTRAINT phone_length CHECK (LENGTH(phone) >= 10),
+    CONSTRAINT age_range CHECK (
+        age >= 15
+        AND age <= 100
+    )
+);
+-- ============================================
+-- INDEXES FOR PERFORMANCE
+-- ============================================
+-- Index on email for fast lookups
+CREATE INDEX IF NOT EXISTS idx_volunteers_email ON public.volunteers(email);
+-- Index on status for filtering
+CREATE INDEX IF NOT EXISTS idx_volunteers_status ON public.volunteers(status);
+-- Index on created_at for sorting
+CREATE INDEX IF NOT EXISTS idx_volunteers_created_at ON public.volunteers(created_at DESC);
+-- Index on skills for searching
+CREATE INDEX IF NOT EXISTS idx_volunteers_skills ON public.volunteers USING gin(to_tsvector('english', skills));
+-- Composite index for active volunteers
+CREATE INDEX IF NOT EXISTS idx_volunteers_active ON public.volunteers(status, created_at DESC)
+WHERE status = 'approved';
+-- ============================================
+-- TRIGGERS
+-- ============================================
+-- Function to update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_volunteers_updated_at() RETURNS TRIGGER AS $$ BEGIN NEW.updated_at = TIMEZONE('utc'::text, NOW());
+RETURN NEW;
+END;
+$$ language 'plpgsql';
+-- Trigger to auto-update updated_at
+DROP TRIGGER IF EXISTS update_volunteers_updated_at ON public.volunteers;
+CREATE TRIGGER update_volunteers_updated_at BEFORE
+UPDATE ON public.volunteers FOR EACH ROW EXECUTE FUNCTION update_volunteers_updated_at();
+-- ============================================
+-- ROW LEVEL SECURITY (RLS) POLICIES
+-- ============================================
+-- Enable RLS
+ALTER TABLE public.volunteers ENABLE ROW LEVEL SECURITY;
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Service role can insert volunteers" ON public.volunteers;
+DROP POLICY IF EXISTS "Service role can view volunteers" ON public.volunteers;
+DROP POLICY IF EXISTS "Service role can update volunteers" ON public.volunteers;
+DROP POLICY IF EXISTS "Service role can delete volunteers" ON public.volunteers;
+-- Policy 1: Service role can insert new volunteers
+CREATE POLICY "Service role can insert volunteers" ON public.volunteers FOR
+INSERT WITH CHECK (true);
+-- Policy 2: Service role can view all volunteers
+CREATE POLICY "Service role can view volunteers" ON public.volunteers FOR
+SELECT USING (true);
+-- Policy 3: Service role can update volunteers
+CREATE POLICY "Service role can update volunteers" ON public.volunteers FOR
+UPDATE USING (true) WITH CHECK (true);
+-- Policy 4: Service role can delete volunteers
+CREATE POLICY "Service role can delete volunteers" ON public.volunteers FOR DELETE USING (true);
+-- ============================================
+-- USEFUL QUERIES FOR ADMINS
+-- ============================================
+-- View all pending applications
+-- SELECT full_name, email, phone, college, created_at 
+-- FROM volunteers 
+-- WHERE status = 'pending' 
+-- ORDER BY created_at DESC;
+-- Approve a volunteer
+-- UPDATE volunteers SET status = 'approved' WHERE email = 'user@example.com';
+-- Mark as contacted
+-- UPDATE volunteers SET status = 'contacted' WHERE email = 'user@example.com';
+-- Get volunteers by skill
+-- SELECT full_name, email, skills 
+-- FROM volunteers 
+-- WHERE skills ILIKE '%design%' 
+--   AND status = 'approved';
+-- Count volunteers by status
+-- SELECT status, COUNT(*) as count 
+-- FROM volunteers 
+-- GROUP BY status;
+-- ============================================
+-- VERIFICATION
+-- ============================================
+-- Verify table was created
+SELECT table_name,
+    column_name,
+    data_type,
+    is_nullable
+FROM information_schema.columns
+WHERE table_name = 'volunteers'
+ORDER BY ordinal_position;
+-- Verify indexes were created
+SELECT indexname,
+    indexdef
+FROM pg_indexes
+WHERE tablename = 'volunteers';
+-- Verify RLS is enabled
+SELECT tablename,
+    rowsecurity
+FROM pg_tables
+WHERE tablename = 'volunteers';
+-- Verify policies were created
+SELECT policyname,
+    cmd,
+    qual,
+    with_check
+FROM pg_policies
+WHERE tablename = 'volunteers';
+
+ALTER TABLE volunteers 
+ADD COLUMN IF NOT EXISTS city TEXT,
+ADD COLUMN IF NOT EXISTS comments TEXT;
+-- ============================================
+-- NOTES
+-- ============================================
+-- 1. This schema stores all volunteer applications
+-- 2. RLS policies ensure data security
+-- 3. Indexes optimize common query patterns
+-- 4. The updated_at trigger keeps timestamps current
+-- 5. Status field allows tracking application progress
+-- 6. All policies use service_role key for backend operations
+-- ============================================
+-- END OF SCHEMA
+-- ============================================
+
+
+
+
+
+-- Password Reset Tokens Table
+-- This table stores secure tokens for password reset functionality
+
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    id BIGSERIAL PRIMARY KEY,
+    email TEXT NOT NULL,
+    token TEXT NOT NULL UNIQUE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Create indexes for faster lookups
+CREATE INDEX IF NOT EXISTS idx_password_reset_email ON password_reset_tokens(email);
+CREATE INDEX IF NOT EXISTS idx_password_reset_token ON password_reset_tokens(token);
+CREATE INDEX IF NOT EXISTS idx_password_reset_expires ON password_reset_tokens(expires_at);
+
+-- Add comment to table
+COMMENT ON TABLE password_reset_tokens IS 'Stores secure one-time tokens for password reset functionality';
+
+-- Add column comments
+COMMENT ON COLUMN password_reset_tokens.email IS 'Email address of the user requesting password reset';
+COMMENT ON COLUMN password_reset_tokens.token IS 'Unique UUID token sent in reset email';
+COMMENT ON COLUMN password_reset_tokens.expires_at IS 'Timestamp when token expires (1 hour from creation)';
+COMMENT ON COLUMN password_reset_tokens.created_at IS 'Timestamp when token was created';
+
+-- Optional: Create a function to automatically delete expired tokens
+CREATE OR REPLACE FUNCTION delete_expired_reset_tokens()
+RETURNS void
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    DELETE FROM password_reset_tokens
+    WHERE expires_at < NOW();
+END;
+$$;
+
+-- Optional: Create a scheduled job to clean up expired tokens daily
+-- (Requires pg_cron extension - may need to enable in Supabase dashboard)
+-- SELECT cron.schedule(
+--     'delete-expired-reset-tokens',
+--     '0 0 * * *',  -- Every day at midnight
+--     'SELECT delete_expired_reset_tokens();'
+-- );
+
+-- ===== ENABLE ROW LEVEL SECURITY =====
+ALTER TABLE password_reset_tokens ENABLE ROW LEVEL SECURITY;
+
+-- ===== RLS POLICIES =====
+
+-- Policy 1: Service role can do everything (for GAS backend)
+CREATE POLICY "Service role has full access to password_reset_tokens"
+ON password_reset_tokens
+FOR ALL
+TO service_role
+USING (true)
+WITH CHECK (true);
+
+-- Policy 2: No public access - users cannot directly access this table
+-- Only backend (using service_role key) can create/read/delete tokens
+CREATE POLICY "No public access to password_reset_tokens"
+ON password_reset_tokens
+FOR ALL
+TO anon, authenticated
+USING (false)
+WITH CHECK (false);
+
+-- ===== EXPLANATION =====
+-- ✅ RLS is ENABLED for security
+-- ✅ Only Google Apps Script backend (service_role) can access
+-- ✅ Frontend users (anon/authenticated) have NO access
+-- ✅ Prevents direct manipulation of reset tokens
+-- ✅ All operations must go through GAS backend
+
+
+
+-- Email Verification Tokens Table
+-- This table stores secure tokens for email verification during registration
+
+CREATE TABLE IF NOT EXISTS email_verification_tokens (
+    id BIGSERIAL PRIMARY KEY,
+    email TEXT NOT NULL,
+    token TEXT NOT NULL UNIQUE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Create indexes for faster lookups
+CREATE INDEX IF NOT EXISTS idx_email_verification_email ON email_verification_tokens(email);
+CREATE INDEX IF NOT EXISTS idx_email_verification_token ON email_verification_tokens(token);
+CREATE INDEX IF NOT EXISTS idx_email_verification_expires ON email_verification_tokens(expires_at);
+
+-- Add comments
+COMMENT ON TABLE email_verification_tokens IS 'Stores secure one-time tokens for email verification';
+COMMENT ON COLUMN email_verification_tokens.email IS 'Email address being verified';
+COMMENT ON COLUMN email_verification_tokens.token IS 'Unique UUID token sent in verification email';
+COMMENT ON COLUMN email_verification_tokens.expires_at IS 'Timestamp when token expires (24 hours from creation)';
+
+-- ===== ENABLE ROW LEVEL SECURITY =====
+ALTER TABLE email_verification_tokens ENABLE ROW LEVEL SECURITY;
+
+-- ===== RLS POLICIES =====
+
+-- Policy 1: Service role has full access (for GAS backend)
+CREATE POLICY "Service role has full access to email_verification_tokens"
+ON email_verification_tokens
+FOR ALL
+TO service_role
+USING (true)
+WITH CHECK (true);
+
+-- Policy 2: No public access
+CREATE POLICY "No public access to email_verification_tokens"
+ON email_verification_tokens
+FOR ALL
+TO anon, authenticated
+USING (false)
+WITH CHECK (false);
+
+-- ===== CLEANUP FUNCTION =====
+CREATE OR REPLACE FUNCTION delete_expired_verification_tokens()
+RETURNS void
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    DELETE FROM email_verification_tokens
+    WHERE expires_at < NOW();
+END;
+$$;
+
+-- ===== EXPLANATION =====
+-- ✅ RLS is ENABLED for security
+-- ✅ Only Google Apps Script backend (service_role) can access
+-- ✅ Frontend users (anon/authenticated) have NO access
+-- ✅ Prevents direct manipulation of verification tokens
+-- ✅ All operations must go through GAS backend
+-- ✅ Tokens expire after 24 hours
+
+
+-- Table for Zone Convener messages to Super Admin
+CREATE TABLE IF NOT EXISTS public.zone_convener_messages (
+  id serial PRIMARY KEY,
+  sender_name varchar(100) NOT NULL,
+  sender_email varchar(100) NOT NULL,
+  sender_role varchar(50) NOT NULL DEFAULT 'zone_convener',
+  zone_id integer NULL,
+  zone_name varchar(100) NULL,
+  subject varchar(255) NOT NULL,
+  category varchar(50) NOT NULL DEFAULT 'other',
+  message text NOT NULL,
+  status varchar(20) NOT NULL DEFAULT 'unread', -- unread, read, resolved
+  priority varchar(20) NULL DEFAULT 'normal', -- low, normal, high
+  admin_notes text NULL,
+  resolved_by integer NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT zone_convener_messages_zone_id_fkey FOREIGN KEY (zone_id) REFERENCES zones (id) ON DELETE SET NULL,
+  CONSTRAINT zone_convener_messages_resolved_by_fkey FOREIGN KEY (resolved_by) REFERENCES admin_users (id) ON DELETE SET NULL
+);
+
+-- Indexes for better query performance
+CREATE INDEX IF NOT EXISTS idx_zone_convener_messages_status ON public.zone_convener_messages USING btree (status);
+CREATE INDEX IF NOT EXISTS idx_zone_convener_messages_zone_id ON public.zone_convener_messages USING btree (zone_id);
+CREATE INDEX IF NOT EXISTS idx_zone_convener_messages_created_at ON public.zone_convener_messages USING btree (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_zone_convener_messages_category ON public.zone_convener_messages USING btree (category);
+
+-- Trigger to update updated_at timestamp
+CREATE TRIGGER update_zone_convener_messages_updated_at 
+  BEFORE UPDATE ON public.zone_convener_messages 
+  FOR EACH ROW 
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable Row Level Security (optional)
+ALTER TABLE public.zone_convener_messages ENABLE ROW LEVEL SECURITY;
+
+-- Policy: Super admins can view all messages
+CREATE POLICY "Super admins can view all messages" 
+  ON public.zone_convener_messages 
+  FOR SELECT 
+  USING (auth.jwt() ->> 'role' = 'super_admin');
+
+-- Policy: Super admins can update message status
+CREATE POLICY "Super admins can update messages" 
+  ON public.zone_convener_messages 
+  FOR UPDATE 
+  USING (auth.jwt() ->> 'role' = 'super_admin');
+
+-- Policy: Zone conveners can insert their own messages
+CREATE POLICY "Zone conveners can insert messages" 
+  ON public.zone_convener_messages 
+  FOR INSERT 
+  WITH CHECK (true);
+
+-- Comment on table
+COMMENT ON TABLE public.zone_convener_messages IS 'Stores messages from Zone Conveners to Super Admins';
+
+
+
+-- =====================================================
+-- CLEANUP: Drop existing mentor_messages table if exists
+-- =====================================================
+DROP TABLE IF EXISTS public.mentor_messages CASCADE;
+-- =====================================================
+-- MENTOR MESSAGES TABLE
+-- Stores messages from College Mentors to Zone Conveners
+-- Matches structure of zone_convener_messages for consistency
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.mentor_messages (
+    id serial PRIMARY KEY,
+    sender_name varchar(100) NOT NULL,
+    sender_email varchar(100) NOT NULL,
+    sender_role varchar(50) NOT NULL DEFAULT 'mentor',
+    college_id integer NULL,
+    college_name varchar(100) NULL,
+    zone_id integer NULL,
+    zone_name varchar(100) NULL,
+    subject varchar(255) NOT NULL,
+    category varchar(50) NOT NULL DEFAULT 'other',
+    message text NOT NULL,
+    status varchar(20) NOT NULL DEFAULT 'unread',
+    -- unread, read, resolved
+    priority varchar(20) NULL DEFAULT 'normal',
+    -- low, normal, high
+    admin_notes text NULL,
+    resolved_by integer NULL,
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
+    updated_at timestamp with time zone NOT NULL DEFAULT now(),
+    CONSTRAINT mentor_messages_college_id_fkey FOREIGN KEY (college_id) REFERENCES colleges (id) ON DELETE
+    SET NULL,
+        CONSTRAINT mentor_messages_zone_id_fkey FOREIGN KEY (zone_id) REFERENCES zones (id) ON DELETE
+    SET NULL,
+        CONSTRAINT mentor_messages_resolved_by_fkey FOREIGN KEY (resolved_by) REFERENCES admin_users (id) ON DELETE
+    SET NULL
+);
+-- =====================================================
+-- INDEXES for better query performance
+-- =====================================================
+CREATE INDEX IF NOT EXISTS idx_mentor_messages_status ON public.mentor_messages USING btree (status);
+CREATE INDEX IF NOT EXISTS idx_mentor_messages_college_id ON public.mentor_messages USING btree (college_id);
+CREATE INDEX IF NOT EXISTS idx_mentor_messages_zone_id ON public.mentor_messages USING btree (zone_id);
+CREATE INDEX IF NOT EXISTS idx_mentor_messages_created_at ON public.mentor_messages USING btree (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_mentor_messages_category ON public.mentor_messages USING btree (category);
+-- =====================================================
+-- TRIGGER to update updated_at timestamp
+-- =====================================================
+-- Note: This assumes update_updated_at_column() function already exists
+-- If not, create it first with the code below:
+/*
+ CREATE OR REPLACE FUNCTION update_updated_at_column()
+ RETURNS TRIGGER AS $$
+ BEGIN
+ NEW.updated_at = NOW();
+ RETURN NEW;
+ END;
+ $$ LANGUAGE plpgsql;
+ */
+CREATE TRIGGER update_mentor_messages_updated_at BEFORE
+UPDATE ON public.mentor_messages FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- =====================================================
+-- ROW LEVEL SECURITY (RLS) POLICIES
+-- =====================================================
+-- Enable Row Level Security
+ALTER TABLE public.mentor_messages ENABLE ROW LEVEL SECURITY;
+-- Drop existing policies if any (for clean slate)
+DROP POLICY IF EXISTS "Super admins can view all messages" ON public.mentor_messages;
+DROP POLICY IF EXISTS "Super admins can update messages" ON public.mentor_messages;
+DROP POLICY IF EXISTS "Zone conveners can view zone messages" ON public.mentor_messages;
+DROP POLICY IF EXISTS "Zone conveners can update zone messages" ON public.mentor_messages;
+DROP POLICY IF EXISTS "Mentors can insert messages" ON public.mentor_messages;
+DROP POLICY IF EXISTS "Mentors can view own messages" ON public.mentor_messages;
+-- Policy 1: Super admins can view all messages
+CREATE POLICY "Super admins can view all messages" ON public.mentor_messages FOR
+SELECT USING (auth.jwt()->>'role' = 'super_admin');
+-- Policy 2: Super admins can update message status
+CREATE POLICY "Super admins can update messages" ON public.mentor_messages FOR
+UPDATE USING (auth.jwt()->>'role' = 'super_admin');
+-- Policy 3: Zone conveners can view messages from their zone
+CREATE POLICY "Zone conveners can view zone messages" ON public.mentor_messages FOR
+SELECT USING (auth.jwt()->>'role' = 'zone_convener');
+-- Policy 4: Zone conveners can update messages from their zone
+CREATE POLICY "Zone conveners can update zone messages" ON public.mentor_messages FOR
+UPDATE USING (auth.jwt()->>'role' = 'zone_convener');
+-- Policy 5: Mentors can insert their own messages
+CREATE POLICY "Mentors can insert messages" ON public.mentor_messages FOR
+INSERT WITH CHECK (true);
+-- Policy 6: Mentors can view their own messages
+CREATE POLICY "Mentors can view own messages" ON public.mentor_messages FOR
+SELECT USING (auth.jwt()->>'role' = 'mentor');
+-- =====================================================
+-- GRANT PERMISSIONS
+-- =====================================================
+-- Grant usage on the table to authenticated users
+GRANT SELECT,
+    INSERT,
+    UPDATE ON public.mentor_messages TO authenticated;
+-- Grant usage on sequence
+GRANT USAGE,
+    SELECT ON SEQUENCE mentor_messages_id_seq TO authenticated;
+-- =====================================================
+-- TABLE COMMENT
+-- =====================================================
+COMMENT ON TABLE public.mentor_messages IS 'Stores messages from College Mentors to Zone Conveners';
+-- =====================================================
+-- VERIFICATION QUERIES (Run these to test)
+-- =====================================================
+-- Check if table was created successfully
+-- SELECT * FROM public.mentor_messages LIMIT 1;
+-- Check if indexes were created
+-- SELECT indexname FROM pg_indexes WHERE tablename = 'mentor_messages';
+-- Check if RLS is enabled
+-- SELECT relname, relrowsecurity FROM pg_class WHERE relname = 'mentor_messages';
+-- Check policies
+-- SELECT policyname FROM pg_policies WHERE tablename = 'mentor_messages';
+-- Compare structure with zone_convener_messages
+-- SELECT column_name, data_type, character_maximum_length 
+-- FROM information_schema.columns 
+-- WHERE table_name IN ('mentor_messages', 'zone_convener_messages')
+-- ORDER BY table_name, ordinal_position;
+-- =====================================================
+-- SAMPLE DATA (Optional - for testing)
+-- =====================================================
+/*
+ -- Insert sample message (replace values with actual data from your database)
+ INSERT INTO public.mentor_messages (
+ sender_name,
+ sender_email,
+ sender_role,
+ college_id,
+ college_name,
+ zone_id,
+ zone_name,
+ subject,
+ category,
+ message,
+ priority
+ ) VALUES (
+ 'John Doe',
+ 'john@example.com',
+ 'mentor',
+ 1,
+ 'Ramanujan College',
+ 1,
+ 'South Delhi',
+ 'Need help with member registration',
+ 'members',
+ 'I am having trouble adding new members to our college unit. Could you please guide me on the process?',
+ 'normal'
+ );
+ */
+-- =====================================================
+-- NOTES
+-- =====================================================
+/*
+ FIELD MAPPING (Mentor Messages vs Zone Convener Messages):
+ 
+ mentor_messages                 zone_convener_messages
+ ---------------                 ----------------------
+ id                              id
+ sender_name                     sender_name
+ sender_email                    sender_email
+ sender_role (mentor)            sender_role (zone_convener)
+ college_id (NEW)                -
+ college_name (NEW)              -
+ zone_id                         zone_id
+ zone_name                       zone_name
+ subject                         subject
+ category                        category
+ message                         message
+ status                          status
+ priority                        priority
+ admin_notes                     admin_notes
+ resolved_by                     resolved_by
+ created_at                      created_at
+ updated_at                      updated_at
+ 
+ DIFFERENCES:
+ - mentor_messages has college_id and college_name (mentors belong to colleges)
+ - Both tables have identical structure otherwise for consistency
+ - Super admin can query both tables with same field names
+ */

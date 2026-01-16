@@ -422,7 +422,8 @@
     display: block;
     width: 100%;
     height: auto;
-    opacity: 0;
+    /* Removed opacity: 0 to prevent stuck white boxes */
+    /* opacity: 0; */
     transition: opacity 0.3s ease-in-out;
 }
 
@@ -489,7 +490,67 @@
 
 /* Utilities */
 .sentinel {
-    height: 1px;
+    display: none !important;
+    /* Disabled for Pagination Mode */
+}
+
+/* Ensure images are clickable */
+.card,
+.card__img {
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+/* Pagination System */
+.pagination-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin-top: 40px;
+    flex-wrap: wrap;
+    padding-bottom: 20px;
+    width: 100%;
+}
+
+.page-btn {
+    min-width: 40px;
+    height: 40px;
+    padding: 0 6px;
+    border-radius: 50%;
+    border: 1px solid var(--border-light);
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.page-btn:hover {
+    background: var(--bg-muted);
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+    transform: translateY(-2px);
+}
+
+.page-btn.active {
+    background: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
+    transform: scale(1.1);
+    box-shadow: var(--shadow-md);
+    pointer-events: none;
+}
+
+.page-btn.disabled {
+    opacity: 0.4;
+    pointer-events: none;
+    cursor: not-allowed;
 }
 
 .back-to-top {

@@ -6,17 +6,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Registration | YUVA India</title>
     <link rel="stylesheet" href="/GetInvolve/Unitstyle.css">
-    <link rel="stylesheet" href="/style.css">
     <link rel="shortcut icon" href="/Images/YUVA logo.png" type="image/x-icon">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        /* Scoped styles for the registration page layout */
         body {
             display: flex;
             flex-direction: column;
-            min-height: 100vh;
+            height: 100vh;
             background: var(--bg-base);
+            overflow: hidden;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
         }
 
         .main-content {
@@ -24,126 +24,1854 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 2rem 1rem;
+            padding: 1rem 2rem;
+            overflow: hidden;
         }
 
         .register-card {
-            background-color: var(--bg-elevated);
-            padding: 28px 32px;
+            background: var(--bg-elevated);
+            padding: 25px 35px;
             border-radius: var(--radius-xl);
             width: 100%;
-            max-width: 520px;
-            box-shadow: var(--shadow-xl);
+            max-width: 1200px;
+            box-shadow: var(--shadow-2xl);
+            border: 1px solid var(--border-light);
             position: relative;
-            animation: modalSlideIn 0.3s ease-out;
-            top: 40px;
+            animation: slideUp 0.5s ease-out;
+            height: fit-content;
+            max-height: calc(100vh - 140px);
+            overflow-y: auto;
         }
 
-        .site-header {
-            right: calc(-10px + var(--space-md) * 2) !important;
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
-        /* Style to hide college fields by default */
-        .college-fields {
+        .register-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .register-header img {
+            width: 50px;
+            height: 50px;
+            margin-bottom: 10px;
+        }
+
+        .register-header h2 {
+            color: var(--text-primary);
+            font-size: 24px;
+            font-weight: 700;
+            margin: 0 0 6px 0;
+        }
+
+        .register-header p {
+            color: var(--text-secondary);
+            font-size: 13px;
+            margin: 0;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 18px 25px;
+        }
+
+        .form-grid .full-width {
+            grid-column: 1 / -1;
+        }
+
+        .form-group {
+            margin-bottom: 0;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .form-group label .required {
+            color: var(--color-error);
+            margin-left: 2px;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            font-size: 16px;
+            pointer-events: none;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 11px 15px 11px 40px;
+            border: 2px solid var(--border-light);
+            border-radius: var(--radius-lg);
+            font-size: 14px;
+            transition: var(--transition-base);
+            background: var(--bg-elevated);
+            color: var(--text-primary);
+            font-family: inherit;
+        }
+
+        .form-group select {
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748B' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 15px center;
+            padding-right: 40px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--saffron-primary);
+            box-shadow: 0 0 0 3px var(--saffron-pale);
+        }
+
+        .form-group input:disabled {
+            background: var(--bg-muted);
+            cursor: not-allowed;
+            color: var(--text-muted);
+        }
+
+        .input-wrapper .toggle-password {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 16px;
+            padding: 5px;
+            transition: var(--transition-base);
+        }
+
+        .input-wrapper .toggle-password:hover {
+            color: var(--saffron-primary);
+        }
+
+        /* Password Strength Indicator */
+        .password-strength {
+            margin-top: 8px;
+            height: 4px;
+            background: var(--border-light);
+            border-radius: 2px;
+            overflow: hidden;
             display: none;
         }
 
-        /* ===== NEW RESPONSIVE FIX ===== */
-        /* Fixes stacking on mobile by overriding Unitstyle.css */
-        @media (max-width: 768px) {
-            .site-header .header-content {
-                flex-direction: row !important;
-                /* Force to be a row */
-                justify-content: flex-start !important;
-                /* Align items to the start */
-                align-items: center !important;
-                gap: 1rem !important;
-                /* Add space between logo and title */
+        .password-strength.show {
+            display: block;
+        }
+
+        .password-strength-bar {
+            height: 100%;
+            transition: var(--transition-base);
+            border-radius: 2px;
+        }
+
+        .password-strength.weak .password-strength-bar {
+            width: 33%;
+            background: var(--color-error);
+        }
+
+        .password-strength.medium .password-strength-bar {
+            width: 66%;
+            background: var(--saffron-primary);
+        }
+
+        .password-strength.strong .password-strength-bar {
+            width: 100%;
+            background: var(--green-primary);
+        }
+
+        .password-hint {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 6px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* Info Box */
+        .info-box {
+            background: var(--color-info-pale);
+            border-left: 4px solid var(--navy-chakra);
+            padding: 12px 15px;
+            border-radius: var(--radius-lg);
+            margin-bottom: 20px;
+            font-size: 12px;
+            color: var(--navy-dark);
+            line-height: 1.5;
+        }
+
+        .info-box strong {
+            color: var(--navy-chakra);
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        /* College Fields */
+        .college-fields {
+            display: none;
+            padding: 18px;
+            background: var(--bg-subtle);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-light);
+        }
+
+        .college-fields.show {
+            display: grid;
+            grid-column: 1 / -1;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px;
+        }
+
+        .college-fields-header {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            color: var(--navy-chakra);
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        #college-loader {
+            display: none;
+            font-size: 13px;
+            color: var(--navy-chakra);
+            margin-top: 6px;
+        }
+
+        #college-loader.show {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Submit Button */
+        .btn-submit {
+            width: 100%;
+            padding: 13px;
+            background: var(--gradient-saffron);
+            color: var(--text-on-accent);
+            border: 2px solid transparent;
+            border-radius: var(--radius-full);
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition-base);
+            margin-top: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-submit:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+            opacity: 0.95;
+        }
+
+        .btn-submit:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Footer */
+        .register-footer {
+            text-align: center;
+            margin-top: 18px;
+            padding-top: 15px;
+            border-top: 1px solid var(--border-light);
+        }
+
+        .register-footer p {
+            color: var(--text-secondary);
+            font-size: 13px;
+            margin: 0;
+        }
+
+        .register-footer a {
+            color: var(--saffron-primary);
+            text-decoration: none;
+            font-weight: 600;
+            transition: var(--transition-base);
+        }
+
+        .register-footer a:hover {
+            color: var(--saffron-dark);
+            text-decoration: underline;
+        }
+
+        /* Info Box */
+        .info-box {
+            background: var(--color-info-pale);
+            border-left: 4px solid var(--navy-chakra);
+            padding: 15px;
+            border-radius: var(--radius-lg);
+            margin-bottom: 25px;
+            font-size: 13px;
+            color: var(--navy-dark);
+            line-height: 1.6;
+        }
+
+        .info-box strong {
+            color: var(--navy-chakra);
+        }
+
+        /* ============================================
+   ULTRA MODERN RESPONSIVE MEDIA QUERIES
+   Breakpoints: 325px, 375px, 480px, 576px, 768px, 992px, 1200px, 1400px
+   ============================================ */
+
+        /* ============================================
+   EXTRA LARGE DEVICES (1400px and up)
+   ============================================ */
+        @media (min-width: 1400px) {
+            .register-card {
+                max-width: 1300px;
+                padding: 35px 45px;
             }
-            .page-title {
-                font-size: 0.99rem !important;
-                /* Adjust title size */
+
+            .register-header h2 {
+                font-size: 28px;
+            }
+
+            .register-header p {
+                font-size: 15px;
+            }
+
+            .form-grid {
+                gap: 22px 30px;
+            }
+
+            .college-fields.show {
+                gap: 22px;
+                padding: 22px;
+            }
+        }
+
+        /* ============================================
+   LARGE DEVICES (1200px to 1399px)
+   ============================================ */
+        @media (min-width: 1200px) and (max-width: 1399px) {
+            .register-card {
+                max-width: 1100px;
+                padding: 30px 40px;
+            }
+
+            .form-grid {
+                gap: 20px 28px;
+            }
+        }
+
+        /* ============================================
+   MEDIUM-LARGE DEVICES (992px to 1199px)
+   ============================================ */
+        @media (min-width: 992px) and (max-width: 1199px) {
+            .register-card {
+                max-width: 950px;
+                padding: 28px 35px;
+            }
+
+            .form-grid {
+                gap: 18px 24px;
+            }
+
+            .college-fields.show {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 18px;
+            }
+
+            .college-fields-header {
+                grid-column: 1 / -1;
+            }
+        }
+
+        /* ============================================
+   MEDIUM DEVICES / TABLETS (768px to 991px)
+   ============================================ */
+        @media (min-width: 768px) and (max-width: 991px) {
+            .main-content {
+                padding: 1rem 1.5rem;
+            }
+
+            .register-card {
+                max-width: 700px;
+                padding: 25px 30px;
+                max-height: calc(100vh - 120px);
+            }
+
+            .register-header img {
+                width: 45px;
+                height: 45px;
+            }
+
+            .register-header h2 {
+                font-size: 22px;
+            }
+
+            .register-header p {
+                font-size: 12px;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+
+            .form-grid .full-width {
+                grid-column: 1;
+            }
+
+            .form-group input,
+            .form-group select {
+                padding: 10px 15px 10px 38px;
+                font-size: 13px;
+            }
+
+            .input-icon {
+                font-size: 15px;
+                left: 13px;
+            }
+
+            .college-fields.show {
+                grid-template-columns: 1fr;
+                gap: 16px;
+                padding: 16px;
+            }
+
+            .college-fields-header {
+                font-size: 12px;
+            }
+
+            .info-box {
+                padding: 12px 14px;
+                font-size: 12px;
+                margin-bottom: 20px;
+            }
+
+            .btn-submit {
+                padding: 12px;
+                font-size: 14px;
+                margin-top: 18px;
+            }
+
+            .register-footer p {
+                font-size: 12px;
+            }
+        }
+
+        /* ============================================
+   SMALL TABLETS (576px to 767px)
+   ============================================ */
+        @media (min-width: 576px) and (max-width: 767px) {
+            body {
+                overflow-y: auto;
+            }
+
+            .main-content {
+                padding: 1rem;
+                align-items: flex-start;
+                padding-top: 2rem;
+                padding-bottom: 2rem;
+            }
+
+            .register-card {
+                max-width: 540px;
+                padding: 22px 25px;
+                max-height: none;
+            }
+
+            .register-header img {
+                width: 42px;
+                height: 42px;
+                margin-bottom: 8px;
+            }
+
+            .register-header h2 {
+                font-size: 20px;
+                margin-bottom: 5px;
+            }
+
+            .register-header p {
+                font-size: 12px;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .form-group label {
+                font-size: 12px;
+                margin-bottom: 5px;
+            }
+
+            .form-group input,
+            .form-group select {
+                padding: 10px 14px 10px 36px;
+                font-size: 13px;
+            }
+
+            .input-icon {
+                font-size: 14px;
+                left: 12px;
+            }
+
+            .form-group select {
+                background-position: right 12px center;
+                padding-right: 36px;
+            }
+
+            .input-wrapper .toggle-password {
+                right: 12px;
+                font-size: 15px;
+            }
+
+            .password-hint {
+                font-size: 11px;
+                margin-top: 5px;
+            }
+
+            .college-fields.show {
+                grid-template-columns: 1fr;
+                gap: 15px;
+                padding: 15px;
+            }
+
+            .college-fields-header {
+                font-size: 12px;
+                margin-bottom: 6px;
+            }
+
+            #college-loader {
+                font-size: 12px;
+                margin-top: 5px;
+            }
+
+            .info-box {
+                padding: 11px 13px;
+                font-size: 11px;
+                margin-bottom: 18px;
+            }
+
+            .info-box strong {
+                margin-bottom: 5px;
+                font-size: 12px;
+            }
+
+            .btn-submit {
+                padding: 11px;
+                font-size: 14px;
+                gap: 8px;
+                margin-top: 16px;
+            }
+
+            .register-footer {
+                margin-top: 16px;
+                padding-top: 13px;
+            }
+
+            .register-footer p {
+                font-size: 12px;
+            }
+        }
+
+        /* ============================================
+   LARGE MOBILE DEVICES (480px to 575px)
+   ============================================ */
+        @media (min-width: 480px) and (max-width: 575px) {
+            body {
+                overflow-y: auto;
+            }
+
+            .main-content {
+                padding: 0.8rem;
+                align-items: flex-start;
+                padding-top: 1.5rem;
+                padding-bottom: 1.5rem;
+            }
+
+            .register-card {
+                padding: 20px 22px;
+                max-height: none;
+                border-radius: var(--radius-lg);
+            }
+
+            .register-header img {
+                width: 40px;
+                height: 40px;
+                margin-bottom: 8px;
+            }
+
+            .register-header h2 {
+                font-size: 19px;
+                margin-bottom: 4px;
+            }
+
+            .register-header p {
+                font-size: 11px;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+                gap: 14px;
+            }
+
+            .form-group label {
+                font-size: 12px;
+                margin-bottom: 5px;
+            }
+
+            .form-group input,
+            .form-group select {
+                padding: 9px 13px 9px 35px;
+                font-size: 13px;
+                border-radius: var(--radius-md);
+            }
+
+            .input-icon {
+                font-size: 14px;
+                left: 11px;
+            }
+
+            .form-group select {
+                background-position: right 11px center;
+                padding-right: 35px;
+            }
+
+            .input-wrapper .toggle-password {
+                right: 11px;
+                font-size: 14px;
+                padding: 4px;
+            }
+
+            .password-strength {
+                margin-top: 6px;
+                height: 3px;
+            }
+
+            .password-hint {
+                font-size: 11px;
+                margin-top: 4px;
+            }
+
+            .college-fields.show {
+                grid-template-columns: 1fr;
+                gap: 14px;
+                padding: 14px;
+                border-radius: var(--radius-md);
+            }
+
+            .college-fields-header {
+                font-size: 12px;
+                gap: 6px;
+                margin-bottom: 5px;
+            }
+
+            #college-loader {
+                font-size: 11px;
+                margin-top: 4px;
+                gap: 6px;
+            }
+
+            .info-box {
+                padding: 10px 12px;
+                font-size: 11px;
+                margin-bottom: 16px;
+                border-radius: var(--radius-md);
+            }
+
+            .info-box strong {
+                margin-bottom: 4px;
+                font-size: 11px;
+            }
+
+            .btn-submit {
+                padding: 10px;
+                font-size: 13px;
+                gap: 7px;
+                margin-top: 15px;
+                border-radius: 24px;
+            }
+
+            .btn-submit i {
+                font-size: 14px;
+            }
+
+            .register-footer {
+                margin-top: 14px;
+                padding-top: 12px;
+            }
+
+            .register-footer p {
+                font-size: 11px;
+            }
+        }
+
+        /* ============================================
+   MEDIUM MOBILE DEVICES (375px to 479px)
+   ============================================ */
+        @media (min-width: 375px) and (max-width: 479px) {
+            body {
+                overflow-y: auto;
+            }
+
+            .main-content {
+                padding: 0.6rem;
+                align-items: flex-start;
+                padding-top: 1rem;
+                padding-bottom: 1rem;
+            }
+
+            .register-card {
+                padding: 18px 20px;
+                max-height: none;
+                border-radius: var(--radius-lg);
+            }
+
+            .register-header img {
+                width: 38px;
+                height: 38px;
+                margin-bottom: 7px;
+            }
+
+            .register-header h2 {
+                font-size: 18px;
+                margin-bottom: 4px;
+            }
+
+            .register-header p {
+                font-size: 11px;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+                gap: 13px;
+            }
+
+            .form-group label {
+                font-size: 11px;
+                margin-bottom: 4px;
+            }
+
+            .form-group input,
+            .form-group select {
+                padding: 9px 12px 9px 34px;
+                font-size: 12px;
+                border-radius: var(--radius-md);
+            }
+
+            .input-icon {
+                font-size: 13px;
+                left: 11px;
+            }
+
+            .form-group select {
+                background-position: right 10px center;
+                padding-right: 34px;
+            }
+
+            .input-wrapper .toggle-password {
+                right: 10px;
+                font-size: 13px;
+                padding: 4px;
+            }
+
+            .password-strength {
+                margin-top: 5px;
+                height: 3px;
+            }
+
+            .password-hint {
+                font-size: 10px;
+                margin-top: 4px;
+                gap: 4px;
+            }
+
+            .college-fields.show {
+                grid-template-columns: 1fr;
+                gap: 13px;
+                padding: 13px;
+                border-radius: var(--radius-md);
+            }
+
+            .college-fields-header {
+                font-size: 11px;
+                gap: 6px;
+                margin-bottom: 4px;
+            }
+
+            #college-loader {
+                font-size: 10px;
+                margin-top: 4px;
+                gap: 5px;
+            }
+
+            .info-box {
+                padding: 10px 11px;
+                font-size: 10px;
+                margin-bottom: 14px;
+                border-radius: var(--radius-md);
+                line-height: 1.5;
+            }
+
+            .info-box strong {
+                margin-bottom: 4px;
+                font-size: 11px;
+            }
+
+            .btn-submit {
+                padding: 10px;
+                font-size: 13px;
+                gap: 6px;
+                margin-top: 14px;
+                border-radius: 22px;
+            }
+
+            .btn-submit i {
+                font-size: 13px;
+            }
+
+            .btn-submit:hover:not(:disabled) {
+                transform: translateY(-1px);
+            }
+
+            .register-footer {
+                margin-top: 13px;
+                padding-top: 11px;
+            }
+
+            .register-footer p {
+                font-size: 11px;
+            }
+        }
+
+        /* ============================================
+   SMALL MOBILE DEVICES (325px to 374px)
+   ============================================ */
+        @media (min-width: 325px) and (max-width: 374px) {
+
+            .main-content {
+                padding: 0.5rem;
+                padding-top: 0.8rem;
+                padding-bottom: 0.8rem;
+                overflow: hidden;
+            }
+
+            .register-card {
+                padding: 16px 18px;
+                max-height: none;
+                border-radius: var(--radius-2xl);
+                box-shadow: var(--shadow-lg);
+            }
+
+            .register-header img {
+                width: 35px;
+                height: 35px;
+                margin-bottom: 6px;
+            }
+
+            .register-header h2 {
+                font-size: 17px;
+                margin-bottom: 3px;
+                line-height: 1.3;
+            }
+
+            .register-header p {
+                font-size: 10px;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            .form-group label {
+                font-size: 11px;
+                margin-bottom: 4px;
+            }
+
+            .form-group input,
+            .form-group select {
+                padding: 8px 11px 8px 32px;
+                font-size: 12px;
+                border-radius: var(--radius-md);
+                border-width: 1.5px;
+            }
+
+            .input-icon {
+                font-size: 12px;
+                left: 10px;
+            }
+
+            .form-group select {
+                background-position: right 9px center;
+                padding-right: 32px;
+            }
+
+            .input-wrapper .toggle-password {
+                right: 9px;
+                font-size: 12px;
+                padding: 3px;
+            }
+
+            .password-strength {
+                margin-top: 5px;
+                height: 3px;
+            }
+
+            .password-hint {
+                font-size: 10px;
+                margin-top: 3px;
+                gap: 3px;
+            }
+
+            .college-fields.show {
+                grid-template-columns: 1fr;
+                gap: 12px;
+                padding: 12px;
+                border-radius: var(--radius-md);
+            }
+
+            .college-fields-header {
+                font-size: 11px;
+                gap: 5px;
+                margin-bottom: 4px;
+            }
+
+            #college-loader {
+                font-size: 10px;
+                margin-top: 3px;
+                gap: 5px;
+            }
+
+            .info-box {
+                padding: 9px 10px;
+                font-size: 10px;
+                margin-bottom: 12px;
+                border-radius: var(--radius-md);
+                line-height: 1.4;
+                border-left-width: 3px;
+            }
+
+            .info-box strong {
+                margin-bottom: 3px;
+                font-size: 10px;
+                display: block;
+            }
+
+            .btn-submit {
+                padding: 9px;
+                font-size: 12px;
+                gap: 6px;
+                margin-top: 12px;
+                border-radius: 20px;
+            }
+
+            .btn-submit i {
+                font-size: 12px;
+            }
+
+            .btn-submit:hover:not(:disabled) {
+                transform: translateY(-1px);
+            }
+
+            .register-footer {
+                margin-top: 12px;
+                padding-top: 10px;
+            }
+
+            .register-footer p {
+                font-size: 10px;
+                line-height: 1.4;
+            }
+
+            .register-footer a {
+                display: inline-block;
+                margin-top: 2px;
+            }
+        }
+
+        /* ============================================
+   EXTRA SMALL MOBILE DEVICES (320px to 324px)
+   ============================================ */
+        @media (max-width: 324px) {
+            body {
+                overflow-y: auto;
+                font-size: 14px;
+            }
+
+            .main-content {
+                padding: 0.4rem;
+                align-items: flex-start;
+                padding-top: 0.6rem;
+                padding-bottom: 0.6rem;
+            }
+
+            .register-card {
+                padding: 14px 16px;
+                max-height: none;
+                border-radius: var(--radius-md);
+                box-shadow: var(--shadow-md);
+            }
+
+            .register-header img {
+                width: 32px;
+                height: 32px;
+                margin-bottom: 5px;
+            }
+
+            .register-header h2 {
+                font-size: 16px;
+                margin-bottom: 3px;
+                line-height: 1.2;
+            }
+
+            .register-header p {
+                font-size: 9px;
+                line-height: 1.3;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+                gap: 11px;
+            }
+
+            .form-group label {
+                font-size: 10px;
+                margin-bottom: 3px;
+            }
+
+            .form-group input,
+            .form-group select {
+                padding: 7px 10px 7px 30px;
+                font-size: 11px;
+                border-radius: 6px;
+                border-width: 1.5px;
+            }
+
+            .input-icon {
+                font-size: 11px;
+                left: 9px;
+            }
+
+            .form-group select {
+                background-position: right 8px center;
+                background-size: 10px;
+                padding-right: 30px;
+            }
+
+            .input-wrapper .toggle-password {
+                right: 8px;
+                font-size: 11px;
+                padding: 3px;
+            }
+
+            .password-strength {
+                margin-top: 4px;
+                height: 2px;
+            }
+
+            .password-hint {
+                font-size: 9px;
+                margin-top: 3px;
+                gap: 3px;
+            }
+
+            .password-hint i {
+                font-size: 8px;
+            }
+
+            .college-fields.show {
+                grid-template-columns: 1fr;
+                gap: 11px;
+                padding: 11px;
+                border-radius: 6px;
+            }
+
+            .college-fields-header {
+                font-size: 10px;
+                gap: 4px;
+                margin-bottom: 3px;
+            }
+
+            .college-fields-header i {
+                font-size: 9px;
+            }
+
+            #college-loader {
+                font-size: 9px;
+                margin-top: 3px;
+                gap: 4px;
+            }
+
+            .info-box {
+                padding: 8px 9px;
+                font-size: 9px;
+                margin-bottom: 11px;
+                border-radius: 6px;
+                line-height: 1.4;
+                border-left-width: 3px;
+            }
+
+            .info-box strong {
+                margin-bottom: 3px;
+                font-size: 9px;
+            }
+
+            .btn-submit {
+                padding: 8px;
+                font-size: 11px;
+                gap: 5px;
+                margin-top: 11px;
+                border-radius: 18px;
+            }
+
+            .btn-submit i {
+                font-size: 11px;
+            }
+
+            .btn-submit:hover:not(:disabled) {
+                transform: none;
+            }
+
+            .register-footer {
+                margin-top: 11px;
+                padding-top: 9px;
+            }
+
+            .register-footer p {
+                font-size: 9px;
+                line-height: 1.4;
+            }
+
+            .register-footer a {
+                display: block;
+                margin-top: 3px;
+            }
+        }
+
+        /* ============================================
+   LANDSCAPE ORIENTATION OPTIMIZATIONS
+   ============================================ */
+        @media (max-height: 600px) and (orientation: landscape) {
+            body {
+                overflow-y: auto;
+            }
+
+            .main-content {
+                padding: 0.8rem;
+                align-items: flex-start;
+                padding-top: 1rem;
+                padding-bottom: 1rem;
+            }
+
+            .register-card {
+                max-height: none;
+                padding: 18px 25px;
+            }
+
+            .register-header {
+                margin-bottom: 15px;
+            }
+
+            .register-header img {
+                width: 35px;
+                height: 35px;
+                margin-bottom: 6px;
+            }
+
+            .register-header h2 {
+                font-size: 18px;
+            }
+
+            .form-grid {
+                gap: 12px 18px;
+            }
+
+            .btn-submit {
+                margin-top: 12px;
+                padding: 9px;
+            }
+
+            .register-footer {
+                margin-top: 12px;
+                padding-top: 10px;
+            }
+        }
+
+        /* ===========================================
+        TOUCH DEVICE OPTIMIZATIONS
+        ============================================ */
+        @media (hover: none) and (pointer: coarse) {
+
+            .form-group input,
+            .form-group select {
+                min-height: 44px;
+            }
+
+            .input-wrapper .toggle-password {
+                min-width: 44px;
+                min-height: 44px;
+            }
+
+            .btn-submit {
+                min-height: 48px;
+            }
+
+            .btn-submit:hover:not(:disabled) {
+                transform: none;
+            }
+
+            .register-footer a {
+                min-height: 44px;
+                display: inline-flex;
+                align-items: center;
+            }
+        }
+
+        /* ============================================
+        PRINT STYLES
+        ============================================ */
+        @media print {
+            body {
+                background: white;
+            }
+
+            .main-content {
+                padding: 0;
+            }
+
+            .register-card {
+                box-shadow: none;
+                border: 1px solid #000;
+                max-height: none;
+            }
+
+            .password-strength,
+            .toggle-password,
+            .btn-submit {
+                display: none;
+            }
+        }
+
+        /* ============================================
+        REDUCED MOTION
+        ============================================ */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+
+            .register-card {
+                animation: none;
+            }
+
+            .btn-submit:hover:not(:disabled) {
+                transform: none;
+            }
+        }
+
+        /* ============================================
+        AUTOCOMPLETE DROPDOWN STYLES
+        ============================================ */
+        .autocomplete-wrapper {
+            position: relative;
+        }
+
+        .autocomplete-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--white-primary);
+            border: 2px solid var(--navy-chakra);
+            border-top: none;
+            border-radius: 0 0 12px 12px;
+            max-height: 320px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            display: none;
+            margin-top: -1px;
+        }
+
+        .autocomplete-dropdown.show {
+            display: block;
+        }
+
+        .autocomplete-dropdown::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .autocomplete-dropdown::-webkit-scrollbar-track {
+            background: var(--bg-subtle);
+            border-radius: 0 0 10px 0;
+        }
+
+        .autocomplete-dropdown::-webkit-scrollbar-thumb {
+            background: var(--navy-chakra);
+            border-radius: 4px;
+        }
+
+        .autocomplete-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border-light);
+            transition: all 0.2s ease;
+        }
+
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+
+        .autocomplete-item:hover,
+        .autocomplete-item.selected {
+            background: #f0f4ff;
+        }
+
+        .autocomplete-item.no-results {
+            cursor: default;
+            color: var(--text-secondary);
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .autocomplete-item.no-results:hover {
+            background: transparent;
+        }
+
+        .autocomplete-code {
+            font-family: 'Courier New', monospace;
+            font-weight: 700;
+            color: var(--navy-chakra);
+            font-size: 14px;
+            background: #f0f4ff;
+            padding: 6px 10px;
+            border-radius: 6px;
+            min-width: 100px;
+            text-align: center;
+        }
+
+        .autocomplete-details {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .autocomplete-name {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 14px;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .autocomplete-zone {
+            font-size: 12px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .autocomplete-zone i {
+            font-size: 11px;
+        }
+
+        /* Focus state for input when dropdown is open */
+        .autocomplete-wrapper input:focus {
+            border-radius: 12px 12px 0 0;
+        }
+
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            .autocomplete-dropdown {
+                max-height: 240px;
+            }
+
+            .autocomplete-item {
+                padding: 10px 12px;
+                gap: 10px;
+            }
+
+            .autocomplete-code {
+                min-width: 80px;
+                font-size: 12px;
+                padding: 5px 8px;
+            }
+
+            .autocomplete-name {
+                font-size: 13px;
+            }
+
+            .autocomplete-zone {
+                font-size: 11px;
             }
         }
     </style>
 </head>
 
 <body>
-
-    <header class="site-header">
-        <div class="header-content">
-            <div class="logo">
-                <img src="/Images/YUVA logo.png" alt="YUVA Logo">
-                <h1>YUVA</h1>
-            </div>
-            <div class="page-title">Admin Registration</div>
-            <div class="header-actions">
-            </div>
-        </div>
-    </header>
-
     <div class="main-content">
         <div class="register-card">
-            <h2>Register Admin Account</h2>
-            <form id="register-form">
-                <div class="form-group">
-                    <label for="register-name">Full Name:</label>
-                    <input type="text" id="register-name" required>
-                </div>
-                <div class="form-group">
-                    <label for="register-email">Email:</label>
-                    <input type="email" id="register-email" required>
-                </div>
-                <div class="form-group">
-                    <label for="register-password">Password:</label>
-                    <input type="password" id="register-password" minlength="6" required>
-                </div>
-                <div class="form-group">
-                    <label for="register-role">Role:</label>
-                    <select id="register-role" required>
-                        <option value="super_admin">Super Admin</option>
-                        <option value="zone_convener">Zone Convener</option>
-                        <option value="mentor">Mentor</option>
-                    </select>
-                </div>
-                <div class="form-group" id="zone-selector-group">
-                    <label for="register-zone">Zone:</label>
-                    <select id="register-zone">
-                        <option value="">Select Zone</option>
-                    </select>
-                </div>
-
-                <div class="college-fields" id="college-fields-group">
-                    <div class="form-group">
-                        <label for="register-college-code">College Code:</label>
-                        <input type="text" id="register-college-code" placeholder="E.g., RCSZ001">
-                        <small id="college-loader" style="display:none; color: var(--color-info);">Verifying
-                            code...</small>
-                    </div>
-                    <div class="form-group">
-                        <label for="register-college-name">College Name (Auto-filled):</label>
-                        <input type="text" id="register-college-name" disabled>
-                    </div>
-                    <div class="form-group">
-                        <label for="register-zone-name">Zone Name (Auto-filled):</label>
-                        <input type="text" id="register-zone-name" disabled>
-                    </div>
-                    <input type="hidden" id="register-college-id">
-                </div>
-
-                <button type="submit" class="btn primary" style="width: 100%;">Register</button>
-            </form>
-            <!-- <div class="auth-divider">
-                <span>or</span>
+            <div class="register-header">
+                <img src="/Images/YUVA logo.png" alt="YUVA Logo">
+                <h2>Create Admin Account</h2>
+                <p>Join the YUVA India admin team</p>
             </div>
-            <button id="google-register-btn" class="btn google-btn">
-                <i class="fab fa-google"></i> Register with Google
-            </button> -->
+
+            <div class="info-box full-width">
+                <strong>📋 Registration Requirements:</strong>
+                Valid email address for verification • Password minimum 6 characters • Select appropriate admin role •
+                Mentors must provide valid college code
+            </div>
+
+            <form id="register-form">
+                <div class="form-grid">
+                    <!-- Full Name -->
+                    <div class="form-group">
+                        <label for="register-name">
+                            Full Name <span class="required">*</span>
+                        </label>
+                        <div class="input-wrapper">
+                            <i class="fas fa-user input-icon"></i>
+                            <input type="text" id="register-name" placeholder="Enter your full name" required
+                                autocomplete="name">
+                        </div>
+                    </div>
+
+                    <!-- Email -->
+                    <div class="form-group">
+                        <label for="register-email">
+                            Email Address <span class="required">*</span>
+                        </label>
+                        <div class="input-wrapper">
+                            <i class="fas fa-envelope input-icon"></i>
+                            <input type="email" id="register-email" placeholder="your.email@example.com" required
+                                autocomplete="email">
+                        </div>
+                        <p class="password-hint">
+                            <i class="fas fa-info-circle"></i>
+                            You'll receive a verification email
+                        </p>
+                    </div>
+
+                    <!-- Password -->
+                    <div class="form-group">
+                        <label for="register-password">
+                            Password <span class="required">*</span>
+                        </label>
+                        <div class="input-wrapper">
+                            <i class="fas fa-lock input-icon"></i>
+                            <input type="password" id="register-password" placeholder="Create a strong password"
+                                minlength="6" required autocomplete="new-password">
+                            <button type="button" class="toggle-password" onclick="togglePasswordVisibility()">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <div class="password-strength" id="password-strength">
+                            <div class="password-strength-bar"></div>
+                        </div>
+                        <p class="password-hint" id="password-hint">
+                            <i class="fas fa-shield-alt"></i>
+                            Minimum 6 characters required
+                        </p>
+                    </div>
+
+                    <!-- Role -->
+                    <div class="form-group">
+                        <label for="register-role">
+                            Admin Role <span class="required">*</span>
+                        </label>
+                        <div class="input-wrapper">
+                            <i class="fas fa-user-shield input-icon"></i>
+                            <select id="register-role" required>
+                                <option value="">Select your role</option>
+                                <option value="super_admin">🌟 Super Admin</option>
+                                <option value="zone_convener">📍 Zone Convener</option>
+                                <option value="mentor">🎓 College Mentor</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Zone Selector -->
+                    <div class="form-group full-width" id="zone-selector-group" style="display: none;">
+                        <label for="register-zone">
+                            Zone <span class="required">*</span>
+                        </label>
+                        <div class="input-wrapper">
+                            <i class="fas fa-map-marker-alt input-icon"></i>
+                            <select id="register-zone">
+                                <option value="">Select your zone</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- College Fields -->
+                    <div class="college-fields" id="college-fields-group">
+                        <div class="college-fields-header">
+                            <i class="fas fa-university"></i>
+                            College Information
+                        </div>
+
+                        <div class="form-group">
+                            <label for="register-college-code">
+                                College Code <span class="required">*</span>
+                            </label>
+                            <div class="input-wrapper autocomplete-wrapper">
+                                <i class="fas fa-barcode input-icon"></i>
+                                <input type="text" id="register-college-code" placeholder="Type college name or code..."
+                                    style="text-transform: uppercase;" autocomplete="off">
+                                <div id="college-autocomplete-dropdown" class="autocomplete-dropdown"></div>
+                            </div>
+                            <small id="college-loader" style="display: none;">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                Verifying...
+                            </small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="register-college-name">College Name</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-building input-icon"></i>
+                                <input type="text" id="register-college-name" placeholder="Auto-filled" disabled>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="register-zone-name">Zone</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-location-dot input-icon"></i>
+                                <input type="text" id="register-zone-name" placeholder="Auto-filled" disabled>
+                            </div>
+                        </div>
+                        <input type="hidden" id="register-college-id">
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" class="btn-submit" id="submit-btn">
+                    <i class="fas fa-user-plus"></i>
+                    <span>Create Account</span>
+                </button>
+            </form>
+
+            <!-- Footer -->
+            <div class="register-footer">
+                <p>Already have an account? <a href="/GetInvolve/UnitRegistration.html">Login here</a></p>
+            </div>
         </div>
     </div>
 
     <script src="/GetInvolve/unit.js"></script>
+    <script>
+        // Password visibility toggle
+        function togglePasswordVisibility() {
+            const passwordInput = document.getElementById('register-password');
+            const toggleBtn = document.querySelector('.toggle-password i');
 
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleBtn.className = 'fas fa-eye-slash';
+            } else {
+                passwordInput.type = 'password';
+                toggleBtn.className = 'fas fa-eye';
+            }
+        }
+
+        // Password strength indicator
+        document.getElementById('register-password').addEventListener('input', function () {
+            const password = this.value;
+            const strengthDiv = document.getElementById('password-strength');
+            const hintText = document.getElementById('password-hint');
+
+            if (password.length === 0) {
+                strengthDiv.classList.remove('show', 'weak', 'medium', 'strong');
+                hintText.innerHTML = '<i class="fas fa-shield-alt"></i> Minimum 6 characters required';
+                return;
+            }
+
+            strengthDiv.classList.add('show');
+
+            // Calculate strength
+            let strength = 0;
+            if (password.length >= 6) strength++;
+            if (password.length >= 10) strength++;
+            if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++;
+            if (/[0-9]/.test(password)) strength++;
+            if (/[^a-zA-Z0-9]/.test(password)) strength++;
+
+            strengthDiv.classList.remove('weak', 'medium', 'strong');
+
+            if (strength <= 2) {
+                strengthDiv.classList.add('weak');
+                hintText.innerHTML = '<i class="fas fa-exclamation-circle"></i> Weak password';
+                hintText.style.color = 'var(--color-error)';
+            } else if (strength <= 4) {
+                strengthDiv.classList.add('medium');
+                hintText.innerHTML = '<i class="fas fa-check-circle"></i> Medium strength';
+                hintText.style.color = 'var(--saffron-primary)';
+            } else {
+                strengthDiv.classList.add('strong');
+                hintText.innerHTML = '<i class="fas fa-check-circle"></i> Strong password!';
+                hintText.style.color = 'var(--green-primary)';
+            }
+        });
+
+        // Role change handler
+        document.getElementById('register-role').addEventListener('change', function () {
+            const role = this.value;
+            const zoneGroup = document.getElementById('zone-selector-group');
+            const collegeGroup = document.getElementById('college-fields-group');
+
+            if (role === 'mentor') {
+                zoneGroup.style.display = 'none';
+                collegeGroup.classList.add('show');
+            } else if (role === 'zone_convener') {
+                zoneGroup.style.display = 'block';
+                collegeGroup.classList.remove('show');
+            } else {
+                zoneGroup.style.display = 'none';
+                collegeGroup.classList.remove('show');
+            }
+        });
+
+        // College Code Autocomplete with Type-ahead
+        (function() {
+            const collegeInput = document.getElementById('register-college-code');
+            const dropdown = document.getElementById('college-autocomplete-dropdown');
+            const collegeNameInput = document.getElementById('register-college-name');
+            const zoneNameInput = document.getElementById('register-zone-name');
+            const collegeIdInput = document.getElementById('register-college-id');
+            const loader = document.getElementById('college-loader');
+            
+            let allColleges = [];
+            let debounceTimer;
+            let selectedIndex = -1;
+
+            // Fetch all colleges from Supabase
+            async function fetchColleges() {
+                try {
+                    const { data, error } = await supabaseClient
+                        .from('colleges')
+                        .select('id, college_code, college_name, zone_id, zones(zone_name)')
+                        .eq('is_active', true)
+                        .order('college_name');
+                    
+                    if (error) throw error;
+                    allColleges = data || [];
+                } catch (error) {
+                    console.error('Error fetching colleges:', error);
+                }
+            }
+
+            // Filter colleges based on search term
+            function filterColleges(searchTerm) {
+                if (!searchTerm || searchTerm.length < 2) return [];
+                
+                const term = searchTerm.toLowerCase();
+                return allColleges.filter(college => 
+                    college.college_code.toLowerCase().includes(term) ||
+                    college.college_name.toLowerCase().includes(term)
+                ).slice(0, 10); // Limit to 10 results
+            }
+
+            // Show dropdown with results
+            function showDropdown(colleges) {
+                if (colleges.length === 0) {
+                    dropdown.innerHTML = '<div class="autocomplete-item no-results"><i class="fas fa-search"></i> No colleges found</div>';
+                    dropdown.classList.add('show');
+                    return;
+                }
+
+                dropdown.innerHTML = colleges.map((college, index) => `
+                    <div class="autocomplete-item" data-index="${index}" data-id="${college.id}" 
+                         data-code="${college.college_code}" 
+                         data-name="${college.college_name}"
+                         data-zone="${college.zones?.zone_name || 'Unknown'}">
+                        <div class="autocomplete-code">${college.college_code}</div>
+                        <div class="autocomplete-details">
+                            <div class="autocomplete-name">${college.college_name}</div>
+                            <div class="autocomplete-zone"><i class="fas fa-location-dot"></i> ${college.zones?.zone_name || 'Unknown'}</div>
+                        </div>
+                    </div>
+                `).join('');
+                
+                dropdown.classList.add('show');
+                selectedIndex = -1;
+            }
+
+            // Hide dropdown
+            function hideDropdown() {
+                dropdown.classList.remove('show');
+                selectedIndex = -1;
+            }
+
+            // Select college
+            function selectCollege(item) {
+                const code = item.dataset.code;
+                const name = item.dataset.name;
+                const zone = item.dataset.zone;
+                const id = item.dataset.id;
+
+                // Set flag to prevent blur handler from clearing values
+                collegeInput.dataset.autocompleteFilled = 'true';
+                collegeInput.dataset.lastVerifiedCode = code;
+                
+                collegeInput.value = code;
+                collegeNameInput.value = name;
+                zoneNameInput.value = zone;
+                collegeIdInput.value = id;
+
+                hideDropdown();
+                
+                // Show success notification
+                if (window.flashNotification) {
+                    flashNotification.showSuccess('Selected', `${name}`, 2000);
+                }
+                
+                // Don't call blur - just remove focus programmatically
+                collegeInput.blur();
+                
+                // Clear the autocomplete flag after longer delay to ensure blur handler sees it
+                setTimeout(() => {
+                    collegeInput.dataset.autocompleteFilled = 'false';
+                }, 500);
+            }
+
+            // Handle keyboard navigation
+            function handleKeyboard(e) {
+                const items = dropdown.querySelectorAll('.autocomplete-item:not(.no-results)');
+                
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+                    updateSelection(items);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    selectedIndex = Math.max(selectedIndex - 1, -1);
+                    updateSelection(items);
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (selectedIndex >= 0 && items[selectedIndex]) {
+                        selectCollege(items[selectedIndex]);
+                    }
+                } else if (e.key === 'Escape') {
+                    hideDropdown();
+                }
+            }
+
+            // Update visual selection
+            function updateSelection(items) {
+                items.forEach((item, index) => {
+                    if (index === selectedIndex) {
+                        item.classList.add('selected');
+                        item.scrollIntoView({ block: 'nearest' });
+                    } else {
+                        item.classList.remove('selected');
+                    }
+                });
+            }
+
+            // Event: Input typing
+            collegeInput.addEventListener('input', function() {
+                const value = this.value.trim();
+                
+                clearTimeout(debounceTimer);
+                
+                if (value.length < 2) {
+                    hideDropdown();
+                    // Clear other fields if user is typing from scratch
+                    if (value.length === 0) {
+                        collegeNameInput.value = '';
+                        zoneNameInput.value = '';
+                        collegeIdInput.value = '';
+                    }
+                    return;
+                }
+
+                debounceTimer = setTimeout(() => {
+                    const results = filterColleges(value);
+                    showDropdown(results);
+                }, 300);
+            });
+
+            // Event: Focus - fetch colleges if not already loaded
+            collegeInput.addEventListener('focus', async function() {
+                if (allColleges.length === 0) {
+                    loader.style.display = 'block';
+                    await fetchColleges();
+                    loader.style.display = 'none';
+                }
+                
+                if (this.value.length >= 2) {
+                    const results = filterColleges(this.value);
+                    showDropdown(results);
+                }
+            });
+
+            // Event: Keyboard navigation
+            collegeInput.addEventListener('keydown', handleKeyboard);
+
+            // Event: Click on dropdown item
+            dropdown.addEventListener('mousedown', function(e) {
+                // Prevent input from losing focus when clicking dropdown
+                e.preventDefault();
+            });
+            
+            dropdown.addEventListener('click', function(e) {
+                const item = e.target.closest('.autocomplete-item');
+                if (item && !item.classList.contains('no-results')) {
+                    selectCollege(item);
+                }
+            });
+
+            // Event: Click outside - close dropdown
+            document.addEventListener('click', function(e) {
+                if (!collegeInput.contains(e.target) && !dropdown.contains(e.target)) {
+                    hideDropdown();
+                }
+            });
+        })();
+    </script>
 </body>
 
 </html>

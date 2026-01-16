@@ -1,6 +1,8 @@
 /* ===== YUVA ALUMNI PAGE - JAVASCRIPT 2025 ===== */
 
-const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwvQIv_Z5hgaQJzkqr0wxIvjHSLVJByHv5Vd-i1DwGCCwnZ1BdHpswnWx23cwZQ4Wq6/exec';
+const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx0i9z_-ZpCH0bq9iIQRlYSPP0J4DF8F_PEjHT1js0Nk7gThwRFjXlvegeu2JEQBeaj/exec';
+
+
 
 /**
  * FlashNotification System
@@ -126,15 +128,46 @@ class AlumniPage {
             return;
         }
 
-        const formData = new FormData(this.form);
-
-        // Process interests checkboxes
-        const interests = Array.from(this.form.querySelectorAll('input[name="interests"]:checked'))
-            .map(checkbox => checkbox.value)
-            .join(', ');
-        formData.set('interests', interests);
-
         try {
+            // Check if user selected a file to upload
+            const imageFile = document.getElementById('imageFile').files[0];
+            let imageUrl = document.getElementById('imageUrl').value;
+
+            if (imageFile) {
+                // Upload image to Supabase Storage
+                submitButton.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Uploading image...`;
+
+                try {
+                    imageUrl = await this.uploadImageToSupabase(imageFile);
+
+                    if (!imageUrl) {
+                        throw new Error('Image upload returned no URL');
+                    }
+                } catch (uploadError) {
+                    // Show specific upload error
+                    this.flash.showError('Upload Failed', uploadError.message || 'Failed to upload image');
+                    submitButton.innerHTML = originalButtonText;
+                    submitButton.disabled = false;
+                    return; // Stop form submission
+                }
+            }
+
+            // Prepare form data
+            const formData = new FormData(this.form);
+
+            // Set the image URL (either uploaded or pasted)
+            if (imageUrl) {
+                formData.set('imageUrl', imageUrl);
+            }
+
+            // Process interests checkboxes
+            const interests = Array.from(this.form.querySelectorAll('input[name="interests"]:checked'))
+                .map(checkbox => checkbox.value)
+                .join(', ');
+            formData.set('interests', interests);
+
+            submitButton.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Submitting registration...`;
+
             const response = await fetch(GAS_WEB_APP_URL, {
                 method: 'POST',
                 body: formData,
@@ -146,21 +179,131 @@ class AlumniPage {
                 this.flash.showSuccess('Welcome to YUVA Alumni!', 'Your registration was successful. Check your email for details.');
                 this.form.reset();
 
+                // Clear image preview
+                const imagePreview = document.getElementById('imagePreview');
+                if (imagePreview) {
+                    imagePreview.style.display = 'none';
+                }
+
                 // Scroll to top after successful submission
                 setTimeout(() => {
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 }, 1000);
             } else {
-                throw new Error(result.error || 'Submission failed');
+                throw new Error(result.error || result.message || 'Submission failed');
             }
 
         } catch (error) {
-            console.error('Submission Error:', error);
-            this.flash.showError('Submission Failed', 'Unable to submit your registration. Please try again or contact support.');
+            this.flash.showError('Submission Failed', error.message || 'Unable to submit your registration. Please try again or contact support.');
         } finally {
             submitButton.innerHTML = originalButtonText;
             submitButton.disabled = false;
         }
+    }
+
+    /**
+     * Upload image via Google Apps Script backend
+     */
+    async uploadImageToSupabase(file) {
+        try {
+            // Validate file
+            const maxSize = 500 * 1024; // 500KB
+            if (file.size > maxSize) {
+                this.flash.showError('File Too Large', 'Please select an image smaller than 500KB.');
+                return null;
+            }
+
+            // Show progress
+            const progressDiv = document.getElementById('upload-progress');
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+
+            if (progressDiv) {
+                progressDiv.style.display = 'block';
+                progressFill.style.width = '30%';
+                progressText.textContent = 'Uploading image...';
+            }
+
+            // Convert image to base64
+            const base64Image = await this.fileToBase64(file);
+
+            if (progressFill) progressFill.style.width = '50%';
+
+            // Generate filename
+            const timestamp = Date.now();
+            const email = document.getElementById('email').value.replace(/[^a-zA-Z0-9]/g, '_');
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${email}_${timestamp}.${fileExt}`;
+
+            // Send to Google Apps Script
+            const formData = new FormData();
+            formData.append('action', 'uploadImage');
+            formData.append('imageData', base64Image);
+            formData.append('fileName', fileName);
+            formData.append('fileType', file.type);
+
+            if (progressFill) progressFill.style.width = '70%';
+
+            const response = await fetch(GAS_WEB_APP_URL, {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (progressFill) progressFill.style.width = '90%';
+
+            if (!result.success) {
+                const errorMsg = result.error || result.message || 'Upload failed';
+                throw new Error(errorMsg);
+            }
+
+            // Extract image URL from response (it's in result.data.imageUrl)
+            const imageUrl = result.data?.imageUrl || result.imageUrl;
+
+            if (!imageUrl) {
+                throw new Error('Backend did not return image URL');
+            }
+
+            // Get public URL from response
+            const publicURL = imageUrl;
+
+            if (progressFill) {
+                progressFill.style.width = '100%';
+                progressText.textContent = 'Upload complete!';
+            }
+
+            setTimeout(() => {
+                if (progressDiv) progressDiv.style.display = 'none';
+            }, 1000);
+
+            this.flash.showSuccess('Image Uploaded!', 'Your profile photo has been uploaded successfully.');
+            return publicURL;
+
+        } catch (error) {
+
+            const progressDiv = document.getElementById('upload-progress');
+            if (progressDiv) progressDiv.style.display = 'none';
+
+            // Re-throw the error so the caller can handle it
+            throw error;
+        }
+    }
+
+    /**
+     * Convert file to base64
+     */
+    fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                // Remove data URL prefix (e.g., "data:image/jpeg;base64,")
+                const base64 = reader.result.split(',')[1];
+                resolve(base64);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
     }
 
     validateForm() {
@@ -276,29 +419,33 @@ class AlumniPage {
 
         // The skeleton loader is already in the HTML.
         try {
-            // Simulate a network delay to make the loader visible
-            await new Promise(resolve => setTimeout(resolve, 1500));
-
+            // Fetch featured alumni from Supabase via Google Apps Script
             const response = await fetch(`${GAS_WEB_APP_URL}?action=getFeaturedAlumni`);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
             const result = await response.json();
 
-            if (result.success && result.data.length > 0) {
+            if (result.success && result.data && result.data.length > 0) {
                 storiesContainer.innerHTML = ''; // Clear the skeleton loaders
+
                 result.data.forEach(story => {
                     const storyCard = document.createElement('div');
                     storyCard.className = 'story-card';
                     storyCard.style.animation = 'fadeIn 0.5s ease-out forwards';
                     storyCard.innerHTML = `
                         <div class="story-image">
-                            <img src="${story.ImageURL}" alt="${story.Name}">
+                            <img src="${story.ImageURL}" alt="${story.Name}" loading="lazy">
                             <div class="story-badge">${story.Badge}</div>
                         </div>
                         <div class="story-content">
                             <h3>${story.Name}</h3>
-                            <p class="story-role">${story.Role}</p>
+                            <p class="story-role">${story.Role} at ${story.Organization || 'YUVA'}</p>
                             <p class="story-text">"${story.Quote}"</p>
                             <div class="story-stats">
-                                <span><i class="fas fa-building"></i> ${story.Batch} Batch</span>
+                                <span><i class="fas fa-graduation-cap"></i> ${story.Batch} Batch</span>
                                 <span><i class="fas fa-map-marker-alt"></i> ${story.City}</span>
                             </div>
                         </div>
@@ -319,20 +466,39 @@ class AlumniPage {
                     } else {
                         // If not, add an event listener to run the function when it's done loading
                         imgElement.addEventListener('load', revealImage);
+                        // Add error handler for broken images
+                        imgElement.addEventListener('error', () => {
+                            imgElement.src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(story.Name) + '&size=400&background=FF9933&color=fff';
+                            revealImage();
+                        });
                     }
                 });
 
                 // Show success notification
-                this.flash.showSuccess('Stories Loaded!', 'Featured alumni are now displayed.', 3000);
+                this.flash.showSuccess('Alumni Stories Loaded!', `Displaying ${result.data.length} featured alumni.`, 3000);
 
             } else {
-                // Handle cases where fetch is successful but no data is returned
-                throw new Error(result.error || 'No featured alumni data found.');
+                // No featured alumni found
+                storiesContainer.innerHTML = `
+                    <div class="no-data-message">
+                        <i class="fas fa-users" style="font-size: 3rem; color: var(--text-muted); margin-bottom: 1rem;"></i>
+                        <p>No featured alumni stories available yet.</p>
+                        <p style="font-size: 0.9rem; color: var(--text-muted);">Check back soon!</p>
+                    </div>
+                `;
+                this.flash.showInfo('No Stories Yet', 'Featured alumni will appear here soon.', 3000);
             }
         } catch (error) {
             console.error('Failed to load featured alumni:', error);
             // Replace skeleton loader with an error message
-            storiesContainer.innerHTML = `<p class="error-message">Could not load alumni stories. Please try again later.</p>`;
+            storiesContainer.innerHTML = `
+                <div class="error-message">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 2.5rem; margin-bottom: 1rem;"></i>
+                    <p>Could not load alumni stories.</p>
+                    <p style="font-size: 0.9rem;">Please check your connection and try again.</p>
+                </div>
+            `;
+            this.flash.showError('Loading Failed', 'Unable to fetch alumni stories. Please try again later.', 5000);
         }
     }
     initializeImageUploadHelper() {
@@ -392,6 +558,70 @@ function scrollToStories() {
     }
 }
 
+// ============================================
+// IMAGE UPLOAD HELPER FUNCTIONS
+// ============================================
+
+/**
+ * Handle image file selection and show preview
+ */
+function handleImageSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+        alert('Please select a valid image file (JPG, PNG, or WebP)');
+        event.target.value = '';
+        return;
+    }
+
+    // Validate file size (500KB)
+    const maxSize = 500 * 1024;
+    if (file.size > maxSize) {
+        alert('Image size must be less than 500KB');
+        event.target.value = '';
+        return;
+    }
+
+    // Show preview
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        const previewImg = document.getElementById('previewImg');
+        const imagePreview = document.getElementById('imagePreview');
+
+        if (previewImg && imagePreview) {
+            previewImg.src = e.target.result;
+            imagePreview.style.display = 'block';
+        }
+
+        // Clear URL input if file is selected
+        const imageUrlInput = document.getElementById('imageUrl');
+        if (imageUrlInput) {
+            imageUrlInput.value = '';
+        }
+    };
+    reader.readAsDataURL(file);
+}
+
+/**
+ * Remove selected image
+ */
+function removeImage() {
+    const imageFileInput = document.getElementById('imageFile');
+    const imagePreview = document.getElementById('imagePreview');
+
+    if (imageFileInput) {
+        imageFileInput.value = '';
+    }
+
+    if (imagePreview) {
+        imagePreview.style.display = 'none';
+    }
+}
+
+
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     const alumniPage = new AlumniPage();
@@ -421,4 +651,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
+
+    // Image file input handler
+    const imageFileInput = document.getElementById('imageFile');
+    if (imageFileInput) {
+        imageFileInput.addEventListener('change', handleImageSelect);
+    }
 });

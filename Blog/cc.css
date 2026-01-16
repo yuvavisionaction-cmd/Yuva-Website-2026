@@ -774,6 +774,9 @@
     padding: 40px;
     gap: 30px;
     align-items: flex-start;
+    overflow: hidden;
+    /* Prevent content from bleeding into next slide */
+    box-sizing: border-box;
 }
 
 .cc-book-cover {
@@ -827,6 +830,8 @@
     gap: 16px;
     min-width: 0;
     /* Prevents flex container from overflowing */
+    padding-right: 40px;
+    /* Ensure text doesn't hit the Next arrow */
 }
 
 .cc-book-main-content {

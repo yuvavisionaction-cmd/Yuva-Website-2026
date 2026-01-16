@@ -1,0 +1,443 @@
+// ============================================
+// YUVA VOLUNTEER - SUPABASE BACKEND
+// ============================================
+// Google Apps Script for volunteer applications
+// Migrated from Google Sheets to Supabase
+// ============================================
+
+// ============================================
+// CONFIGURATION - UPDATE THESE VALUES
+// ============================================
+
+const SUPABASE_URL = 'https://jgsrsjwmywiirtibofth.supabase.co';
+const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impnc3JzandteXdpaXJ0aWJvZnRoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTA3NjY0OCwiZXhwIjoyMDc0NjUyNjQ4fQ.tQ9aD4OP1okfdgNr8O4LqIkYAF4rUvbRBN4XBW-KrZo';
+const SUPABASE_TABLE = 'volunteers';
+
+// Email configuration
+const SEND_CONFIRMATION_EMAIL = true;
+const ADMIN_EMAIL = 'yuva.vision.action@gmail.com';
+
+// ============================================
+// MAIN HANDLERS
+// ============================================
+
+/**
+ * Handles POST requests from the volunteer form
+ */
+function doPost(e) {
+  try {
+    // Parse form data
+    const formData = parseFormData(e);
+    
+    // Validate required fields
+    const validation = validateFormData(formData);
+    if (!validation.valid) {
+      return createResponse(false, validation.error);
+    }
+    
+    // Check for duplicate email
+    const duplicate = checkDuplicateEmail(formData.email);
+    if (duplicate) {
+      return createResponse(false, 'This email is already registered. Please use a different email.');
+    }
+    
+    // Prepare volunteer data for Supabase
+    const volunteerData = {
+      full_name: formData.fullName,
+      age: parseInt(formData.age) || null,
+      gender: formData.gender,
+      email: formData.email.toLowerCase().trim(),
+      phone: formData.phone,
+      city: formData.city || null,
+      occupation: formData.occupation,
+      college: formData.college,
+      involvement: formData.involvement,
+      skills: formData.skills,
+      causes: formData.causes,
+      available_time: formData.time,
+      why_join: formData.whyJoin,
+      hope_to_achieve: formData.hopeToAchieve,
+      past_volunteer: formData.pastVolunteer === 'Yes',
+      past_volunteer_details: formData.pastVolunteerDetailsText || null,
+      other_groups: formData.otherGroups === 'Yes',
+      other_groups_details: formData.otherGroupsDetailsText || null,
+      comments: formData.comments || null,
+      email_updates: formData.emailUpdates === 'Yes',
+      data_consent: formData.dataConsent === 'Yes',
+      status: 'pending'
+    };
+    
+    // Insert into Supabase
+    const result = insertVolunteerToSupabase(volunteerData);
+    
+    if (result.success) {
+      // Send confirmation email
+      if (SEND_CONFIRMATION_EMAIL) {
+        sendConfirmationEmail(volunteerData);
+        notifyAdmin(volunteerData);
+      }
+      
+      return createResponse(true, 'Application submitted successfully! We will contact you soon.', result.data);
+    } else {
+      throw new Error(result.error || 'Failed to save volunteer data');
+    }
+    
+  } catch (error) {
+    Logger.log('Error in doPost: ' + error.toString());
+    return createResponse(false, error.toString());
+  }
+}
+
+/**
+ * Handles OPTIONS requests for CORS
+ */
+function doOptions(e) {
+  return ContentService
+    .createTextOutput(JSON.stringify({ status: 'SUCCESS' }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
+
+/**
+ * Parse form data from request
+ */
+function parseFormData(e) {
+  const params = e.parameter;
+  return {
+    fullName: params.fullName || '',
+    age: params.age || '',
+    gender: params.gender || '',
+    email: params.email || '',
+    phone: params.phone || '',
+    city: params.city || '',
+    occupation: params.occupation || '',
+    college: params.college || '',
+    involvement: params.involvement || '',
+    skills: params.skills || '',
+    causes: params.causes || '',
+    time: params.time || '',
+    whyJoin: params.whyJoin || '',
+    hopeToAchieve: params.hopeToAchieve || '',
+    pastVolunteer: params.pastVolunteer || '',
+    pastVolunteerDetailsText: params.pastVolunteerDetailsText || '',
+    otherGroups: params.otherGroups || '',
+    otherGroupsDetailsText: params.otherGroupsDetailsText || '',
+    comments: params.comments || '',
+    emailUpdates: params.emailUpdates || '',
+    dataConsent: params.dataConsent || ''
+  };
+}
+
+/**
+ * Validate form data
+ */
+function validateFormData(data) {
+  const requiredFields = [
+    { field: 'fullName', name: 'Full Name' },
+    { field: 'age', name: 'Age' },
+    { field: 'gender', name: 'Gender' },
+    { field: 'email', name: 'Email' },
+    { field: 'phone', name: 'Phone' },
+    { field: 'occupation', name: 'Occupation' },
+    { field: 'college', name: 'College' },
+    { field: 'involvement', name: 'Involvement' },
+    { field: 'skills', name: 'Skills' },
+    { field: 'causes', name: 'Causes' },
+    { field: 'time', name: 'Available Time' },
+    { field: 'whyJoin', name: 'Why Join' },
+    { field: 'hopeToAchieve', name: 'Hope to Achieve' },
+    { field: 'pastVolunteer', name: 'Past Volunteer' },
+    { field: 'otherGroups', name: 'Other Groups' },
+    { field: 'emailUpdates', name: 'Email Updates' },
+    { field: 'dataConsent', name: 'Data Consent' }
+  ];
+  
+  for (const { field, name } of requiredFields) {
+    if (!data[field] || data[field].trim() === '') {
+      return { valid: false, error: `${name} is required.` };
+    }
+  }
+  
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(data.email)) {
+    return { valid: false, error: 'Invalid email format.' };
+  }
+  
+  // Validate phone (10 digits)
+  const phoneRegex = /^[6-9]\d{9}$/;
+  if (!phoneRegex.test(data.phone.replace(/\D/g, ''))) {
+    return { valid: false, error: 'Invalid phone number. Must be 10 digits.' };
+  }
+  
+  // Validate age
+  const age = parseInt(data.age);
+  if (isNaN(age) || age < 15 || age > 100) {
+    return { valid: false, error: 'Invalid age. Must be between 15 and 100.' };
+  }
+  
+  return { valid: true };
+}
+
+/**
+ * Check for duplicate email in Supabase
+ */
+function checkDuplicateEmail(email) {
+  try {
+    const url = `${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}?email=eq.${encodeURIComponent(email.toLowerCase().trim())}&select=id`;
+    
+    const options = {
+      method: 'get',
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`
+      },
+      muteHttpExceptions: true
+    };
+    
+    const response = UrlFetchApp.fetch(url, options);
+    const data = JSON.parse(response.getContentText());
+    
+    return data.length > 0;
+  } catch (error) {
+    Logger.log('Error checking duplicate: ' + error.toString());
+    return false;
+  }
+}
+
+/**
+ * Insert volunteer data into Supabase
+ */
+function insertVolunteerToSupabase(data) {
+  try {
+    const url = `${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`;
+    
+    const options = {
+      method: 'post',
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      },
+      payload: JSON.stringify(data),
+      muteHttpExceptions: true
+    };
+    
+    const response = UrlFetchApp.fetch(url, options);
+    const responseCode = response.getResponseCode();
+    
+    if (responseCode === 201) {
+      const responseData = JSON.parse(response.getContentText());
+      return { success: true, data: responseData[0] };
+    } else {
+      const errorText = response.getContentText();
+      Logger.log('Supabase error: ' + errorText);
+      return { success: false, error: 'Database error: ' + errorText };
+    }
+  } catch (error) {
+    Logger.log('Error inserting to Supabase: ' + error.toString());
+    return { success: false, error: error.toString() };
+  }
+}
+
+/**
+ * Send confirmation email to volunteer
+ */
+function sendConfirmationEmail(data) {
+  try {
+    const subject = '🎉 Thank You for Applying to YUVA!';
+    const body = `
+Dear ${data.full_name},
+
+🎊 Thank you for your interest in volunteering with YUVA!
+
+We have received your application and are excited to review it. Here's what happens next:
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📝 YOUR APPLICATION DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📧 Email: ${data.email}
+📱 Phone: ${data.phone}
+🏢 College: ${data.college}
+💼 Occupation: ${data.occupation}
+🎯 Interested in: ${data.involvement}
+⭐ Skills: ${data.skills}
+❤️ Passionate about: ${data.causes}
+⏰ Available: ${data.available_time} per week
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📋 NEXT STEPS:
+
+1️⃣ Our team will review your application within 3-5 business days
+2️⃣ We'll reach out to you via email or phone for next steps
+3️⃣ You may be invited for a brief orientation session
+4️⃣ Once onboarded, you'll start making an impact!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🌟 WHAT YOU CAN DO WHILE WAITING:
+
+✅ Follow us on social media to stay updated
+✅ Check out our ongoing initiatives
+✅ Join our WhatsApp community
+✅ Attend our upcoming events
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Stay connected with us:
+🌐 Website: https://yuva.ind.in
+💼 LinkedIn: https://www.linkedin.com/company/youthunitedforvisionandaction
+💬 WhatsApp: https://whatsapp.com/channel/0029Vb6mApvDzgTCSKtAAb2y
+
+We're thrilled to have you join our mission of youth empowerment!
+
+Best regards,
+YUVA Team
+Youth United for Vision and Action
+
+P.S. If you have any questions, feel free to reply to this email!
+    `;
+    
+    MailApp.sendEmail(data.email, subject, body);
+    
+  } catch (error) {
+    Logger.log('Email sending error: ' + error.toString());
+  }
+}
+
+/**
+ * Notify admin of new volunteer application
+ */
+function notifyAdmin(data) {
+  try {
+    const subject = '🆕 New Volunteer Application Received';
+    const body = `
+New volunteer application submitted!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+👤 APPLICANT DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Name: ${data.full_name}
+Age: ${data.age}
+Gender: ${data.gender}
+Email: ${data.email}
+Phone: ${data.phone}
+City: ${data.city || 'Not provided'}
+Occupation: ${data.occupation}
+College: ${data.college}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 VOLUNTEER PREFERENCES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Involvement: ${data.involvement}
+Skills: ${data.skills}
+Causes: ${data.causes}
+Available Time: ${data.available_time}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💭 MOTIVATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Why Join: ${data.why_join}
+
+Hope to Achieve: ${data.hope_to_achieve}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 EXPERIENCE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Past Volunteer: ${data.past_volunteer ? 'Yes' : 'No'}
+${data.past_volunteer_details ? 'Details: ' + data.past_volunteer_details : ''}
+
+Other Groups: ${data.other_groups ? 'Yes' : 'No'}
+${data.other_groups_details ? 'Details: ' + data.other_groups_details : ''}
+
+${data.comments ? 'Additional Comments: ' + data.comments : ''}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Email Updates: ${data.email_updates ? 'Yes' : 'No'}
+Status: Pending Review
+
+View in Supabase: ${SUPABASE_URL}/project/default/editor/${SUPABASE_TABLE}
+
+To approve this volunteer:
+UPDATE volunteers SET status = 'approved' WHERE email = '${data.email}';
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+YUVA Admin System
+    `;
+    
+    MailApp.sendEmail(ADMIN_EMAIL, subject, body);
+    
+  } catch (error) {
+    Logger.log('Admin notification error: ' + error.toString());
+  }
+}
+
+/**
+ * Create JSON response
+ */
+function createResponse(success, message, data = null) {
+  const response = {
+    success: success,
+    message: message
+  };
+  
+  if (data) {
+    response.data = data;
+  }
+  
+  return ContentService
+    .createTextOutput(JSON.stringify(response))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ============================================
+// TEST FUNCTIONS
+// ============================================
+
+/**
+ * Test Supabase connection
+ */
+function testSupabaseConnection() {
+  try {
+    const url = `${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}?select=count`;
+    
+    const options = {
+      method: 'get',
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`
+      }
+    };
+    
+    const response = UrlFetchApp.fetch(url, options);
+    Logger.log('Connection successful! Response: ' + response.getContentText());
+    return true;
+  } catch (error) {
+    Logger.log('Connection failed: ' + error.toString());
+    return false;
+  }
+}
+
+// ============================================
+// MIGRATION NOTE
+// ============================================
+// This code has been migrated from Google Sheets to Supabase.
+// All volunteer applications are now stored in Supabase.
+// 
+// To use this script:
+// 1. Run the SQL schema in Supabase (see supabase-volunteer-schema.sql)
+// 2. Deploy this script as a web app
+// 3. Update the GAS_WEB_APP_URL in volunteer.js
+// ============================================

@@ -998,7 +998,7 @@
 
         populateYears();
 
-        // Authentication Flow - Using admin_users table via Google Apps Script
+        // Authentication Flow - Using Supabase Auth (matching Unit Registration)
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
 
@@ -1015,55 +1015,82 @@
             loginBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Logging in...';
 
             try {
-                // Call Google Apps Script backend to authenticate
-                const params = new URLSearchParams({
-                    action: 'auth',
-                    method: 'login',
+                // Step 1: Sign in with Supabase Auth
+                const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({
                     email: email,
                     password: password
                 });
 
-                const response = await fetch(`${GAS_WEB_APP_URL}?${params.toString()}`);
-                const result = await response.json();
-
-                if (response.ok && result.success) {
-                    // Success - user is authenticated
-                    currentUser = {
-                        id: result.user.id,
-                        email: result.user.email,
-                        full_name: result.user.full_name || 'Admin',
-                        role: result.user.role || 'viewer',
-                        zone: result.user.zone || '',
-                        college_id: result.user.college_id || null
-                    };
-
-                    // Store session
-                    localStorage.setItem('photo_admin_session', JSON.stringify({ user: currentUser }));
-
-                    loginSection.style.display = 'none';
-                    adminSection.style.display = 'block';
-                    showMessage(loginMessage, '', '');
-                    loadPhotos();
-                } else {
-                    // Login failed
-                    console.error('Login error:', result.error);
-
-                    // Sanitize error message
-                    let userMessage = 'Invalid email or password';
-                    if (result.error) {
-                        const errorLower = result.error.toLowerCase();
-                        if (errorLower.includes('database') || errorLower.includes('db')) {
-                            userMessage = 'Service temporarily unavailable. Please try again.';
-                        } else if (errorLower.includes('network') || errorLower.includes('connection')) {
-                            userMessage = 'Network error. Please check your internet connection.';
-                        }
-                    }
-
-                    showMessage(loginMessage, userMessage, 'error');
+                if (authError) {
+                    throw authError;
                 }
+
+                if (!authData || !authData.user) {
+                    throw new Error('Authentication failed - no user data returned');
+                }
+
+                // Step 2: Verify user is in admin_users table
+                const { data: adminUser, error: adminError } = await supabaseClient
+                    .from('admin_users')
+                    .select('*')
+                    .eq('email', email.toLowerCase())
+                    .single();
+
+                if (adminError || !adminUser) {
+                    // Sign out the user since they're not an admin
+                    await supabaseClient.auth.signOut();
+                    throw new Error('This email is not registered as an admin. Please contact the administrator.');
+                }
+
+                // Step 3: Check if user has gallery access
+                const allowedRoles = ['super_admin', 'zone_convener', 'college_mentor'];
+                if (!allowedRoles.includes(adminUser.role)) {
+                    await supabaseClient.auth.signOut();
+                    throw new Error('You do not have permission to access the photo gallery admin panel.');
+                }
+
+                // Success - user is authenticated and authorized
+                currentUser = {
+                    id: adminUser.id,
+                    email: adminUser.email,
+                    full_name: adminUser.full_name || 'Admin',
+                    role: adminUser.role,
+                    zone: adminUser.zone || '',
+                    college_id: adminUser.college_id || null
+                };
+
+                // Store session
+                localStorage.setItem('photo_admin_session', JSON.stringify({
+                    user: currentUser,
+                    timestamp: new Date().toISOString()
+                }));
+
+                loginSection.style.display = 'none';
+                adminSection.style.display = 'block';
+                showMessage(loginMessage, '', '');
+                loadPhotos();
+
             } catch (error) {
-                console.error('Login exception:', error);
-                showMessage(loginMessage, 'Unable to sign in. Please try again.', 'error');
+                console.error('Login error:', error);
+
+                // User-friendly error messages
+                let userMessage = 'Invalid email or password';
+                const errorMsg = error.message || '';
+                const errorLower = errorMsg.toLowerCase();
+
+                if (errorLower.includes('not registered as an admin') || errorLower.includes('permission')) {
+                    userMessage = errorMsg;
+                } else if (errorLower.includes('invalid') || errorLower.includes('credentials')) {
+                    userMessage = 'Invalid email or password';
+                } else if (errorLower.includes('email not confirmed')) {
+                    userMessage = 'Please verify your email before logging in';
+                } else if (errorLower.includes('network') || errorLower.includes('connection')) {
+                    userMessage = 'Network error. Please check your internet connection.';
+                } else if (errorLower.includes('database') || errorLower.includes('db')) {
+                    userMessage = 'Service temporarily unavailable. Please try again.';
+                }
+
+                showMessage(loginMessage, userMessage, 'error');
             } finally {
                 loginBtn.disabled = false;
                 loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
@@ -1071,20 +1098,52 @@
         });
 
         // Check for existing session on page load
-        function checkExistingSession() {
-            const sessionData = localStorage.getItem('photo_admin_session');
-            if (sessionData) {
-                try {
-                    const { user } = JSON.parse(sessionData);
-                    if (user) {
-                        currentUser = user;
-                        loginSection.style.display = 'none';
-                        adminSection.style.display = 'block';
-                        loadPhotos();
-                    }
-                } catch (e) {
+        async function checkExistingSession() {
+            try {
+                // Check Supabase Auth session first
+                const { data: { session }, error } = await supabaseClient.auth.getSession();
+
+                if (error || !session) {
+                    // No valid Supabase session, clear localStorage
                     localStorage.removeItem('photo_admin_session');
+                    return;
                 }
+
+                // Verify user is still in admin_users table
+                const { data: adminUser, error: adminError } = await supabaseClient
+                    .from('admin_users')
+                    .select('*')
+                    .eq('email', session.user.email.toLowerCase())
+                    .single();
+
+                if (adminError || !adminUser) {
+                    // User no longer an admin, sign out
+                    await supabaseClient.auth.signOut();
+                    localStorage.removeItem('photo_admin_session');
+                    return;
+                }
+
+                // Valid session found
+                currentUser = {
+                    id: adminUser.id,
+                    email: adminUser.email,
+                    full_name: adminUser.full_name || 'Admin',
+                    role: adminUser.role,
+                    zone: adminUser.zone || '',
+                    college_id: adminUser.college_id || null
+                };
+
+                localStorage.setItem('photo_admin_session', JSON.stringify({
+                    user: currentUser,
+                    timestamp: new Date().toISOString()
+                }));
+
+                loginSection.style.display = 'none';
+                adminSection.style.display = 'block';
+                loadPhotos();
+            } catch (e) {
+                console.error('Session check error:', e);
+                localStorage.removeItem('photo_admin_session');
             }
         }
 
@@ -1092,7 +1151,14 @@
         checkExistingSession();
 
         // Logout
-        logoutBtn.addEventListener('click', () => {
+        logoutBtn.addEventListener('click', async () => {
+            try {
+                // Sign out from Supabase Auth
+                await supabaseClient.auth.signOut();
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+
             currentUser = null;
             localStorage.removeItem('photo_admin_session');
             loginSection.style.display = 'block';

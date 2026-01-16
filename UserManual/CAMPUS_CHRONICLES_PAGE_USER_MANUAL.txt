@@ -1,0 +1,207 @@
+================================================================================
+                           YUVA INDIA WEBSITE
+                 CAMPUS CHRONICLES PAGE - USER MANUAL
+                  Doc Version: 1.0 | Date: 2025-12-26
+================================================================================
+
+1. INTRODUCTION
+────────────────
+The Campus Chronicles page (/Blog/CC.html) serves as the digital voice of YUVA,
+featuring student stories, campus updates, opinion pieces, and book reviews.
+
+It is designed as a modern, interactive blog platform that emphasizes "reading
+without leaving," allowing users to expand articles inline. The design reflects
+YUVA's brand with a Saffron, White, and Green color palette and high-quality
+typography.
+
+Key Features:
+- Dynamic Hero Section with Impact Statistics
+- Featured Article Slider (Auto-playing)
+- "Latest Posts" with Inline Expansion (Accordion style)
+- Editor's Choice Section (Featured + List layout)
+- Interactive Book Reviews Slider
+- Flash Notification System for user feedback
+- Mobile-first, responsive design
+
+================================================================================
+2. TECHNICAL ARCHITECTURE
+─────────────────────────
+The page is built using standard web technologies with a component-based approach
+managed by a central JavaScript class.
+
+FILES:
+- HTML: /Blog/CC.html
+- CSS:  /Blog/cc.css (Main styles), /Mobile.css (Global mobile), /style.css (Base)
+- JS:   /Blog/cc.js (Page logic), /script.js (Global logic)
+
+CORE CLASS: `CampusChroniclesManager` (in cc.js)
+This class initializes and manages all interactive elements upon DOMContentLoaded.
+
+DEPENDENCIES:
+- Font Awesome 6.4.0 (Icons)
+- Google Fonts (Inter, Poppins)
+- IntersectionObserver API (Native browser API for animations)
+
+================================================================================
+3. PAGE SECTIONS & CONTENT MANAGEMENT
+─────────────────────────────────────
+This section details how to edit and maintain specific parts of the page.
+
+A. HERO SECTION
+---------------
+Location: HTML Lines ~233-281
+Elements:
+- Badge: "Campus Stories"
+- Title: "Campus Chronicles"
+- Stats: 500+ Articles, 50+ Writers, 25+ Universities
+
+EDITING STATS:
+Find the `.cc-impact` div in HTML and update the numbers in `.cc-impact-number`:
+<span class="cc-impact-number">Updates Here</span>
+
+B. FEATURED SLIDER
+------------------
+Location: HTML Lines ~283-449
+Class: `.cc-featured-slider`
+Logic: `initializeSlider()` in cc.js
+
+How to Add a Slide:
+1. Duplicate an `<article class="cc-featured-card">` block.
+2. Update the background image in `style="background-image: url(...)"`.
+3. Update Tags (`.cc-tag`), Title, Date, and Description.
+4. IMPORTANT: Ensure the `cc-slider-dots` container has a corresponding button
+   for the new slide (`<button class="cc-dot" data-slide="N"></button>`).
+
+C. LATEST POSTS (INLINE EXPANSION)
+----------------------------------
+Location: HTML Lines ~451-520
+Class: `.cc-cards`
+Logic: `initializeArticleExpansion()` in cc.js
+
+Content Structure:
+- Card Header: Image, Title, Meta info.
+- Expandable Area: `.cc-article` container.
+
+How to Add a Post:
+Copy the following template and paste it inside `.cc-cards`:
+
+```html
+<article class="cc-card reveal" data-article>
+    <div class="cc-card-media" style="background-image: url('path/to/image.jpg')"></div>
+    <div class="cc-card-body">
+        <h3 class="cc-card-title">Article Headline</h3>
+        <div class="cc-card-meta">Sep 2025 · Category</div>
+        <p class="cc-card-desc">Short summary/excerpt of the article.</p>
+    </div>
+    <!-- Expandable Content -->
+    <div class="cc-article" aria-hidden="true">
+        <div class="cc-article-header" data-toggle>
+            <span>Read full article</span>
+            <span class="cc-article-toggle">＋</span>
+        </div>
+        <div class="cc-article-content">
+            <div class="cc-article-inner">
+                <p>Full article content goes here. You can add images, lists, etc.</p>
+            </div>
+        </div>
+    </div>
+</article>
+```
+
+D. EDITOR'S CHOICE
+------------------
+Location: HTML Lines ~522-589
+Layout: Split screen (Main Featured Left + List Right).
+
+To update the Main Feature:
+- Edit the content inside `.cc-editor-main`.
+
+To update the List:
+- Edit or add `<article class="cc-editor-item">` blocks inside `.cc-editor-list`.
+
+E. BOOK REVIEWS SLIDER
+----------------------
+Location: HTML Lines ~591-703
+Logic: `initializeBookSlider()` in cc.js
+
+How to Add a Book:
+1. Duplicate a `<div class="cc-book-card">` block.
+2. Update Image, Rating (`.cc-rating-text`), Title, Author, and Review text.
+3. Update the Dots: Add a `<button class="cc-book-dot" data-book-slide="N"></button>`.
+
+================================================================================
+4. JAVASCRIPT FUNCTIONS (cc.js)
+───────────────────────────────
+
+init()
+- Bootstraps all other functions. Called on DOMContentLoaded.
+
+initializeFlashSystem()
+- Creates a `#flash-container` in the DOM if missing.
+- Usage: `manager.showSuccess('Title', 'Message')`
+- Auto-dismisses notifications after set duration.
+
+initializeRevealAnimations()
+- Uses IntersectionObserver to add `.is-visible` class to elements with `.reveal` class.
+- effect: Items fade in and slide up as user scrolls.
+
+initializeSlider() & initializeBookSlider()
+- Manages auto-play (setInterval).
+- Handles click events for Prev/Next buttons.
+- Handles Dot navigation.
+- Book slider supports Touch Swipe gestures.
+
+initializeArticleExpansion()
+- Toggles `aria-hidden` attribute on click.
+- Adds a subtle mouse-move parallax effect (`--mx`, `--my`) to cards.
+
+================================================================================
+5. STYLING SYSTEM (cc.css)
+──────────────────────────
+The page uses a robust CSS variable system for easy theming.
+
+Key Variables:
+- Primary: `--navy-chakra` (#000080)
+- Accent: `--saffron-primary` (#FF9933)
+- Backgrounds: `--bg-base`, `--bg-elevated`, `--bg-subtle`
+- Gradients: `--gradient-hero`, `--gradient-saffron`
+
+Custom Classes:
+- `.reveal`: Apply to any element to trigger the scroll-into-view animation.
+- `.cc-tag`: Standard pill-shaped tag style.
+- `.cc-card`: Standard elevated card with hover lift effect.
+
+Responsive Breakpoints:
+- The layout automatically adapts using Grid (`minmax`) and Flexbox.
+- Text sizes use `clamp()` for fluid scaling between Mobile and Desktop.
+
+================================================================================
+6. TROUBLESHOOTING
+──────────────────
+
+ISSUE 1: Sliders not working (stuck on first slide)
+- Check console for JS errors.
+- Ensure the number of "dots" matches the number of slides in HTML.
+- Verify IDs `sliderTrack`, `prevBtn`, `nextBtn` exist.
+
+ISSUE 2: "Read full article" not expanding
+- Ensure the article wrapper has the `data-article` attribute.
+- Ensure the click target (header/button) has the `data-toggle` attribute.
+- Check if `cc.js` is loaded correctly at the bottom of the body.
+
+ISSUE 3: Icons missing
+- Verify Font Awesome CDN link is present in `<head>`.
+- Check if icon class names (e.g., `fas fa-university`) are correct.
+
+ISSUE 4: Images not loading
+- Check file paths (should be absolute like `/Images/...` or relative).
+- Ensure images are physically present in the folder.
+- Check console for 404 errors.
+
+================================================================================
+7. FUTURE IMPROVEMENTS ROADMAP
+──────────────────────────────
+- CMS Integration: Connect to Supabase to load articles dynamically instead of hardcoded HTML.
+- Search Functionality: Add a search bar to filter articles by title/tag.
+- Category Filter: Click on tags to show only relevant articles.
+- Comment System: Allow users to discuss articles.

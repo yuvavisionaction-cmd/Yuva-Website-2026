@@ -495,7 +495,7 @@ class VolunteerPage {
         }
 
         // PASTE THE WEB APP URL FROM YOUR GOOGLE APPS SCRIPT DEPLOYMENT HERE
-        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwgdGGQIDJdLezD0jn99QutqJhis8tAbxSDf1zUlOBQkXJCSQxKPKE85ijVoWTSna8-/exec'; // Your URL
+        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz7DVZe6kw__rabGKRXWMJ0ssRE2vwOf47EyLX_Q2vQZ5aTNIRogwcfu0-agf8NqM1l/exec'; // Your URL
 
         const originalButtonText = this.submitButton.innerHTML;
         this.submitButton.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Submitting...`;
@@ -504,12 +504,16 @@ class VolunteerPage {
         const formData = new FormData(this.form);
 
         try {
+            console.log('Submitting form to:', GAS_WEB_APP_URL);
+
             const response = await fetch(GAS_WEB_APP_URL, {
                 method: 'POST',
                 body: formData,
             });
 
+            console.log('Response status:', response.status);
             const result = await response.json();
+            console.log('Response data:', result);
 
             if (result.success) {
                 this.flash.showSuccess('Application Sent!', 'Thank you! We will get back to you shortly.');
@@ -523,12 +527,14 @@ class VolunteerPage {
                 this.updateFormSteps();
                 this.updateProgressBar();
             } else {
-                throw new Error(result.error || 'An unknown error occurred.');
+                const errorMsg = result.error || result.message || 'An unknown error occurred.';
+                console.error('Backend error:', errorMsg);
+                throw new Error(errorMsg);
             }
 
         } catch (error) {
             console.error('Submission Error:', error);
-            this.flash.showError('Submission Failed', 'Could not submit the form. Please try again.');
+            this.flash.showError('Submission Failed', error.message || 'Could not submit the form. Please try again.');
         } finally {
             // Restore the button regardless of success or failure
             this.submitButton.innerHTML = originalButtonText;

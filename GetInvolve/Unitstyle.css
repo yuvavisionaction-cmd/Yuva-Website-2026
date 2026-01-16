@@ -206,7 +206,7 @@
 .modal-content {
     background-color: var(--bg-elevated);
     margin: 5% auto;
-    padding: 28px 32px;
+    padding: 24px 28px;
     border-radius: var(--radius-xl);
     width: min(92vw, 520px);
     max-width: 520px;
@@ -214,14 +214,8 @@
     position: relative;
     z-index: 20001;
     animation: modalSlideIn 0.3s ease-out;
-    max-height: calc(100vh - 160px);
-    overflow-y: auto;
-    overflow-x: hidden;
-    box-sizing: border-box;
     word-break: break-word;
-    scrollbar-gutter: stable both-edges;
-    padding-right: 24px;
-    /* give gutter so scrollbar feels inside card */
+    box-sizing: border-box;
 }
 
 @keyframes modalSlideIn {
@@ -321,23 +315,75 @@ body.modal-open {
 }
 
 .form-group input,
-.form-group select {
+.form-group select,
+.form-group textarea {
     width: 100%;
     padding: 12px 16px;
-    border: 1px solid var(--border-medium);
-    border-radius: var(--radius-lg);
-    font-size: 16px;
-    transition: var(--transition-base);
-    background: var(--bg-elevated);
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    font-size: 15px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    background: #ffffff;
     box-sizing: border-box;
-    max-width: 100%;
+    font-family: inherit;
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 100px;
+    line-height: 1.6;
 }
 
 .form-group input:focus,
-.form-group select:focus {
+.form-group select:focus,
+.form-group textarea:focus {
     outline: none;
     border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px rgba(0, 0, 128, 0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 128, 0.08);
+}
+
+/* Modern Input with Icon */
+.input-group-modern {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.input-group-modern i {
+    position: absolute;
+    left: 16px;
+    color: #a0aec0;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    pointer-events: none;
+}
+
+.input-group-modern input {
+    padding-left: 44px !important;
+}
+
+.input-group-modern input:focus+i {
+    color: var(--color-primary);
+    transform: scale(1.1);
+}
+
+/* Character Counter */
+.character-counter {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+    text-align: right;
+    transition: color 0.3s ease;
+}
+
+.character-counter.warning {
+    color: var(--color-warning);
+}
+
+.character-counter.danger {
+    color: var(--color-error);
+    font-weight: 600;
 }
 
 /* Password Input Wrapper with Toggle Button */
@@ -350,31 +396,53 @@ body.modal-open {
 
 .password-input-wrapper input {
     width: 100%;
-    padding-right: 45px;
+    padding-right: 50px !important;
+    /* Increased padding to prevent text overlap */
 }
 
 .password-toggle {
     position: absolute;
     right: 12px;
+    /* Moved slightly inward for better alignment */
     background: none;
     border: none;
     cursor: pointer;
-    color: var(--text-secondary);
+    color: var(--text-muted);
     font-size: 18px;
-    padding: 8px;
+    /* Slightly larger for better visibility */
+    padding: 10px;
+    /* Larger click area */
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: color 0.3s ease;
+    transition: all 0.2s ease;
+    z-index: 10;
+    /* Increased z-index to ensure it's clickable */
+    border-radius: 6px;
+    /* Added border radius for hover effect */
+    min-width: 36px;
+    /* Minimum width for consistent size */
+    min-height: 36px;
+    /* Minimum height for consistent size */
 }
 
 .password-toggle:hover {
     color: var(--color-primary);
+    background: rgba(0, 0, 128, 0.05);
+    /* Subtle background on hover */
+}
+
+.password-toggle:active {
+    transform: scale(0.95);
+    /* Slight scale down on click for feedback */
 }
 
 .password-toggle i {
     pointer-events: none;
+    font-size: 18px;
+    /* Ensure icon is visible */
 }
+
 
 .auth-divider {
     text-align: center;
@@ -892,95 +960,148 @@ body.modal-open {
 }
 
 #college-dashboard .cd-leads .cd-member-card {
-    min-width: 280px;
-    max-width: 320px;
+    min-width: 300px;
+    max-width: 340px;
 }
 
 #college-dashboard .cd-team {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 12px;
-    margin-top: 10px;
+    gap: 16px;
+    margin-top: 14px;
 }
 
 #college-dashboard .cd-member-card {
-    border: 1px solid var(--border-light);
-    border-radius: var(--radius-lg);
-    padding: 12px 14px;
+    border: none;
+    border-radius: 16px;
+    padding: 20px;
     display: grid;
-    grid-template-columns: 48px minmax(0, 1fr) auto;
-    gap: 10px;
+    grid-template-columns: 56px minmax(0, 1fr) auto;
+    gap: 14px;
     align-items: center;
-    background: var(--bg-subtle);
-    transition: var(--transition-base);
-    min-height: 72px;
+    background: var(--white-primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    min-height: 90px;
+    position: relative;
+    overflow: hidden;
+}
+
+#college-dashboard .cd-member-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: var(--navy-chakra);
+    opacity: 0;
+    transition: opacity 0.3s ease;
 }
 
 #college-dashboard .cd-member-avatar {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    background: var(--bg-muted);
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    background: var(--navy-chakra);
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 700;
-    color: var(--color-primary);
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(0, 0, 128, 0.25);
+    transition: transform 0.3s ease;
 }
 
 #college-dashboard .cd-member-avatar img {
     width: 100%;
     height: 100%;
-    border-radius: 50%;
+    border-radius: 14px;
     object-fit: cover;
     display: block;
 }
 
 #college-dashboard .cd-member-avatar.placeholder {
-    background: var(--bg-muted);
-    border: 2px dashed var(--border-medium);
-    color: var(--color-primary);
+    background: var(--navy-chakra);
+    border: none;
+    color: #ffffff;
 }
 
 #college-dashboard .cd-member-avatar .cd-ph {
-    font-size: 0.95rem;
-    letter-spacing: .5px;
+    font-size: 1.1rem;
+    letter-spacing: 1px;
+    font-weight: 600;
 }
 
 #college-dashboard .cd-member-card:hover {
-    transform: translateY(-4px) scale(1.01);
-    box-shadow: var(--shadow-lg);
-    border-color: var(--color-primary);
+    transform: translateY(-6px);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.08);
     background: var(--white-warm);
+    border-color: var(--navy-chakra);
+}
+
+#college-dashboard .cd-member-card:hover::before {
+    opacity: 1;
+}
+
+#college-dashboard .cd-member-card:hover .cd-member-avatar {
+    transform: scale(1.05) rotate(2deg);
 }
 
 #college-dashboard .cd-member-card.featured {
-    border-color: var(--color-primary);
-    background: linear-gradient(180deg, var(--white-primary) 0%, #fbfcff 100%);
+    background: #f0f4ff;
+    box-shadow: 0 4px 16px rgba(0, 0, 128, 0.15), 0 2px 4px rgba(0, 0, 128, 0.1);
+    border-color: var(--navy-chakra);
+}
+
+#college-dashboard .cd-member-card.featured::before {
+    opacity: 1;
+    width: 5px;
+    background: var(--navy-chakra);
 }
 
 #college-dashboard .cd-member-card.approved {
-    border-color: var(--color-success);
     background: var(--green-pale);
+    box-shadow: 0 4px 16px rgba(19, 136, 8, 0.15), 0 2px 4px rgba(19, 136, 8, 0.1);
+    border-color: var(--green-primary);
+}
+
+#college-dashboard .cd-member-card.approved::before {
+    background: var(--green-primary);
+    opacity: 1;
 }
 
 #college-dashboard .cd-member-card.rejected {
-    border-color: var(--color-error);
     background: var(--color-error-pale);
+    box-shadow: 0 4px 16px rgba(239, 68, 68, 0.15), 0 2px 4px rgba(239, 68, 68, 0.1);
+    border-color: var(--color-error);
+}
+
+#college-dashboard .cd-member-card.rejected::before {
+    background: var(--color-error);
+    opacity: 1;
 }
 
 
 
 #college-dashboard .cd-member-info h4 {
-    margin: 0 0 2px 0;
-    font-size: 1rem;
-    color: var(--text-primary);
+    margin: 0 0 4px 0;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #1e293b;
+    letter-spacing: -0.01em;
 }
 
 #college-dashboard .cd-member-info p {
     margin: 0;
-    color: var(--text-secondary);
-    font-size: 0.85rem;
+    color: #64748b;
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+#college-dashboard .cd-member-info .cd-unit {
+    color: var(--navy-chakra);
+    font-weight: 500;
 }
 
 #college-dashboard .cd-skeleton {
@@ -1045,12 +1166,13 @@ body.modal-open {
 }
 
 #college-dashboard .cd-action-btn {
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
-    border: 1px solid var(--border-light);
-    background: var(--bg-elevated);
-    color: var(--text-secondary);
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: none;
+    background: rgba(100, 116, 139, 0.08);
+    color: #475569;
+    transition: all 0.2s ease;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -1061,9 +1183,9 @@ body.modal-open {
 }
 
 #college-dashboard .cd-action-btn:hover {
-    background: var(--bg-muted);
-    border-color: var(--border-medium);
-    color: var(--text-primary);
+    background: rgba(100, 116, 139, 0.15);
+    color: #334155;
+    transform: scale(1.08);
 }
 
 /* ===== NEW: Styles for College Card Actions and Status Indicator ===== */
@@ -1102,26 +1224,30 @@ body.modal-open {
 
 #college-dashboard .cd-action-btn.cd-edit:hover {
     background: var(--color-info);
-    color: var(--white-primary);
-    border-color: var(--color-info);
+    color: #ffffff;
+    transform: scale(1.08);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
 #college-dashboard .cd-action-btn.cd-delete:hover {
     background: var(--color-error);
-    color: var(--white-primary);
-    border-color: var(--color-error);
+    color: #ffffff;
+    transform: scale(1.08);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
 }
 
 #college-dashboard .cd-action-btn.cd-approve:hover {
-    background: var(--color-success);
-    color: var(--white-primary);
-    border-color: var(--color-success);
+    background: var(--green-primary);
+    color: #ffffff;
+    transform: scale(1.08);
+    box-shadow: 0 4px 12px rgba(19, 136, 8, 0.3);
 }
 
 #college-dashboard .cd-action-btn.cd-reject:hover {
-    background: var(--color-warning);
-    color: var(--white-primary);
-    border-color: var(--color-warning);
+    background: var(--saffron-primary);
+    color: #ffffff;
+    transform: scale(1.08);
+    box-shadow: 0 4px 12px rgba(255, 153, 51, 0.3);
 }
 
 .admin-header {
@@ -1151,6 +1277,64 @@ body.modal-open {
 .admin-info span {
     font-weight: 600;
     color: var(--color-primary);
+}
+
+.admin-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+#cd-refresh-btn {
+    /* Inherits from .btn.secondary but with icon-only sizing */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    padding: 24px;
+    min-width: 48px;
+    height: 40px;
+    border: 2px solid var(--color-primary);
+    background: transparent;
+    color: var(--color-primary);
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    transition: var(--transition-base);
+    font-size: 18px;
+    font-weight: 700;
+}
+
+#cd-refresh-btn:hover {
+    background: var(--color-primary);
+    color: var(--text-on-dark);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+#cd-refresh-btn:active {
+    transform: translateY(-2px) scale(0.95);
+}
+
+#cd-refresh-btn i {
+    transition: transform 0.6s ease;
+}
+
+#cd-refresh-btn:hover i {
+    transform: rotate(180deg);
+}
+
+#cd-refresh-btn.spinning i {
+    animation: spin-icon 1s linear;
+}
+
+@keyframes spin-icon {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* ===== ZONE HEADER STYLES ===== */
@@ -1234,41 +1418,167 @@ body.modal-open {
     }
 }
 
-/* ===== ZONE BUTTONS ===== */
+/* ===== ZONE SELECTION CARD CONTAINER ===== */
+.zone-selection-card {
+    background: #ffffff;
+    border-radius: 24px;
+    padding: 32px;
+    margin-bottom: 32px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e5e7eb;
+}
+
+.zone-card-header {
+    margin-bottom: 28px;
+}
+
+.zone-card-header h4 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 8px 0;
+}
+
+.zone-card-header p {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+/* ===== ZONE CARDS (MODERN DESIGN) ===== */
 .zone-buttons {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 16px;
-    margin-bottom: 32px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
 }
 
 .zone-buttons button {
-    padding: 20px 24px;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border-light);
-    border-radius: var(--radius-xl);
-    font-size: 16px;
-    font-weight: 600;
+    position: relative;
+    padding: 32px 24px 28px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-top: 4px solid var(--navy-chakra);
+    border-radius: 16px;
+    font-size: 18px;
+    font-weight: 700;
     color: var(--text-primary);
     cursor: pointer;
-    transition: var(--transition-bounce);
-    text-align: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    text-align: left;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06),
+        0 2px 4px rgba(0, 0, 0, 0.04);
+    min-height: 140px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Circular icon before zone name */
+.zone-buttons button::before {
+    content: attr(data-initials);
+    width: 56px;
+    height: 56px;
+    background: var(--navy-chakra);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 8px;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+    text-transform: uppercase;
+}
+
+/* Description text after zone name */
+.zone-buttons button::after {
+    content: 'View colleges and registrations';
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--text-secondary);
+    margin-top: 4px;
+    line-height: 1.5;
 }
 
 .zone-buttons button:hover {
-    border-color: var(--color-primary);
-    background: var(--navy-dark);
-    color: var(--white-primary);
-    transform: translateY(-3px) scale(1.01);
-    box-shadow: var(--shadow-lg);
+    border-top-color: var(--saffron-primary);
+    background: #fafafa;
+    transform: translateY(-6px);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.1),
+        0 6px 12px rgba(0, 0, 0, 0.06);
+}
+
+.zone-buttons button:hover::before {
+    background: var(--saffron-primary);
+    transform: scale(1.1);
 }
 
 .zone-buttons button.active {
-    background: var(--color-primary);
-    color: var(--white-primary);
-    border-color: var(--color-primary);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
+    background: #ffffff;
+    border-top-color: var(--green-primary);
+    border-top-width: 4px;
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12),
+        0 6px 12px rgba(0, 0, 0, 0.08);
+}
+
+.zone-buttons button.active::before {
+    background: var(--green-primary);
+    transform: scale(1.05);
+}
+
+/* ===== TRICOLOR ZONE CARDS (INDIAN FLAG COLORS) ===== */
+/* Orange/Saffron cards */
+.zone-buttons button.zone-orange {
+    border-top-color: var(--saffron-primary);
+}
+
+.zone-buttons button.zone-orange::before {
+    background: var(--saffron-primary);
+}
+
+.zone-buttons button.zone-orange:hover {
+    border-top-color: var(--saffron-dark);
+}
+
+.zone-buttons button.zone-orange:hover::before {
+    background: var(--saffron-dark);
+}
+
+/* Blue/Navy cards */
+.zone-buttons button.zone-blue {
+    border-top-color: var(--navy-chakra);
+}
+
+.zone-buttons button.zone-blue::before {
+    background: var(--navy-chakra);
+}
+
+.zone-buttons button.zone-blue:hover {
+    border-top-color: var(--navy-dark);
+}
+
+.zone-buttons button.zone-blue:hover::before {
+    background: var(--navy-dark);
+}
+
+/* Green cards */
+.zone-buttons button.zone-green {
+    border-top-color: var(--green-primary);
+}
+
+.zone-buttons button.zone-green::before {
+    background: var(--green-primary);
+}
+
+.zone-buttons button.zone-green:hover {
+    border-top-color: var(--green-dark);
+}
+
+.zone-buttons button.zone-green:hover::before {
+    background: var(--green-dark);
 }
 
 /* ===== ZONE STATISTICS ===== */
@@ -2088,12 +2398,31 @@ body.modal-open {
     justify-content: center;
     cursor: pointer;
     transition: all 0.2s ease;
+    flex-shrink: 0;
 }
 
 .btn-icon:hover {
     background: var(--color-error);
     color: var(--white-primary);
     border-color: var(--color-error);
+    transform: scale(1.1);
+}
+
+.remove-speaker {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--color-error);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    font-size: 16px;
 }
 
 .btn-sm {
@@ -2131,17 +2460,23 @@ body.modal-open {
     color: var(--navy-chakra);
 }
 
+
+
 /* Responsive Updates for New Modals */
 @media (max-width: 768px) {
     .speaker-item {
         grid-template-columns: 1fr;
         gap: 10px;
+        position: relative;
+        padding-right: 48px;
     }
 
-    .speaker-item .btn-icon {
-        justify-self: end;
-        margin-top: -46px;
-        margin-right: 4px;
+    .speaker-item .btn-icon,
+    .speaker-item .remove-speaker {
+        position: absolute;
+        top: 8px;
+        right: 0;
+        z-index: 1;
     }
 
     .modal-actions {
@@ -2151,6 +2486,13 @@ body.modal-open {
     .modal-actions .btn {
         width: 100%;
     }
+}
+
+.remove-speaker:hover {
+    background: var(--color-error);
+    color: var(--white-primary);
+    border-color: var(--color-error);
+    transform: scale(1.1);
 }
 
 @media (max-width: 480px) {
@@ -2251,11 +2593,18 @@ body.modal-open {
 
     .admin-actions {
         width: 100%;
+        flex-wrap: wrap;
     }
 
     .admin-actions .btn {
-        width: 100%;
+        flex: 1;
+        min-width: 120px;
         justify-content: center;
+    }
+
+    #cd-refresh-btn {
+        min-width: 48px;
+        padding: 10px;
     }
 
     /* Sheet Configuration */
@@ -2844,7 +3193,7 @@ body.modal-open {
 
     #college-dashboard .cd-leads {
         flex-direction: column;
-        gap: 10px;
+        gap: 12px;
     }
 
     #college-dashboard .cd-leads .cd-member-card {
@@ -2854,40 +3203,42 @@ body.modal-open {
 
     #college-dashboard .cd-team {
         grid-template-columns: 1fr;
-        gap: 10px;
-        margin-top: 10px;
+        gap: 12px;
+        margin-top: 12px;
     }
 
     #college-dashboard .cd-member-card {
-        padding: 10px;
-        grid-template-columns: 36px minmax(0, 1fr) auto;
-        gap: 8px;
+        padding: 14px;
+        grid-template-columns: 48px minmax(0, 1fr) auto;
+        gap: 10px;
         min-height: auto;
     }
 
     #college-dashboard .cd-member-avatar {
-        width: 36px;
-        height: 36px;
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
     }
 
     #college-dashboard .cd-member-avatar .cd-ph {
-        font-size: 0.85rem;
+        font-size: 0.95rem;
     }
 
     #college-dashboard .cd-member-info h4 {
-        font-size: 0.9rem;
-        margin-bottom: 2px;
+        font-size: 0.95rem;
+        margin-bottom: 3px;
     }
 
     #college-dashboard .cd-member-info p {
-        font-size: 0.75rem;
-        line-height: 1.4;
+        font-size: 0.8rem;
+        line-height: 1.45;
     }
 
     #college-dashboard .cd-action-btn {
-        width: 26px;
-        height: 26px;
+        width: 28px;
+        height: 28px;
         font-size: 11px;
+        border-radius: 7px;
     }
 
     /* Events Section */
@@ -3186,4 +3537,174 @@ body.modal-open {
     body.logged-out-state .hamburger-menu {
         display: none !important;
     }
+
+}
+
+/* ===== ENHANCED CUSTOM DROPDOWN SYSTEM ===== */
+.custom-select-container {
+    position: relative;
+    width: 100%;
+}
+
+.custom-select-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: #ffffff;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: #1a202c;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    user-select: none;
+}
+
+.custom-select-trigger:hover {
+    border-color: #ff9933;
+    box-shadow: 0 4px 12px rgba(255, 153, 51, 0.1);
+}
+
+.custom-select-container.active .custom-select-trigger {
+    border-color: #ff9933;
+    box-shadow: 0 0 0 3px rgba(255, 153, 51, 0.2);
+}
+
+.custom-select-trigger i {
+    font-size: 12px;
+    color: #a0aec0;
+    transition: transform 0.3s ease;
+}
+
+.custom-select-container.active .custom-select-trigger i {
+    transform: rotate(180deg);
+    color: #ff9933;
+}
+
+.custom-select-options {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    opacity: 0;
+    display: none;
+    transform: translateY(-10px);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.custom-select-options::-webkit-scrollbar {
+    width: 6px;
+}
+
+.custom-select-options::-webkit-scrollbar-thumb {
+    background: #cbd5e0;
+    border-radius: 10px;
+}
+
+.custom-select-options::-webkit-scrollbar-thumb:hover {
+    background: #a0aec0;
+}
+
+.custom-select-container.active .custom-select-options {
+    opacity: 1;
+    display: block;
+    transform: translateY(0);
+}
+
+.custom-select-option {
+    padding: 10px 16px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #4a5568;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.custom-select-option:hover {
+    background: #fff5eb;
+    color: #ff9933;
+}
+
+.custom-select-option.selected {
+    background: #fff5eb;
+    color: #ff9933;
+    font-weight: 600;
+}
+
+.custom-select-option.selected::after {
+    content: "\f00c";
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    font-size: 12px;
+}
+
+/* Modal Enhancements */
+#report-modal .modal-content {
+    max-width: 450px;
+    border-radius: 20px;
+    padding: 30px;
+}
+
+#report-modal h2 {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1a202c;
+    margin-bottom: 25px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+#report-modal h2::before {
+    content: "\f201";
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    color: #ff9933;
+}
+
+#report-modal .form-group label {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #718096;
+    margin-bottom: 8px;
+}
+
+#report-modal .btn.primary {
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-weight: 600;
+    box-shadow: 0 4px 14px 0 rgba(255, 153, 51, 0.39);
+}
+
+#report-modal .btn.secondary {
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-weight: 600;
+    background: #edf2f7;
+    color: #4a5568;
+    border: none;
+}
+
+#college-save-btn,
+#member-save-btn,
+#report-run {
+    margin-top: 10px;
+    width: 100%;
+}
+
+#report-modal .btn.secondary:hover {
+    background: #e2e8f0;
 }

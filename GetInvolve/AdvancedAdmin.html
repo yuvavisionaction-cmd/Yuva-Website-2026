@@ -1,0 +1,233 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Admin | YUVA India</title>
+    <link rel="stylesheet" href="/GetInvolve/Unitstyle.css">
+    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="AdvancedAdmin.css">
+    <link rel="shortcut icon" href="/Images/YUVA logo.png" type="image/x-icon">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Supabase CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body>
+
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="spinner-wrapper">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- Access Denied Screen -->
+    <div id="unauthorized-message" class="access-denied-container" style="display:none;">
+        <i class="fas fa-lock" style="font-size: 48px; color: #ff9933; margin-bottom: 20px;"></i>
+        <h2 style="margin:0 0 10px;">Access Restricted</h2>
+        <p style="color:#777; margin-bottom:30px;">This area is restricted to Super Admins only.</p>
+        <a href="/GetInvolve/UnitRegistration.html" class="btn primary">Return to Dashboard</a>
+    </div>
+
+    <!-- MAIN APP CONTAINER -->
+    <div class="app-container" id="admin-content" style="display:none;">
+
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <a href="#" class="brand-logo">
+                    <img src="/Images/YUVA logo.png" alt="Logo">
+                    <span>YUVA ADMIN</span>
+                </a>
+            </div>
+
+            <div class="sidebar-menu">
+                <a href="#" class="menu-item active" onclick="showSection('dashboard')">
+                    <i class="fas fa-th-large"></i> Dashboard
+                </a>
+                <a href="#" class="menu-item" onclick="showSection('user-manager')">
+                    <i class="fas fa-users-cog"></i> User Management
+                </a>
+                <a href="#" class="menu-item" onclick="showSection('messages')">
+                    <i class="fas fa-envelope"></i> Zone Messages
+                </a>
+                <a href="#" class="menu-item" onclick="alert('Coming Soon')">
+                    <i class="fas fa-bullhorn"></i> Broadcasts
+                </a>
+                <a href="#" class="menu-item" onclick="alert('Coming Soon')">
+                    <i class="fas fa-file-export"></i> Reports & Data
+                </a>
+                <a href="#" class="menu-item" onclick="alert('Coming Soon')">
+                    <i class="fas fa-calendar-alt"></i> Events
+                </a>
+                <a href="/GetInvolve/UnitRegistration.html" class="menu-item">
+                    <i class="fas fa-arrow-left"></i> Unit Dashboard
+                </a>
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="user-mini-profile">
+                    <div class="user-avatar" id="sidebar-initials">S</div>
+                    <div class="user-info">
+                        <h4 id="sidebar-name">Admin User</h4>
+                        <p>Super Admin</p>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="main-content">
+            <!-- TOP HEADER -->
+            <div class="top-header">
+                <div class="header-title">
+                    <h1 id="page-title">Dashboard Overview</h1>
+                </div>
+                <div class="header-actions">
+                    <button class="btn secondary" onclick="refreshCurrentView()"><i class="fas fa-sync"></i></button>
+                    <button class="btn secondary"><i class="fas fa-bell"></i></button>
+                    <button class="btn primary" id="logout-btn-nav"><i class="fas fa-sign-out-alt"></i> Logout</button>
+                </div>
+            </div>
+
+            <!-- CONTENT WRAPPER -->
+            <div class="content-wrapper">
+
+                <!-- DASHBOARD VIEW -->
+                <div id="dashboard-view">
+                    <div class="stats-grid">
+                        <div class="modern-card">
+                            <div class="card-icon icon-blue"><i class="fas fa-users"></i></div>
+                            <h3>User Management</h3>
+                            <p>Manage admin roles, zones, and permissions across the system.</p>
+                            <button class="btn-modern" onclick="showSection('user-manager')">Manage Users</button>
+                        </div>
+                        <div class="modern-card">
+                            <div class="card-icon icon-red"><i class="fas fa-envelope"></i></div>
+                            <h3>Zone Messages</h3>
+                            <p>View and respond to queries from Zone Conveners.</p>
+                            <button class="btn-modern" onclick="showSection('messages')">View Messages</button>
+                        </div>
+                        <div class="modern-card">
+                            <div class="card-icon icon-orange"><i class="fas fa-bullhorn"></i></div>
+                            <h3>Global Broadcast</h3>
+                            <p>Send announcements to all volunteers and alumni.</p>
+                            <button class="btn-modern">Open Tool</button>
+                        </div>
+                        <div class="modern-card">
+                            <div class="card-icon icon-green"><i class="fas fa-file-csv"></i></div>
+                            <h3>Data Export</h3>
+                            <p>Download master CSVs for all verticals.</p>
+                            <button class="btn-modern">View Data</button>
+                        </div>
+                        <div class="modern-card">
+                            <div class="card-icon icon-purple"><i class="fas fa-calendar-check"></i></div>
+                            <h3>Event CMS</h3>
+                            <p>Manage upcoming events and registrations.</p>
+                            <button class="btn-modern">Manage Events</button>
+                        </div>
+                    </div>
+                </div>
+
+
+                <!-- USER MANAGEMENT VIEW -->
+                <div id="user-manager-view" class="hidden">
+                    <div class="table-card">
+                        <div class="table-header">
+                            <div class="table-title">System Administrators</div>
+                            <button class="btn primary" onclick="loadUsers()">
+                                <i class="fas fa-sync"></i> Refresh Data
+                            </button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="modern-table" id="users-table">
+                                <thead>
+                                    <tr>
+                                        <th>Administrator</th>
+                                        <th>Email Address</th>
+                                        <th>Role</th>
+                                        <th>Zone Assignment</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td colspan="5" style="text-align:center; padding:30px;">Loading data...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ZONE MESSAGES VIEW -->
+                <div id="messages-view" style="display:none;">
+                    <div class="modern-card">
+                        <div class="table-header">
+                            <div class="table-title">Messages from Zone Conveners</div>
+                            <div style="display: flex; gap: 10px;">
+                                <select id="message-status-filter" class="form-control" style="width: 150px;">
+                                    <option value="all">All Status</option>
+                                    <option value="unread">Unread</option>
+                                    <option value="read">Read</option>
+                                    <option value="resolved">Resolved</option>
+                                </select>
+                                <button class="btn primary" onclick="loadMessages()">
+                                    <i class="fas fa-sync"></i> Refresh
+                                </button>
+                            </div>
+                        </div>
+                        <div id="messages-container">
+                            <div style="text-align:center; padding:30px;">Loading messages...</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Hidden logout button for script compatibility -->
+    <button id="logout-btn" style="display:none;"></button>
+
+    <!-- REPLY MODAL -->
+    <div id="reply-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="width: 600px; max-width: 90%;">
+            <div class="modal-header">
+                <h3>Reply to Message</h3>
+                <button class="modal-close" onclick="closeReplyModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>To:</label>
+                    <input type="text" id="reply-to" readonly style="background:#f0f0f0;">
+                    <input type="hidden" id="reply-id">
+                    <input type="hidden" id="reply-name">
+                </div>
+                <div class="form-group">
+                    <label>Subject:</label>
+                    <input type="text" id="reply-subject">
+                </div>
+                <div class="form-group">
+                    <label>Message:</label>
+                    <textarea id="reply-body" rows="10"
+                        style="width:100%; padding:10px; border:1px solid #ddd; border-radius:4px; font-family:inherit;"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer"
+                style="padding:15px; border-top:1px solid #eee; display:flex; justify-content:flex-end; gap:10px;">
+                <button class="btn secondary" onclick="closeReplyModal()">Cancel</button>
+                <button class="btn primary" onclick="sendReply()">
+                    <i class="fas fa-paper-plane"></i> Send Reply
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST CONTAINER (Already generated by JS, but placeholder safely here or handled by JS) -->
+
+    <script src="unit.js"></script>
+    <script src="AdvancedAdmin.js"></script>
+</body>
+
+</html>

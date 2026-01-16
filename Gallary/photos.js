@@ -19,10 +19,11 @@ class PhotoGalleryManager {
             activeYear: null,
             cursor: 0,
             page: 0,
-            pageSize: 60,
+            pageSize: 30, // Updated: 30 photos per page as requested
             isLoading: false,
             imagesToLoadInBatch: 0,
             imagesLoadedInBatch: 0,
+            lightboxIndex: -1, // New: Track current lightbox image
         };
 
         // Elements
@@ -34,10 +35,18 @@ class PhotoGalleryManager {
             eventFilters: null,
             yearFilters: null,
             activeFilters: null,
-            sentinel: null,
+            pagination: null,
             backToTop: null,
             progressBarContainer: null,
             progressBar: null,
+            // Lightbox Elements
+            lightbox: null,
+            lightboxImage: null,
+            lightboxCaption: null,
+            lightboxClose: null,
+            lightboxPrev: null,
+            lightboxNext: null,
+            lightboxOverlay: null,
         };
 
         this.init();
@@ -108,8 +117,19 @@ class PhotoGalleryManager {
         this.elements.eventFilters = document.getElementById('eventFilters');
         this.elements.yearFilters = document.getElementById('yearFilters');
         this.elements.activeFilters = document.getElementById('activeFilters');
-        this.elements.sentinel = document.getElementById('sentinel');
+        this.elements.pagination = document.getElementById('pagination');
         this.elements.backToTop = document.getElementById('backToTop');
+
+        // Lightbox Elements
+        this.elements.lightbox = document.getElementById('lightbox');
+        if (this.elements.lightbox) {
+            this.elements.lightboxImage = this.elements.lightbox.querySelector('.lightbox-image');
+            this.elements.lightboxCaption = this.elements.lightbox.querySelector('.lightbox-caption');
+            this.elements.lightboxClose = this.elements.lightbox.querySelector('.lightbox-close');
+            this.elements.lightboxPrev = this.elements.lightbox.querySelector('.lightbox-prev');
+            this.elements.lightboxNext = this.elements.lightbox.querySelector('.lightbox-next');
+            this.elements.lightboxOverlay = this.elements.lightbox.querySelector('.lightbox-overlay');
+        }
 
         // Dynamically inject progress bar HTML
         const metaSection = this.elements.metaCount.parentElement;
@@ -120,7 +140,7 @@ class PhotoGalleryManager {
             this.elements.progressBar = document.getElementById('imageProgressBar');
         }
 
-        const missingElements = Object.entries(this.elements).filter(([key, element]) => !element).map(([key]) => key);
+        const missingElements = Object.entries(this.elements).filter(([key, element]) => !element && !key.startsWith('lightbox')).map(([key]) => key);
         if (missingElements.length > 0) {
             this.showError('Initialization Error', `Missing elements: ${missingElements.join(', ')}`);
             throw new Error(`Missing required elements: ${missingElements.join(', ')}`);
@@ -130,7 +150,48 @@ class PhotoGalleryManager {
     // ===== EVENT BINDING =====
     bindEvents() {
         if (this.elements.backToTop) { this.elements.backToTop.addEventListener('click', () => { window.scrollTo({ top: 0, behavior: 'smooth' }); }); }
-        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { this.clearFlashMessages(); } });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.clearFlashMessages();
+                this.closeLightbox();
+            }
+            // Lightbox Navigation
+            if (this.state.lightboxIndex !== -1) {
+                if (e.key === 'ArrowLeft') this.navigateLightbox(-1);
+                if (e.key === 'ArrowRight') this.navigateLightbox(1);
+            }
+        });
+
+        // Lightbox Events
+        if (this.elements.lightbox) {
+            this.elements.lightboxClose.addEventListener('click', () => this.closeLightbox());
+            this.elements.lightboxOverlay.addEventListener('click', () => this.closeLightbox());
+            this.elements.lightboxPrev.addEventListener('click', (e) => { e.stopPropagation(); this.navigateLightbox(-1); });
+            this.elements.lightboxNext.addEventListener('click', (e) => { e.stopPropagation(); this.navigateLightbox(1); });
+
+            // Touch Swipe Support
+            let touchstartX = 0;
+            let touchendX = 0;
+            const minSwipeDistance = 50;
+
+            this.elements.lightbox.addEventListener('touchstart', (e) => {
+                touchstartX = e.changedTouches[0].screenX;
+            }, { passive: true });
+
+            this.elements.lightbox.addEventListener('touchend', (e) => {
+                touchendX = e.changedTouches[0].screenX;
+                handleSwipe();
+            }, { passive: true });
+
+            const handleSwipe = () => {
+                const distance = touchendX - touchstartX;
+                if (Math.abs(distance) > minSwipeDistance) {
+                    if (distance < 0) this.navigateLightbox(1); // Swipe Left -> Next
+                    if (distance > 0) this.navigateLightbox(-1); // Swipe Right -> Prev
+                }
+            };
+        }
     }
 
     setupScrollHandler() {
@@ -333,6 +394,8 @@ class PhotoGalleryManager {
             this.state.page = 0;
             this.state.cursor = 0;
             this.elements.masonry.innerHTML = '';
+            // Reset sentinel
+            if (this.elements.sentinel) this.elements.sentinel.style.display = 'block';
         }
 
         if (!this.state.activeEvent) {
@@ -366,7 +429,7 @@ class PhotoGalleryManager {
                 this.elements.progressBarContainer.style.display = 'block';
             }
 
-            this.requestIdleCallbackSafe(() => this.loadNextPage());
+            this.requestIdleCallbackSafe(() => this.goToPage(1));
         } else {
             this.showNoImagesMessage();
             this.updateCounts(0, 0);
@@ -405,27 +468,143 @@ class PhotoGalleryManager {
         const card = document.createElement('article');
         card.className = 'card';
         card.dataset.itemId = item.id;
+        // Make card clickable & focusable
+        card.setAttribute('role', 'button');
+        card.setAttribute('tabindex', '0');
+        card.style.cursor = 'pointer';
+
         const img = document.createElement('img');
         img.className = 'card__img';
         img.alt = item.alt;
-        img.loading = 'lazy';
+        img.loading = 'eager'; // Changed from 'lazy' to fix Masonry layout issues
         img.decoding = 'async';
         img.style.aspectRatio = '4 / 3';
 
-        img.addEventListener('error', () => {
-            console.warn(`Failed to load image: ${item.src}`);
-            this.handleImageLoadAttempt();
-            this.removeFailedCard(card, item);
-        });
-        img.addEventListener('load', () => {
+        const onImageLoad = () => {
             img.classList.add('loaded');
             card.classList.add('loaded');
             this.handleImageLoadAttempt();
+        };
+
+        const onImageError = () => {
+            console.warn(`Failed to load image: ${item.src}`);
+            this.handleImageLoadAttempt();
+            this.removeFailedCard(card, item);
+        };
+
+        img.addEventListener('error', onImageError);
+        img.addEventListener('load', onImageLoad);
+
+        // Safety: If image hangs for 5s, treat as loaded (or failed if broken)
+        // This prevents permanent white boxes
+        setTimeout(() => {
+            if (!img.classList.contains('loaded') && img.complete) {
+                if (img.naturalWidth === 0) onImageError();
+                else onImageLoad();
+            } else if (!img.classList.contains('loaded')) {
+                // Still loading? Force visible so user sees it loading or broken icon
+                img.classList.add('loaded');
+            }
+        }, 5000);
+
+        // Click to open lightbox
+        card.addEventListener('click', (e) => {
+            console.log('Card clicked:', item.id); // Debug
+
+            // Find current index in filtered list
+            // Ensure IDs are compared correctly (both as numbers or strings)
+            const index = this.state.filtered.findIndex(i => String(i.id) === String(item.id));
+
+            if (index !== -1) {
+                this.openLightbox(index);
+            } else {
+                console.warn('Click ignored: Item not found in filtered list', item);
+            }
+        });
+
+        // Enter key to open
+        card.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const index = this.state.filtered.findIndex(i => String(i.id) === String(item.id));
+                if (index !== -1) this.openLightbox(index);
+            }
         });
 
         img.src = item.src;
         card.appendChild(img);
         return card;
+    }
+
+    // ===== LIGHTBOX FUNCTIONS =====
+    openLightbox(index) {
+        if (!this.elements.lightbox) {
+            console.error('Lightbox element not found');
+            return;
+        }
+
+        console.log('Opening lightbox at index:', index);
+        this.state.lightboxIndex = index;
+        const item = this.state.filtered[index];
+        if (!item) {
+            console.error('Lightbox item not found at index:', index);
+            return;
+        }
+
+        this.updateLightboxContent(item);
+        this.elements.lightbox.classList.add('open');
+        this.elements.lightbox.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden'; // Prevent scrolling
+    }
+
+    closeLightbox() {
+        if (!this.elements.lightbox) return;
+        this.elements.lightbox.classList.remove('open');
+        this.elements.lightbox.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = ''; // Restore scrolling
+        this.state.lightboxIndex = -1;
+
+        // Clear image to prevent flash of old image next open
+        setTimeout(() => {
+            if (this.elements.lightboxImage) {
+                this.elements.lightboxImage.src = '';
+                this.elements.lightboxImage.classList.remove('loaded');
+            }
+        }, 300);
+    }
+
+    navigateLightbox(direction) {
+        if (this.state.lightboxIndex === -1) return;
+
+        let newIndex = this.state.lightboxIndex + direction;
+
+        // Loop navigation
+        if (newIndex < 0) newIndex = this.state.filtered.length - 1;
+        if (newIndex >= this.state.filtered.length) newIndex = 0;
+
+        this.state.lightboxIndex = newIndex;
+        const item = this.state.filtered[newIndex];
+        this.updateLightboxContent(item);
+    }
+
+    updateLightboxContent(item) {
+        if (!this.elements.lightboxImage) return;
+
+        // Show loader, hide image
+        const loader = this.elements.lightbox.querySelector('.lightbox-loader');
+        if (loader) loader.style.display = 'block';
+
+        this.elements.lightboxImage.classList.remove('loaded');
+        this.elements.lightboxImage.src = item.src;
+        this.elements.lightboxImage.alt = item.alt;
+
+        this.elements.lightboxImage.onload = () => {
+            this.elements.lightboxImage.classList.add('loaded');
+            if (loader) loader.style.display = 'none';
+        };
+
+        if (this.elements.lightboxCaption) {
+            this.elements.lightboxCaption.textContent = `${item.event} (${item.year}) - ${item.category}`;
+        }
     }
 
     removeFailedCard(card, item) {
@@ -441,32 +620,135 @@ class PhotoGalleryManager {
         }
     }
 
-    loadNextPage() {
-        if (this.state.cursor >= this.state.filtered.length) return;
-        const start = this.state.cursor;
+    goToPage(pageNumber) {
+        if (!this.state.filtered.length) return;
+
+        // Calculate total pages
+        const totalPages = Math.ceil(this.state.filtered.length / this.state.pageSize);
+
+        // Validate page number
+        if (pageNumber < 1) pageNumber = 1;
+        if (pageNumber > totalPages) pageNumber = totalPages;
+
+        this.state.page = pageNumber;
+        // Cursor isn't strictly needed for random access but good to update
+        this.state.cursor = (pageNumber - 1) * this.state.pageSize;
+
+        console.log(`Navigating to Page ${pageNumber} of ${totalPages}`);
+
+        // Scroll to top of filters/grid
+        if (this.elements.activeFilters) {
+            this.elements.activeFilters.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        // Clear Grid
+        this.elements.masonry.innerHTML = '';
+
+        const start = (this.state.page - 1) * this.state.pageSize;
         const end = Math.min(start + this.state.pageSize, this.state.filtered.length);
         const batch = this.state.filtered.slice(start, end);
-        this.state.cursor = end;
-        this.state.page += 1;
 
+        if (batch.length === 0) return;
+
+        // Render Cards
         const fragment = document.createDocumentFragment();
-        for (const item of batch) {
+        batch.forEach((item, index) => {
             const card = this.createCard(item);
+            card.dataset.page = this.state.page;
+            // Stagger animation for nice effect
+            card.style.animationDelay = `${index * 30}ms`;
             fragment.appendChild(card);
-        }
+        });
         this.elements.masonry.appendChild(fragment);
 
-        const totalShown = this.elements.masonry.querySelectorAll('.card').length;
-        this.updateCounts(totalShown, this.state.filtered.length);
+        this.updateCounts(batch.length, this.state.filtered.length);
+
+        // Update Pagination Controls
+        this.renderPaginationControls(totalPages);
 
         if (this.state.page === 1) {
             const yearText = this.state.activeYear ? ` ${this.state.activeYear}` : '';
-            this.showSuccess('Photos Loaded', `Displaying photos from ${this.state.activeEvent}${yearText}`);
+            // Only show toast on first load not every page change to avoid annoyance
+            // this.showSuccess('Photos Loaded', `Displaying photos from ${this.state.activeEvent}${yearText}`);
         }
     }
 
+    renderPaginationControls(totalPages) {
+        const container = document.getElementById('pagination');
+        if (!container) return;
+        container.innerHTML = '';
+
+        // If only 1 page, no need for controls
+        if (totalPages <= 1) return;
+
+        const createBtn = (text, onClick, isActive = false, isDisabled = false, isIcon = false) => {
+            const btn = document.createElement('button');
+            btn.className = `page-btn ${isActive ? 'active' : ''} ${isDisabled ? 'disabled' : ''}`;
+            if (isIcon) btn.innerHTML = text;
+            else btn.textContent = text;
+            btn.addEventListener('click', onClick);
+            return btn;
+        };
+
+        // Previous Button
+        container.appendChild(createBtn(
+            '<i class="fas fa-chevron-left"></i>',
+            () => this.goToPage(this.state.page - 1),
+            false,
+            this.state.page === 1,
+            true
+        ));
+
+        // Logic for "Smart" Pagination: 1 ... 4 5 [6] 7 8 ... 20
+        const maxVisible = 5;
+        let startPage = Math.max(1, this.state.page - 2);
+        let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+
+        if (endPage - startPage < maxVisible - 1) {
+            startPage = Math.max(1, endPage - maxVisible + 1);
+        }
+
+        // First Page
+        if (startPage > 1) {
+            container.appendChild(createBtn('1', () => this.goToPage(1)));
+            if (startPage > 2) {
+                const dots = document.createElement('span');
+                dots.textContent = '...';
+                dots.style.margin = '0 4px';
+                dots.style.color = 'var(--text-muted)';
+                container.appendChild(dots);
+            }
+        }
+
+        // Numbered Pages
+        for (let i = startPage; i <= endPage; i++) {
+            container.appendChild(createBtn(String(i), () => this.goToPage(i), i === this.state.page));
+        }
+
+        // Last Page
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                const dots = document.createElement('span');
+                dots.textContent = '...';
+                dots.style.margin = '0 4px';
+                dots.style.color = 'var(--text-muted)';
+                container.appendChild(dots);
+            }
+            container.appendChild(createBtn(String(totalPages), () => this.goToPage(totalPages)));
+        }
+
+        // Next Button
+        container.appendChild(createBtn(
+            '<i class="fas fa-chevron-right"></i>',
+            () => this.goToPage(this.state.page + 1),
+            false,
+            this.state.page === totalPages,
+            true
+        ));
+    }
+
     handleImageLoadAttempt() {
-        if (this.state.page > 1) return;
+        if (this.state.page > 1 && this.state.page !== 1) return; // Allow for page 1 logic if needed, but simplified
         if (this.state.imagesLoadedInBatch < this.state.imagesToLoadInBatch) {
             this.state.imagesLoadedInBatch++;
             this.updateProgressBar();
@@ -487,13 +769,8 @@ class PhotoGalleryManager {
 
     // ===== INTERSECTION OBSERVER =====
     setupIntersectionObserver() {
-        if (!this.elements.sentinel) return;
-        this.intersectionObserver = new IntersectionObserver((entries) => {
-            entries.forEach((entry) => {
-                if (entry.isIntersecting && !this.state.isLoading) { this.loadNextPage(); }
-            });
-        }, { rootMargin: '1000px 0px' });
-        this.intersectionObserver.observe(this.elements.sentinel);
+        // Disabled for Pagination Mode
+        if (this.elements.sentinel) this.elements.sentinel.style.display = 'none';
     }
 
     // ===== UTILITY FUNCTIONS =====
@@ -526,8 +803,6 @@ class PhotoGalleryManager {
     getFilteredCount() { return this.state.filtered.length; }
     getTotalCount() { return this.state.items.length; }
 }
-
-// ===== INITIALIZATION =====
 let photoGalleryManager;
 document.addEventListener('DOMContentLoaded', async () => {
     try {

@@ -175,11 +175,10 @@ class CampusChroniclesManager {
         if (!bookTrack || !bookNextBtn || !bookPrevBtn || bookDots.length === 0) return;
 
         let currentBookSlide = 0;
-        // DYNAMIC: Count slides automatically instead of hardcoding '4'.
         const totalBookSlides = bookDots.length;
+        let bookInterval;
 
         const updateBookSlider = () => {
-            // DYNAMIC: Move by 100% to show one full slide at a time.
             const translateX = -currentBookSlide * 100;
             bookTrack.style.transform = `translateX(${translateX}%)`;
 
@@ -198,18 +197,62 @@ class CampusChroniclesManager {
             updateBookSlider();
         };
 
-        bookNextBtn.addEventListener('click', nextBookSlide);
-        bookPrevBtn.addEventListener('click', prevBookSlide);
+        // Auto-Play Logic
+        const startInterval = () => {
+            if (bookInterval) clearInterval(bookInterval);
+            bookInterval = setInterval(nextBookSlide, 8000);
+        };
+
+        const resetInterval = () => {
+            clearInterval(bookInterval);
+            startInterval();
+        };
+
+        // Navigation Events
+        bookNextBtn.addEventListener('click', () => {
+            nextBookSlide();
+            resetInterval();
+        });
+
+        bookPrevBtn.addEventListener('click', () => {
+            prevBookSlide();
+            resetInterval();
+        });
 
         bookDots.forEach((dot, index) => {
             dot.addEventListener('click', () => {
                 currentBookSlide = index;
                 updateBookSlider();
+                resetInterval();
             });
         });
 
-        setInterval(nextBookSlide, 8000);
-        updateBookSlider(); // Initialize slider on page load
+        // Touch Swipe Support
+        let touchStartX = 0;
+        let touchEndX = 0;
+
+        bookTrack.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+            clearInterval(bookInterval); // Pause dragging
+        }, { passive: true });
+
+        bookTrack.addEventListener('touchend', (e) => {
+            touchEndX = e.changedTouches[0].screenX;
+            if (touchEndX < touchStartX - 50) nextBookSlide();
+            if (touchEndX > touchStartX + 50) prevBookSlide();
+            startInterval();
+        }, { passive: true });
+
+        // Pause on Hover
+        const container = document.querySelector('.cc-book-slider-container');
+        if (container) {
+            container.addEventListener('mouseenter', () => clearInterval(bookInterval));
+            container.addEventListener('mouseleave', () => startInterval());
+        }
+
+        // Initialize
+        updateBookSlider();
+        startInterval();
     }
 
     // ===== ARTICLE EXPANSION =====

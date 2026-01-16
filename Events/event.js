@@ -148,8 +148,7 @@ class EventsPage {
             this.populateFilterDropdowns();
             this.applyFilters();
             this.renderFeatured();
-            // Update event insights
-            updateEventInsights(this.events);
+            // Note: updateEventInsights is called from fetchEvents()
             // Updated call with Title
             this.showNotification('Welcome', 'Events loaded successfully!', 'success');
         } catch (err) {
@@ -235,13 +234,13 @@ class EventsPage {
 
             const now = new Date().toISOString();
 
-            // Fetch from published_events view which joins events with event_publications
+            // Fetch upcoming events (events that haven't ended yet)
+            // Automatic migration: Any event with end_at >= now appears here
             const { data, error } = await supabaseClient
                 .from('published_events')
                 .select('*')
                 .eq('display_on_upcoming', true)  // Only get events marked for upcoming page
-                .gte('start_at', now)
-                .in('status', ['upcoming', 'scheduled'])
+                .gte('end_at', now)                // Events that haven't ended yet (automatic migration)
                 .order('start_at', { ascending: true })
                 .limit(50);
 
@@ -1361,17 +1360,23 @@ function toggleFAQ(element) {
    ================================================================= */
 function updateEventInsights(events) {
     if (!events || events.length === 0) {
-        // Set defaults if no events
-        document.getElementById('total-events-count').textContent = '0';
-        document.getElementById('cities-count').textContent = '0';
-        document.getElementById('total-capacity').textContent = '0+';
-        document.getElementById('next-event-days').textContent = 'Soon';
+        // Set defaults if no events (with null checks)
+        const totalEventsEl = document.getElementById('total-events-count');
+        const citiesEl = document.getElementById('cities-count');
+        const capacityEl = document.getElementById('total-capacity');
+        const nextEventEl = document.getElementById('next-event-days');
+
+        if (totalEventsEl) totalEventsEl.textContent = '0';
+        if (citiesEl) citiesEl.textContent = '0';
+        if (capacityEl) capacityEl.textContent = '0+';
+        if (nextEventEl) nextEventEl.textContent = 'Soon';
         return;
     }
 
     // 1. Total events (count from database)
     const totalEvents = events.length;
-    document.getElementById('total-events-count').textContent = totalEvents;
+    const totalEventsEl = document.getElementById('total-events-count');
+    if (totalEventsEl) totalEventsEl.textContent = totalEvents;
 
     // 2. Cities covered (unique locations from database)
     const cities = new Set(
@@ -1384,14 +1389,16 @@ function updateEventInsights(events) {
                 return cityName;
             })
     );
-    document.getElementById('cities-count').textContent = cities.size;
+    const citiesEl = document.getElementById('cities-count');
+    if (citiesEl) citiesEl.textContent = cities.size;
 
     // 3. Expected attendees (sum of capacity from database)
     const totalCapacity = events.reduce((sum, e) => {
         const capacity = parseInt(e.capacity) || 0;
         return sum + capacity;
     }, 0);
-    document.getElementById('total-capacity').textContent = totalCapacity > 0 ? totalCapacity + '+' : '500+';
+    const capacityEl = document.getElementById('total-capacity');
+    if (capacityEl) capacityEl.textContent = totalCapacity > 0 ? totalCapacity + '+' : '500+';
 
     // 4. Next event (days until - calculate from first event in sorted list)
     if (events.length > 0) {
@@ -1404,14 +1411,16 @@ function updateEventInsights(events) {
         const daysUntil = Math.ceil((eventDate - today) / (1000 * 60 * 60 * 24));
         const nextEventElement = document.getElementById('next-event-days');
 
-        if (daysUntil < 0) {
-            nextEventElement.textContent = 'Ongoing';
-        } else if (daysUntil === 0) {
-            nextEventElement.textContent = 'Today!';
-        } else if (daysUntil === 1) {
-            nextEventElement.textContent = 'Tomorrow';
-        } else {
-            nextEventElement.textContent = `${daysUntil} days`;
+        if (nextEventElement) {
+            if (daysUntil < 0) {
+                nextEventElement.textContent = 'Ongoing';
+            } else if (daysUntil === 0) {
+                nextEventElement.textContent = 'Today!';
+            } else if (daysUntil === 1) {
+                nextEventElement.textContent = 'Tomorrow';
+            } else {
+                nextEventElement.textContent = `${daysUntil} days`;
+            }
         }
     }
 
@@ -1528,3 +1537,375 @@ document.addEventListener('DOMContentLoaded', () => {
     // Then initialize events page
     eventsPageInstance = new EventsPage();
 });
+
+/*=================================================================
+  PAST EVENTS PAGE CLASS - Extends EventsPage
+  Handles past events with date filtering and post-event features
+=================================================================*/
+
+class PastEventsPage extends EventsPage {
+    constructor() {
+        super();
+        this.isPastEventsPage = true;
+        this.currentPage = 1;
+        this.eventsPerPage = 12;
+        this.hasMore = true;
+    }
+
+    async fetchEvents() {
+        this.isLoading = true;
+        this.showLoader(true);
+
+        try {
+            if (!supabaseClient) throw new Error('Supabase not available');
+
+            const now = new Date().toISOString();
+
+            // Fetch past events using display_on_past flag
+            // The database triggers automatically manage this flag based on end_at date
+            const { data, error } = await supabaseClient
+                .from('published_events')
+                .select('*')
+                .eq('display_on_past', true)  // Use the new display_on_past column
+                .order('end_at', { ascending: false })  // Most recent first
+                .limit(this.eventsPerPage);
+
+            if (error) throw error;
+
+            this.events = (data || []).map(e => this.normalizeEvent(e));
+            this.filteredEvents = [...this.events];
+
+            if (this.events.length < this.eventsPerPage) {
+                this.hasMore = false;
+            }
+
+            if (this.events.length === 0) {
+                this.showNotification('No Events', 'No past events available at the moment.', 'info');
+            } else {
+                updatePastEventInsights(this.events);
+            }
+
+            // Populate filters and render
+            this.populateFilterDropdowns();
+            this.renderFeatured();
+            this.renderGrid(this.filteredEvents);
+
+        } catch (err) {
+            console.error('Error fetching past events:', err);
+            this.showNotification('Error', 'Failed to load past events', 'error');
+            this.events = [];
+            updatePastEventInsights([]);
+        } finally {
+            this.isLoading = false;
+            this.showLoader(false);
+        }
+    }
+
+    async loadMoreEvents() {
+        if (!this.hasMore || this.isLoading) return;
+
+        this.isLoading = true;
+        const loadMoreBtn = document.getElementById('load-more-btn');
+        if (loadMoreBtn) {
+            loadMoreBtn.disabled = true;
+            loadMoreBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+        }
+
+        try {
+            const now = new Date().toISOString();
+            this.currentPage++;
+            const offset = (this.currentPage - 1) * this.eventsPerPage;
+
+            const { data, error } = await supabaseClient
+                .from('published_events')
+                .select('*')
+                .eq('display_on_past', true)  // Use display_on_past column
+                .order('end_at', { ascending: false })
+                .range(offset, offset + this.eventsPerPage - 1);
+
+            if (error) throw error;
+
+            if (data.length < this.eventsPerPage) {
+                this.hasMore = false;
+            }
+
+            const newEvents = data.map(e => this.normalizeEvent(e));
+            this.events.push(...newEvents);
+            this.filteredEvents.push(...newEvents);
+
+            // Append new cards to grid
+            const grid = document.getElementById('events-grid');
+            newEvents.forEach((event, idx) => {
+                const card = this.createEventCard(event, this.events.length - newEvents.length + idx);
+                grid.appendChild(card);
+            });
+
+            this.showNotification('Success', `Loaded ${newEvents.length} more events`, 'success');
+        } catch (err) {
+            console.error('Error loading more events:', err);
+            this.showNotification('Error', 'Failed to load more events', 'error');
+        } finally {
+            this.isLoading = false;
+            if (loadMoreBtn) {
+                if (this.hasMore) {
+                    loadMoreBtn.disabled = false;
+                    loadMoreBtn.innerHTML = '<i class="fas fa-chevron-down"></i> Load More Events';
+                } else {
+                    loadMoreBtn.style.display = 'none';
+                }
+            }
+        }
+    }
+
+    createEventCard(event, idx) {
+        const card = document.createElement('div');
+        card.className = 'event-card-modern past-event-card';
+        const colors = ['accent-saffron', 'accent-navy', 'accent-green'];
+        card.classList.add(colors[idx % 3]);
+
+        const endDate = new Date(event.end_at);
+        const day = endDate.getDate();
+        const month = endDate.toLocaleString('default', { month: 'short' }).toUpperCase();
+        const time = endDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        card.innerHTML = `
+            <div class="card-img-container">
+                <img src="${event.banner_url}" alt="${event.title}" loading="lazy" onerror="this.src='https://via.placeholder.com/600x400/ccc/999?text=Event'">
+                <div class="date-badge-float">
+                    <span class="db-day">${day}</span>
+                    <span class="db-month">${month}</span>
+                </div>
+                <div class="completed-badge-overlay">
+                    <span class="completed-badge">Completed</span>
+                </div>
+            </div>
+            <div class="card-content">
+                <div class="card-meta">
+                    <span><i class="far fa-clock"></i> ${time}</span>
+                    <span><i class="fas fa-map-marker-alt"></i> ${event.location}</span>
+                    ${event.mode === 'online' ? '<span><i class="fas fa-globe"></i> Online</span>' : ''}
+                </div>
+                <h3>${event.title}</h3>
+                <p>${event.description.substring(0, 100)}${event.description.length > 100 ? '...' : ''}</p>
+                <div class="card-actions">
+                    <button class="btn-secondary btn-sm details-btn" data-event-id="${event.id}">
+                        <i class="fas fa-info-circle"></i> View Details
+                    </button>
+                    <button class="btn-primary btn-sm share-btn" data-event-id="${event.id}">
+                        <i class="fas fa-share-alt"></i> Share
+                    </button>
+                </div>
+            </div>
+        `;
+
+        card.querySelector('.details-btn').addEventListener('click', () => {
+            this.openModal(event);
+        });
+
+        card.querySelector('.share-btn').addEventListener('click', () => {
+            this.selectedEvent = event;
+            this.shareEvent();
+        });
+
+        return card;
+    }
+
+    applyFilters() {
+        const searchTerm = (document.getElementById('event-search')?.value || '').toLowerCase();
+        const category = customDropdownInstance.getValue('category-filter');
+        const dateRange = customDropdownInstance.getValue('date-range-filter');
+
+        this.filteredEvents = this.events.filter(event => {
+            const searchMatch = !searchTerm ||
+                event.title.toLowerCase().includes(searchTerm) ||
+                event.description.toLowerCase().includes(searchTerm) ||
+                event.location.toLowerCase().includes(searchTerm);
+
+            const categoryMatch = !category || event.category === category;
+            const dateMatch = this.filterByDateRange(event, dateRange);
+
+            return searchMatch && categoryMatch && dateMatch;
+        });
+
+        this.renderGrid(this.filteredEvents);
+        this.updateEmptyState();
+        this.updateLoadMoreButton();
+    }
+
+    filterByDateRange(event, range) {
+        if (!range) return true;
+
+        const eventDate = new Date(event.end_at);
+        const now = new Date();
+
+        switch (range) {
+            case 'last-month':
+                const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+                return eventDate >= lastMonth && eventDate <= now;
+            case 'last-3-months':
+                const last3Months = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+                return eventDate >= last3Months && eventDate <= now;
+            case 'last-6-months':
+                const last6Months = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
+                return eventDate >= last6Months && eventDate <= now;
+            case 'last-year':
+                const lastYear = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+                return eventDate >= lastYear && eventDate <= now;
+            default:
+                return true;
+        }
+    }
+
+    updateLoadMoreButton() {
+        const container = document.getElementById('load-more-container');
+        if (container) {
+            // Show load more button only if we have more events and not filtering
+            const isFiltering = document.getElementById('event-search')?.value ||
+                customDropdownInstance.getValue('category-filter') ||
+                customDropdownInstance.getValue('date-range-filter');
+
+            if (this.hasMore && !isFiltering && this.filteredEvents.length >= this.eventsPerPage) {
+                container.style.display = 'flex';
+            } else {
+                container.style.display = 'none';
+            }
+        }
+    }
+
+    setupEventListeners() {
+        super.setupEventListeners();
+
+        // Load more button
+        const loadMoreBtn = document.getElementById('load-more-btn');
+        if (loadMoreBtn) {
+            loadMoreBtn.addEventListener('click', () => this.loadMoreEvents());
+        }
+
+        // Override date range filter listener
+        document.addEventListener('customDropdownChange', (e) => {
+            const { dropdownName, text } = e.detail;
+
+            if (dropdownName === 'date-range-filter') {
+                this.applyFilters();
+                this.showNotification('Filter Applied', `Showing: ${text}`, 'info');
+            }
+        });
+    }
+
+    renderFeatured() {
+        const container = document.getElementById('featured-event-container');
+        if (!container || this.events.length === 0) return;
+
+        // Get the most recent past event (first in the sorted list)
+        const latestEvent = this.events[0];
+
+        const endDate = new Date(latestEvent.end_at);
+        const day = endDate.getDate();
+        const month = endDate.toLocaleString('default', { month: 'long' });
+        const year = endDate.getFullYear();
+        const time = endDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        // Calculate how long ago the event was
+        const daysAgo = Math.floor((new Date() - endDate) / (1000 * 60 * 60 * 24));
+        let timeAgoText = '';
+        if (daysAgo === 0) timeAgoText = 'Today';
+        else if (daysAgo === 1) timeAgoText = 'Yesterday';
+        else if (daysAgo < 30) timeAgoText = `${daysAgo} days ago`;
+        else if (daysAgo < 365) timeAgoText = `${Math.floor(daysAgo / 30)} months ago`;
+        else timeAgoText = `${Math.floor(daysAgo / 365)} years ago`;
+
+        container.innerHTML = `
+            <div class=\"latest-event-visual\">
+                <div class=\"event-image-wrapper\">
+                    <img src=\"${latestEvent.banner_url}\" alt=\"${latestEvent.title}\" 
+                         onerror=\"this.src='https://via.placeholder.com/1200x600/667eea/ffffff?text=Past+Event'\">
+                    <div class=\"image-overlay\"></div>
+                    <div class=\"completed-badge-modern\">
+                        <i class=\"fas fa-check-circle\"></i>
+                        <span>Completed</span>
+                    </div>
+                </div>
+            </div>
+            <div class=\"latest-event-details\">
+                <div class=\"event-date-badge\">
+                    <div class=\"date-number\">${day}</div>
+                    <div class=\"date-month\">${month}</div>
+                    <div class=\"date-year\">${year}</div>
+                </div>
+                <div class=\"event-info\">
+                    <div class=\"event-meta-tags\">
+                        <span class=\"meta-tag time-ago\">
+                            <i class=\"fas fa-history\"></i> ${timeAgoText}
+                        </span>
+                        <span class=\"meta-tag location\">
+                            <i class=\"fas fa-map-marker-alt\"></i> ${latestEvent.location}
+                        </span>
+                        ${latestEvent.mode === 'online' ? '<span class=\"meta-tag mode\"><i class=\"fas fa-globe\"></i> Online</span>' : ''}
+                    </div>
+                    <h3 class=\"event-title\">${latestEvent.title}</h3>
+                    <p class=\"event-description\">${latestEvent.description.substring(0, 200)}${latestEvent.description.length > 200 ? '...' : ''}</p>
+                    <div class=\"event-stats-modern\">
+                        <div class=\"stat-modern\">
+                            <i class=\"fas fa-clock\"></i>
+                            <span>${time}</span>
+                        </div>
+                        ${latestEvent.capacity ? `
+                        <div class=\"stat-modern\">
+                            <i class=\"fas fa-users\"></i>
+                            <span>${latestEvent.capacity}+ Attended</span>
+                        </div>
+                        ` : ''}
+                        <div class=\"stat-modern\">
+                            <i class=\"fas fa-tag\"></i>
+                            <span>${latestEvent.category || 'Event'}</span>
+                        </div>
+                    </div>
+                    <div class=\"event-actions-modern\">
+                        <button class=\"btn-modern-primary\" onclick=\"pastEventsPageInstance.openModal(pastEventsPageInstance.events[0])\">
+                            <i class=\"fas fa-info-circle\"></i>
+                            <span>View Details</span>
+                        </button>
+                        <button class=\"btn-modern-secondary\" onclick=\"pastEventsPageInstance.selectedEvent = pastEventsPageInstance.events[0]; pastEventsPageInstance.shareEvent();\">
+                            <i class=\"fas fa-share-alt\"></i>
+                            <span>Share</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+}
+
+// Update insights for past events
+function updatePastEventInsights(events) {
+    // Total events
+    const totalEl = document.getElementById('total-events-count');
+    if (totalEl) totalEl.textContent = events.length;
+
+    // Unique cities
+    const cities = new Set(events.map(e => e.location));
+    const citiesEl = document.getElementById('cities-count');
+    if (citiesEl) citiesEl.textContent = cities.size;
+
+    // Total participants (sum of capacities)
+    const totalParticipants = events.reduce((sum, e) => sum + (e.capacity || 0), 0);
+    const participantsEl = document.getElementById('total-participants');
+    if (participantsEl) {
+        participantsEl.textContent = totalParticipants > 0 ? `${(totalParticipants / 1000).toFixed(0)}K+` : '0';
+    }
+
+    // Most recent event
+    if (events.length > 0) {
+        const mostRecent = events[0]; // Already sorted by end_at desc
+        const recentEl = document.getElementById('most-recent-event');
+        if (recentEl) {
+            const endDate = new Date(mostRecent.end_at);
+            const daysAgo = Math.floor((new Date() - endDate) / (1000 * 60 * 60 * 24));
+            recentEl.textContent = daysAgo === 0 ? 'Today' : daysAgo === 1 ? 'Yesterday' : `${daysAgo} days ago`;
+        }
+    }
+
+    // Update hero impact numbers
+    const impactEventsEl = document.getElementById('impact-past-events');
+    if (impactEventsEl) impactEventsEl.textContent = `${events.length}+`;
+}
