@@ -3,8 +3,8 @@
                     Youth United For Vision & Action
 ================================================================================
 
-VERSION: 2025
-LAST UPDATED: December 25, 2025
+VERSION: 2026
+LAST UPDATED: January 16, 2026
 
 ================================================================================
 TABLE OF CONTENTS
@@ -53,10 +53,12 @@ THREE MAIN FILES:
    - Tricolor theme colors
    - Animations and effects
 
-3. home.js (936 lines)
+3. home.js (1,251 lines, 49,083 bytes)
    - All interactive functionality
    - Database connections
    - Dynamic content loading
+   - Gallery randomization with Supabase Storage
+   - Lightbox functionality
 
 ADDITIONAL FILES NEEDED:
 - style.css (Global site styles)
@@ -147,8 +149,11 @@ The page has 11 main sections from top to bottom:
 
 ┌──────────────────────────────────────────────────────────────┐
 │ 6. GLIMPSES OF YUVA (Photo Gallery Preview)                  │
-│    - 10 photos from recent events                            │
-│    - Loaded from /Gallary/images.json                        │
+│    - 10 randomized photos from recent uploads                │
+│    - Loaded from Supabase Storage (gallery_photos bucket)    │
+│    - Fallback to /Gallary/images.json if Supabase fails      │
+│    - Smart selection: Top 30 recent, shuffled randomly       │
+│    - Lightbox on click with keyboard navigation              │
 │    - "View Full Gallery" button                              │
 └──────────────────────────────────────────────────────────────┘
 
@@ -240,17 +245,33 @@ HOW IT WORKS:
 
 ──────────────────────────────────────────────────────────────
 
-FEATURE 3: PHOTO GALLERY
-─────────────────────────
-Source: /Gallary/images.json
+FEATURE 3: PHOTO GALLERY (UPDATED JANUARY 2026)
+─────────────────────────────────────────────────
+Source: Supabase Storage (gallery_photos bucket)
+Fallback: /Gallary/images.json
 
 HOW IT WORKS:
-1. Fetches images.json file
-2. Extracts 5 photos from Vimarsh 2024
-3. Extracts 5 photos from Vimarsh 2023
-4. Excludes logo images
-5. Creates masonry grid with lazy loading
-6. On error → Shows error message
+1. Connects to Supabase Storage bucket 'gallery_photos'
+2. Scans all category folders in photos/ directory
+3. Fetches images from all year folders
+4. Sorts by creation date (newest first)
+5. Takes top 30 most recent photos
+6. Randomizes using Fisher-Yates shuffle algorithm
+7. Displays 10 random photos from the shuffled set
+8. Creates masonry grid with lazy loading
+9. On Supabase error → Falls back to images.json
+
+SMART SELECTION STRATEGY:
+- Prioritizes recent uploads (top 30)
+- Randomizes on each page refresh
+- Ensures fresh content every visit
+- Maintains quality by showing recent photos
+
+LIGHTBOX FEATURE:
+- Click any photo to open lightbox
+- Navigate with arrow keys or buttons
+- Close with ESC key or close button
+- Keyboard accessible (Tab, Enter, Space)
 
 ──────────────────────────────────────────────────────────────
 
@@ -506,5 +527,5 @@ For technical support or questions, contact:
 YUVA Technical Team
 Email: tech@yuva.ind.in
 
-Last Updated: December 25, 2025
-Version: 2025.1
+Last Updated: January 16, 2026
+Version: 2026.1

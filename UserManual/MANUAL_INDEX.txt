@@ -1,0 +1,502 @@
+================================================================================
+                    YUVA USER MANUALS - QUICK REFERENCE
+                    Youth United For Vision & Action
+================================================================================
+
+VERSION: 2026.1
+LAST UPDATED: January 16, 2026
+
+================================================================================
+MANUAL INDEX
+================================================================================
+
+This directory contains comprehensive user manuals for all YUVA website pages
+and systems. Each manual provides detailed documentation on structure, features,
+database integration, and troubleshooting.
+
+================================================================================
+📚 AVAILABLE MANUALS
+================================================================================
+
+1. HOME_PAGE_USER_MANUAL.txt
+   ───────────────────────────
+   Pages Covered: home.html
+   Last Updated: January 16, 2026
+   File Size: 511 lines
+   
+   Topics:
+   ✓ Hero section with Ashoka Chakra
+   ✓ Gallery randomization (NEW - Jan 2026)
+   ✓ Supabase Storage integration
+   ✓ Live statistics from Google Apps Script
+   ✓ Newsletter subscription
+   ✓ Upcoming events preview
+   ✓ Executive team display
+   ✓ Responsive design
+   
+   Key Features Documented:
+   - Gallery fetches from Supabase Storage
+   - Smart selection: Top 30 recent, shuffled randomly
+   - Lightbox with keyboard navigation
+   - Fallback to images.json
+
+────────────────────────────────────────────────────────────────
+
+2. UPCOMING_EVENTS_PAGE_USER_MANUAL.txt
+   ────────────────────────────────────
+   Pages Covered: Upcoming.html
+   Last Updated: December 26, 2025
+   File Size: 1,565 lines
+   
+   Topics:
+   ✓ Event listing from Supabase
+   ✓ Advanced filter system
+   ✓ Search functionality
+   ✓ Grid/List view toggle
+   ✓ Event modal with full details
+   ✓ Social media sharing
+   ✓ Flash notifications
+   ✓ Event insights dashboard
+   ✓ FAQ section
+   
+   Key Features Documented:
+   - Dynamic event loading
+   - Category and mode filters
+   - Custom dropdown system
+   - Event registration flow
+   - Share functionality
+
+────────────────────────────────────────────────────────────────
+
+3. PAST_EVENTS_PAGE_ADDENDUM.txt (NEW)
+   ───────────────────────────────────
+   Pages Covered: Past.html
+   Last Updated: January 16, 2026
+   File Size: 700+ lines
+   
+   Topics:
+   ✓ Modern "Latest Event" section (NEW - Jan 2026)
+   ✓ "Recently Completed" badge styling
+   ✓ Gradient text effects
+   ✓ Card hover animations
+   ✓ Image zoom effects
+   ✓ Glass morphism badges
+   ✓ Responsive breakpoints
+   
+   Key Features Documented:
+   - Two-column card layout
+   - Gradient backgrounds and text
+   - Smooth hover effects
+   - Completed badge overlay
+   - Mobile-optimized design
+
+────────────────────────────────────────────────────────────────
+
+4. PHOTO_GALLERY_PAGE_USER_MANUAL.txt
+   ───────────────────────────────────
+   Pages Covered: photo.html, photo-admin.html
+   Last Updated: December 26, 2025
+   File Size: 1,348 lines
+   
+   Topics:
+   ✓ Supabase Storage integration
+   ✓ Lazy loading masonry grid
+   ✓ Event and year filtering
+   ✓ Infinite scroll
+   ✓ Admin upload system
+   ✓ Supabase Authentication (NEW - Dec 2025)
+   ✓ Role-based access control
+   ✓ Progress tracking
+   
+   Key Features Documented:
+   - 4,000+ photos management
+   - Batch loading (60 images)
+   - Admin authentication flow
+   - Upload and delete functionality
+   - Storage bucket structure
+
+────────────────────────────────────────────────────────────────
+
+5. ABOUT_US_PAGE_USER_MANUAL.txt
+   ──────────────────────────────
+   Pages Covered: About.html
+   Last Updated: December 25, 2025
+   File Size: 31,570 bytes
+   
+   Topics:
+   ✓ Organization overview
+   ✓ Mission and vision
+   ✓ Team structure
+   ✓ Timeline/history
+   ✓ Contact information
+
+────────────────────────────────────────────────────────────────
+
+6. ALUMNI_SYSTEM_USER_MANUAL.txt
+   ──────────────────────────────
+   Pages Covered: YuvaAlumini.html
+   Last Updated: December 25, 2025
+   File Size: 21,688 bytes
+   
+   Topics:
+   ✓ Alumni registration form
+   ✓ Google Apps Script backend
+   ✓ Image upload to Supabase
+   ✓ Form validation
+   ✓ Success/error handling
+
+────────────────────────────────────────────────────────────────
+
+7. CAMPUS_CHRONICLES_PAGE_USER_MANUAL.txt
+   ───────────────────────────────────────
+   Pages Covered: CC.html
+   Last Updated: December 26, 2025
+   File Size: 8,294 bytes
+   
+   Topics:
+   ✓ Blog/article system
+   ✓ Book reviews section
+   ✓ Dynamic content loading
+   ✓ Category filtering
+
+────────────────────────────────────────────────────────────────
+
+8. DIGITAL_MEDIA_PAGE_USER_MANUAL.txt
+   ───────────────────────────────────
+   Pages Covered: Media pages
+   Last Updated: December 25, 2025
+   File Size: 29,740 bytes
+   
+   Topics:
+   ✓ Media gallery
+   ✓ Video integration
+   ✓ Social media feeds
+   ✓ Press releases
+
+────────────────────────────────────────────────────────────────
+
+9. NEWS_PAGE_USER_MANUAL.txt
+   ──────────────────────────
+   Pages Covered: News.html
+   Last Updated: December 25, 2025
+   File Size: 32,826 bytes
+   
+   Topics:
+   ✓ News article listing
+   ✓ Category filtering
+   ✓ Search functionality
+   ✓ Article detail view
+
+────────────────────────────────────────────────────────────────
+
+10. OUR_ACTIVITIES_PAGE_USER_MANUAL.txt
+    ───────────────────────────────────
+    Pages Covered: Activities pages
+    Last Updated: December 25, 2025
+    File Size: 25,691 bytes
+    
+    Topics:
+    ✓ Activity categories
+    ✓ Photo galleries
+    ✓ Event listings
+    ✓ Participation info
+
+────────────────────────────────────────────────────────────────
+
+11. OUR_VERTICALS_USER_MANUAL.txt
+    ──────────────────────────────
+    Pages Covered: Vertical pages
+    Last Updated: December 25, 2025
+    File Size: 48,609 bytes
+    
+    Topics:
+    ✓ Vertical descriptions
+    ✓ Team members
+    ✓ Activities per vertical
+    ✓ Contact information
+
+────────────────────────────────────────────────────────────────
+
+12. VIDEO_PAGE_USER_MANUAL.txt
+    ───────────────────────────
+    Pages Covered: Video.html
+    Last Updated: December 25, 2025
+    File Size: 33,509 bytes
+    
+    Topics:
+    ✓ Video gallery
+    ✓ YouTube integration
+    ✓ Category filtering
+    ✓ Lazy loading
+
+────────────────────────────────────────────────────────────────
+
+13. VOLUNTEER_SYSTEM_USER_MANUAL.txt
+    ─────────────────────────────────
+    Pages Covered: Volunteer pages
+    Last Updated: December 25, 2025
+    File Size: 28,475 bytes
+    
+    Topics:
+    ✓ Volunteer registration
+    ✓ Form submission
+    ✓ Database integration
+    ✓ Email notifications
+
+────────────────────────────────────────────────────────────────
+
+14. WHO_IS_WHO_PAGE_USER_MANUAL.txt
+    ────────────────────────────────
+    Pages Covered: WhoIsWho.html
+    Last Updated: December 25, 2025
+    File Size: 36,074 bytes
+    
+    Topics:
+    ✓ Leadership directory
+    ✓ Team structure
+    ✓ Member profiles
+    ✓ Contact details
+
+────────────────────────────────────────────────────────────────
+
+15. RECENT_UPDATES_SUMMARY.txt (NEW)
+    ────────────────────────────────
+    Last Updated: January 16, 2026
+    
+    Topics:
+    ✓ Summary of all recent changes
+    ✓ Gallery randomization update
+    ✓ Past Events styling update
+    ✓ Authentication updates
+    ✓ Testing checklist
+    ✓ Deployment notes
+
+================================================================================
+📋 RECENT UPDATES (JANUARY 2026)
+================================================================================
+
+UPDATED MANUALS:
+────────────────
+✓ HOME_PAGE_USER_MANUAL.txt
+  - Gallery section rewritten for Supabase Storage
+  - Smart randomization documented
+  - Lightbox features added
+  - Version updated to 2026.1
+
+✓ PHOTO_GALLERY_PAGE_USER_MANUAL.txt
+  - Authentication section updated
+  - Supabase Auth documented
+  - Role-based access documented
+
+NEW MANUALS:
+────────────
+✓ PAST_EVENTS_PAGE_ADDENDUM.txt
+  - Complete documentation of new styling
+  - CSS class reference
+  - Responsive design guide
+  - Troubleshooting section
+
+✓ RECENT_UPDATES_SUMMARY.txt
+  - Comprehensive change log
+  - Testing checklist
+  - Deployment guide
+
+================================================================================
+🔍 HOW TO USE THESE MANUALS
+================================================================================
+
+FOR DEVELOPERS:
+───────────────
+1. Find the manual for the page you're working on
+2. Review the "File Structure" section
+3. Check "Dynamic Features" for JavaScript logic
+4. Refer to "Database Integration" for Supabase queries
+5. Use "Troubleshooting" for common issues
+
+FOR CONTENT EDITORS:
+────────────────────
+1. Locate the manual for your page
+2. Go to "How to Modify Content" section
+3. Follow step-by-step instructions
+4. Test changes in browser
+5. Refer to "Troubleshooting" if needed
+
+FOR DESIGNERS:
+──────────────
+1. Review "Page Sections" for layout structure
+2. Check "Responsive Design" for breakpoints
+3. Refer to CSS class documentation
+4. Review color palettes and gradients
+5. Check "Accessibility Features"
+
+FOR PROJECT MANAGERS:
+─────────────────────
+1. Review "Overview" for feature summary
+2. Check "Key Features" list
+3. Review "Testing Checklist"
+4. Refer to "Deployment Notes"
+5. Check "Known Issues" section
+
+================================================================================
+🛠️ COMMON TASKS - QUICK LINKS
+================================================================================
+
+UPDATING HOME PAGE GALLERY:
+───────────────────────────
+Manual: HOME_PAGE_USER_MANUAL.txt
+Section: "FEATURE 3: PHOTO GALLERY"
+Lines: 243-270
+
+ADDING NEW EVENTS:
+──────────────────
+Manual: UPCOMING_EVENTS_PAGE_USER_MANUAL.txt
+Section: "HOW TO ADD EVENTS"
+Lines: 670-850
+
+UPLOADING GALLERY PHOTOS:
+──────────────────────────
+Manual: PHOTO_GALLERY_PAGE_USER_MANUAL.txt
+Section: "ADMIN UPLOAD SYSTEM"
+Lines: 727-850
+
+STYLING PAST EVENTS:
+────────────────────
+Manual: PAST_EVENTS_PAGE_ADDENDUM.txt
+Section: "CSS CLASSES & STYLING"
+Lines: 50-350
+
+TROUBLESHOOTING SUPABASE:
+─────────────────────────
+Manual: HOME_PAGE_USER_MANUAL.txt
+Section: "TROUBLESHOOTING"
+Lines: 383-441
+
+================================================================================
+📞 SUPPORT CONTACTS
+================================================================================
+
+TECHNICAL SUPPORT:
+──────────────────
+Email: tech@yuva.ind.in
+For: Code issues, bugs, database problems
+
+DOCUMENTATION UPDATES:
+──────────────────────
+Contact: Development Team
+For: Manual corrections, additions, clarifications
+
+CONTENT UPDATES:
+────────────────
+Contact: Content Team
+For: Text changes, image updates, content additions
+
+================================================================================
+📝 MANUAL CONVENTIONS
+================================================================================
+
+FORMATTING:
+───────────
+- Headers use === or ─── separators
+- Code blocks use monospace formatting
+- File paths use absolute paths
+- Line numbers reference actual file lines
+
+SYMBOLS:
+────────
+✓ = Feature available/completed
+☐ = Checklist item (unchecked)
+⚠️ = Warning/Important note
+📚 = Documentation reference
+🔍 = Search/Find
+🛠️ = Tools/Configuration
+📞 = Contact information
+📝 = Notes/Documentation
+
+SECTIONS:
+─────────
+All manuals follow this structure:
+1. Overview
+2. File Structure
+3. Dependencies
+4. Database Integration
+5. Page Sections
+6. Dynamic Features
+7. How to Modify
+8. Troubleshooting
+9. Responsive Design
+10. SEO & Accessibility
+
+================================================================================
+🔄 VERSION HISTORY
+================================================================================
+
+VERSION 2026.1 (January 16, 2026):
+───────────────────────────────────
+- Updated HOME_PAGE_USER_MANUAL.txt
+- Created PAST_EVENTS_PAGE_ADDENDUM.txt
+- Created RECENT_UPDATES_SUMMARY.txt
+- Created MANUAL_INDEX.txt (this file)
+
+VERSION 2025.1 (December 26, 2025):
+────────────────────────────────────
+- Updated PHOTO_GALLERY_PAGE_USER_MANUAL.txt
+- Updated UPCOMING_EVENTS_PAGE_USER_MANUAL.txt
+- Updated CAMPUS_CHRONICLES_PAGE_USER_MANUAL.txt
+
+VERSION 2025.0 (December 25, 2025):
+────────────────────────────────────
+- Initial creation of all manuals
+- Comprehensive documentation of all pages
+
+================================================================================
+📊 STATISTICS
+================================================================================
+
+Total Manuals: 15
+Total Lines: 10,000+
+Total Size: 500+ KB
+Pages Documented: 20+
+Last Updated: January 16, 2026
+
+Most Comprehensive:
+1. UPCOMING_EVENTS_PAGE_USER_MANUAL.txt (1,565 lines)
+2. PHOTO_GALLERY_PAGE_USER_MANUAL.txt (1,348 lines)
+3. PAST_EVENTS_PAGE_ADDENDUM.txt (700+ lines)
+
+Most Recent Updates:
+1. HOME_PAGE_USER_MANUAL.txt (Jan 16, 2026)
+2. PAST_EVENTS_PAGE_ADDENDUM.txt (Jan 16, 2026)
+3. RECENT_UPDATES_SUMMARY.txt (Jan 16, 2026)
+
+================================================================================
+🎯 NEXT STEPS
+================================================================================
+
+FOR NEW TEAM MEMBERS:
+─────────────────────
+1. Read RECENT_UPDATES_SUMMARY.txt first
+2. Review HOME_PAGE_USER_MANUAL.txt
+3. Study UPCOMING_EVENTS_PAGE_USER_MANUAL.txt
+4. Explore other manuals as needed
+
+FOR EXISTING TEAM:
+──────────────────
+1. Review RECENT_UPDATES_SUMMARY.txt for changes
+2. Check updated manuals for new features
+3. Test new features using checklists
+4. Report any issues to technical team
+
+FOR MAINTENANCE:
+────────────────
+1. Keep manuals updated with code changes
+2. Add new sections for new features
+3. Update version numbers and dates
+4. Test all documented procedures
+
+================================================================================
+END OF INDEX
+================================================================================
+
+Last Updated: January 16, 2026
+Version: 2026.1
+Maintained by: YUVA Development Team
