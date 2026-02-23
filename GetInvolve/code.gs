@@ -2869,3 +2869,8 @@ function buildCollegeReportHtml(college, memberStats, members, upcomingEvents, p
 </body>
 </html>`;
 }
+
+
+function forceAuthorization() {
+  UrlFetchApp.fetch("https://google.com");
+}
