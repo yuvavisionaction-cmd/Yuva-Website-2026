@@ -947,31 +947,71 @@ function resetPassword(e) {
       }, 400);
     }
 
-    // Verify email exists in admin_users
-    const adminResult = makeSupabaseRequest(
-      `admin_users?email=eq.${encodeURIComponent(email)}&select=id`,
-      'GET',
-      null,
-      true
-    );
+    // Find the Supabase Auth user by email using Admin API
+    const authListUrl = `${SUPABASE_URL}/auth/v1/admin/users?email_filter=${encodeURIComponent(email)}&page=1&per_page=1`;
+    const authListOptions = {
+      method: 'GET',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      muteHttpExceptions: true
+    };
 
-    if (!adminResult.success || !adminResult.data || adminResult.data.length === 0) {
+    const authListResponse = UrlFetchApp.fetch(authListUrl, authListOptions);
+    const authListCode = authListResponse.getResponseCode();
+    console.log('Auth list response code:', authListCode);
+
+    let authUserId = null;
+    if (authListCode >= 200 && authListCode < 300) {
+      const authListData = JSON.parse(authListResponse.getContentText());
+      if (authListData.users && authListData.users.length > 0) {
+        authUserId = authListData.users[0].id;
+        console.log('Found auth user ID:', authUserId);
+      }
+    }
+
+    if (!authUserId) {
+      console.error('Could not find Supabase Auth user for email:', email, 'Response:', authListResponse.getContentText());
       return createResponse({ 
         success: false, 
-        error: 'Admin user not found' 
+        error: 'Auth user not found. Please contact the administrator.' 
       }, 404);
     }
 
-    // Note: We cannot directly update Supabase Auth passwords from GAS
-    // The user needs to use Supabase's native password update
-    // This is a security feature - passwords should only be updated through Supabase Auth
-    
+    // Update password in Supabase Auth using Admin API
+    const updateUrl = `${SUPABASE_URL}/auth/v1/admin/users/${authUserId}`;
+    const updateOptions = {
+      method: 'PUT',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      payload: JSON.stringify({ password: newPassword }),
+      muteHttpExceptions: true
+    };
+
+    const updateResponse = UrlFetchApp.fetch(updateUrl, updateOptions);
+    const updateCode = updateResponse.getResponseCode();
+    console.log('Password update response code:', updateCode);
+
+    if (updateCode < 200 || updateCode >= 300) {
+      console.error('Failed to update auth password:', updateResponse.getContentText());
+      return createResponse({ 
+        success: false, 
+        error: 'Failed to update password. Please try again.' 
+      }, 500);
+    }
+
     // Delete used token
     makeSupabaseRequest(`password_reset_tokens?id=eq.${tokenData.id}`, 'DELETE', null, true);
+    console.log('Reset token deleted for email:', email);
 
     return createResponse({ 
       success: true, 
-      message: 'Token verified. Please update your password through Supabase Auth.' 
+      message: 'Password reset successful.' 
     });
 
   } catch (err) {
