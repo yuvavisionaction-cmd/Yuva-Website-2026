@@ -1761,7 +1761,10 @@ class AuthManager {
                 if (addEventBtn2) {
                     addEventBtn2.onclick = () => {
                         if (typeof openEventModal === 'function') {
-                            openEventModal({ college_id: college.id });
+                            openEventModal({ 
+                                college_id: college.id,
+                                college_name: college.college_name
+                            });
                         }
                     };
                 }
@@ -3461,6 +3464,9 @@ async function loadCollegeEvents(collegeId) {
         const now = new Date().getTime(); // Current timestamp
         const events = Array.isArray(json.events) ? json.events : [];
 
+        // FILTER: Exclude soft-deleted events (is_deleted = true)
+        const activeEvents = events.filter(ev => ev.is_deleted !== true);
+
         // --- NEW LOGIC: Check End Date ---
         const isUpcoming = (ev) => {
             const st = String(ev.status || '').toLowerCase();
@@ -3489,8 +3495,8 @@ async function loadCollegeEvents(collegeId) {
         };
         // --------------------------------
 
-        const upList = events.filter(isUpcoming);
-        const pastList = events.filter(isPast);
+        const upList = activeEvents.filter(isUpcoming);
+        const pastList = activeEvents.filter(isPast);
 
         const render = (ev, isUpcoming) => {
             const card = document.createElement('div');
@@ -3596,7 +3602,11 @@ function openEventModal(prefill) {
     document.getElementById('event-id').value = prefill.id || '';
     const activeCollegeId = prefill.college_id || window.__yuvaActiveCollegeId || '';
     document.getElementById('event-college-id').value = activeCollegeId;
-    document.getElementById('event-college-display').value = document.getElementById('cd-name')?.textContent || `ID ${activeCollegeId}`;
+    
+    // Get college name from prefill, DOM element, or use ID
+    let collegeName = prefill.college_name || document.getElementById('cd-name')?.textContent || `ID ${activeCollegeId}`;
+    document.getElementById('event-college-display').value = collegeName;
+    
     document.getElementById('event-banner-file').value = '';
     document.getElementById('event-banner-url').value = prefill.banner_url || '';
     document.getElementById('event-name').value = prefill.title || '';

@@ -191,6 +191,17 @@ CREATE TABLE IF NOT EXISTS events (
 
 ALTER TABLE events ENABLE ROW LEVEL SECURITY;
 
+-- ===== ADD SOFT DELETE COLUMNS TO EVENTS TABLE =====
+ALTER TABLE events
+ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT false;
+
+ALTER TABLE events
+ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE DEFAULT NULL;
+
+-- Create indexes for efficient soft delete queries
+CREATE INDEX IF NOT EXISTS idx_events_is_deleted ON events USING btree (is_deleted);
+CREATE INDEX IF NOT EXISTS idx_events_deleted_at ON events USING btree (deleted_at);
+
 CREATE POLICY "Allow read access to events" ON events
     FOR SELECT USING (true);
 
@@ -223,10 +234,15 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path=public;
 GRANT EXECUTE ON FUNCTION create_event(int, text, text, timestamptz, timestamptz, text, text, text) TO anon, authenticated;
 
 -- Delete event safely via RPC (avoids RLS issues for anon)
+-- UPDATED: Now uses SOFT DELETE to preserve data and statistics
 CREATE OR REPLACE FUNCTION delete_event(p_id int)
 RETURNS void AS $$
 BEGIN
-  DELETE FROM events WHERE id = p_id;
+  -- Soft delete: Mark event as deleted instead of permanently removing
+  UPDATE events 
+  SET is_deleted = true, 
+      deleted_at = NOW()
+  WHERE id = p_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path=public;
 

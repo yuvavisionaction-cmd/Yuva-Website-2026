@@ -1,0 +1,824 @@
+================================================================================
+            EVENT UPLOAD PORTAL - USER MANUAL
+                Youth United For Vision & Action
+================================================================================
+
+VERSION: 2026 (Updated with Soft Delete)
+LAST UPDATED: January 17, 2026
+PURPOSE: Email-verified event submission for central/independent events
+
+================================================================================
+TABLE OF CONTENTS
+================================================================================
+
+1. OVERVIEW
+2. SYSTEM ARCHITECTURE
+3. FILE STRUCTURE
+4. DATABASE SCHEMA
+5. EMAIL VERIFICATION FLOW
+6. EVENT SUBMISSION PROCESS
+7. INTEGRATION WITH EXISTING SYSTEM
+8. SECURITY & PERMISSIONS
+9. SOFT DELETE SYSTEM (NEW!)
+10. TROUBLESHOOTING
+11. TECHNICAL SPECIFICATIONS
+
+================================================================================
+1. OVERVIEW
+================================================================================
+
+PURPOSE:
+The Event Upload Portal allows verified users to submit events that do NOT
+originate from a college dashboard. This includes:
+- Central YUVA events
+- Inter-zone programs
+- Independent initiatives
+- National-level programs
+
+KEY FEATURES:
+✓ Email verification for access control
+✓ Direct submission to existing events tables
+✓ Automatic integration with Upcoming/Past Events pages
+✓ No admin panel required
+✓ Traceable uploads via event_uploaders table
+✓ Banner image upload to Supabase Storage
+✓ Display on Home/Upcoming/Past pages based on flags
+
+IMPORTANT DISTINCTIONS:
+- This is NOT an admin panel
+- This is NOT for college events (use College Dashboard instead)
+- This does NOT create duplicate event tables
+- This does NOT require manual syncing
+
+================================================================================
+2. SYSTEM ARCHITECTURE
+================================================================================
+
+DESIGN PHILOSOPHY:
+─────────────────
+The Event Upload Portal is designed as an ALTERNATIVE ENTRY POINT for event
+creation, not a separate system. It writes to the SAME tables used by the
+College Dashboard, ensuring unified event management.
+
+FLOW DIAGRAM:
+─────────────
+
+┌─────────────────────────────────────────────────────────────────┐
+│                    EVENT CREATION SOURCES                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌──────────────────────┐        ┌──────────────────────┐      │
+│  │  College Dashboard   │        │  Event Upload Portal │      │
+│  │  (Existing System)   │        │  (New System)        │      │
+│  └──────────┬───────────┘        └──────────┬───────────┘      │
+│             │                               │                   │
+│             │                               │                   │
+│             ▼                               ▼                   │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │              events TABLE (Shared)                        │  │
+│  │  - College events: college_id set, uploader NULL         │  │
+│  │  - Upload events: college_id NULL, uploader set          │  │
+│  └──────────────────────┬───────────────────────────────────┘  │
+│                         │                                       │
+│                         ▼                                       │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │         event_publications TABLE (Shared)                 │  │
+│  │  - Extended details for ALL events                       │  │
+│  │  - Display flags (home, upcoming, past)                  │  │
+│  └──────────────────────┬───────────────────────────────────┘  │
+│                         │                                       │
+│                         ▼                                       │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │         published_events VIEW (Unified)                   │  │
+│  │  - Joins events + event_publications                     │  │
+│  │  - Used by Upcoming.html and Past.html                   │  │
+│  └──────────────────────────────────────────────────────────┘  │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+
+DATA FLOW:
+──────────
+1. User verifies email → event_uploaders table
+2. User submits event → events table (created_by_uploader set)
+3. System creates publication → event_publications table
+4. Triggers set display flags → based on event dates
+5. Event appears on pages → via published_events view
+
+================================================================================
+3. FILE STRUCTURE
+================================================================================
+
+THREE MAIN FILES:
+─────────────────
+
+1. EventUpload.html (650 lines)
+   Location: /Events/EventUpload.html
+   
+   Components:
+   - Email verification section
+   - Verification code entry
+   - Event submission form
+   - Submitted events list
+   - User session management
+   
+   Features:
+   - Two-step email verification
+   - File upload with drag-and-drop
+   - Form validation
+   - Responsive design
+   - Session persistence
+
+2. event-upload.js (450 lines)
+   Location: /Events/event-upload.js
+   
+   Functions:
+   - Email verification flow
+   - Code generation and validation
+   - Event submission to Supabase
+   - Banner upload to Storage
+   - User events display
+   - Session management
+   
+   Dependencies:
+   - Supabase JS Client v2
+   - Font Awesome 6.4.0
+
+3. migration-event-upload-system.sql (300 lines)
+   Location: /Events/migration-event-upload-system.sql
+   
+   Database Changes:
+   - Creates event_uploaders table
+   - Adds created_by_uploader column to events
+   - Updates published_events view
+   - Creates triggers for stats
+   - Sets up RLS policies
+
+SHARED FILES:
+─────────────
+- /Events/event.css (shared styling)
+- /style.css (global styles)
+- Supabase configuration (same as existing)
+
+================================================================================
+4. DATABASE SCHEMA
+================================================================================
+
+NEW TABLE: event_uploaders
+───────────────────────────
+
+CREATE TABLE event_uploaders (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email TEXT NOT NULL UNIQUE,
+    verified_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_upload_at TIMESTAMPTZ,
+    total_uploads INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT true
+);
+
+Purpose: Track verified email addresses authorized to upload events
+Indexes: email, is_active
+RLS: Enabled with read/insert policies
+
+MODIFIED TABLE: events
+───────────────────────
+
+ALTER TABLE events
+ADD COLUMN created_by_uploader UUID REFERENCES event_uploaders(id);
+
+Purpose: Distinguish uploader events from college dashboard events
+Logic:
+- College events: college_id SET, created_by_uploader NULL
+- Upload events: college_id NULL, created_by_uploader SET
+
+UPDATED VIEW: published_events
+───────────────────────────────
+
+Now includes:
+- created_by_uploader (UUID)
+- uploader_email (TEXT)
+
+This allows filtering/displaying uploader information if needed.
+
+UNCHANGED TABLES:
+─────────────────
+- event_publications (reused as-is)
+- event_categories (reused as-is)
+- colleges (not used for upload events)
+
+================================================================================
+5. EMAIL VERIFICATION FLOW
+================================================================================
+
+STEP 1: EMAIL ENTRY
+───────────────────
+
+User Interface:
+- Email input field
+- "Send Verification Code" button
+
+Process:
+1. User enters email address
+2. Click "Send Verification Code"
+3. System generates 6-digit code
+4. Code sent to email (via email service)
+5. UI switches to code entry screen
+
+Code:
+```javascript
+verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+// Send via email service (Google Apps Script, SendGrid, etc.)
+```
+
+STEP 2: CODE VERIFICATION
+──────────────────────────
+
+User Interface:
+- 6-digit code input
+- "Verify Code" button
+- "Back" button
+
+Process:
+1. User enters received code
+2. Click "Verify Code"
+3. System validates code
+4. Check if email exists in event_uploaders
+5. If new: Create uploader record
+6. If existing: Retrieve uploader ID
+7. Store in session
+8. Show upload section
+
+Code:
+```javascript
+const { data: existingUploader } = await supabase
+    .from('event_uploaders')
+    .select('id, email')
+    .eq('email', currentUser.email)
+    .single();
+
+if (!existingUploader) {
+    await supabase.from('event_uploaders').insert([{
+        email: currentUser.email,
+        verified_at: new Date().toISOString()
+    }]);
+}
+```
+
+STEP 3: SESSION PERSISTENCE
+────────────────────────────
+
+Storage:
+- sessionStorage.setItem('eventUploaderEmail', email)
+
+On Page Load:
+- Check sessionStorage
+- Verify email in event_uploaders table
+- Auto-login if valid
+
+Logout:
+- Clear sessionStorage
+- Reset UI to verification screen
+
+================================================================================
+6. EVENT SUBMISSION PROCESS
+================================================================================
+
+FORM FIELDS:
+────────────
+
+REQUIRED FIELDS:
+1. Event Title * (text)
+2. Start Date & Time * (datetime-local)
+3. Mode * (select: online/offline/hybrid)
+4. Category * (select: from event_categories)
+
+OPTIONAL FIELDS:
+5. Short Description (textarea)
+6. Full Description (textarea)
+7. End Date & Time (datetime-local)
+8. Location (text, defaults to "Online")
+9. Capacity (number)
+10. Registration URL (url)
+11. Event Banner (file upload, max 2MB)
+
+DISPLAY OPTIONS:
+12. Show on Home Page (checkbox)
+13. Show on Upcoming Events (checkbox, checked by default)
+
+SUBMISSION FLOW:
+────────────────
+
+Step 1: Validate Form
+- Check required fields
+- Validate file size if banner selected
+
+Step 2: Upload Banner (if selected)
+```javascript
+const filePath = `event-banners/${fileName}`;
+const { data } = await supabase.storage
+    .from('event_images')
+    .upload(filePath, file);
+```
+
+Step 3: Insert into events table
+```javascript
+const eventData = {
+    title: title,
+    description: description,
+    start_at: new Date(startDate).toISOString(),
+    end_at: endDate ? new Date(endDate).toISOString() : null,
+    location: location || 'Online',
+    banner_url: bannerUrl,
+    status: 'upcoming',
+    college_id: null,  // No college association
+    created_by_uploader: currentUser.uploaderId  // Track uploader
+};
+
+const { data: newEvent } = await supabase
+    .from('events')
+    .insert([eventData])
+    .select()
+    .single();
+```
+
+Step 4: Insert into event_publications table
+```javascript
+const publicationData = {
+    event_id: newEvent.id,
+    mode: mode,
+    capacity: capacity,
+    registration_url: registrationUrl,
+    long_description: longDescription,
+    category_id: categoryId,
+    display_on_home: displayOnHome,
+    display_on_upcoming: displayOnUpcoming,
+    speakers: null
+};
+
+await supabase
+    .from('event_publications')
+    .insert([publicationData]);
+```
+
+Step 5: Automatic Trigger Processing
+- manage_event_display_flags() trigger runs
+- Sets display_on_past based on end_at date
+- Updates uploader statistics
+
+Step 6: Success
+- Show success message
+- Reset form
+- Reload user's events list
+
+================================================================================
+7. INTEGRATION WITH EXISTING SYSTEM
+================================================================================
+
+ZERO CHANGES REQUIRED TO:
+──────────────────────────
+✓ Upcoming.html (no modifications)
+✓ Past.html (no modifications)
+✓ event.js (no modifications)
+✓ event.css (no modifications)
+✓ College Dashboard (no modifications)
+✓ Unit Registration (no modifications)
+
+WHY IT WORKS:
+─────────────
+
+1. SAME TABLES:
+   - Upload events go to events + event_publications
+   - College events go to events + event_publications
+   - Both use published_events view
+
+2. SAME TRIGGERS:
+   - manage_event_display_flags() applies to ALL events
+   - Automatic migration to past/upcoming based on dates
+   - No special handling needed
+
+3. SAME QUERIES:
+   Upcoming.html query:
+   ```sql
+   SELECT * FROM published_events
+   WHERE display_on_upcoming = true
+   AND end_at >= NOW()
+   ORDER BY start_at ASC;
+   ```
+   
+   This returns BOTH college and upload events!
+
+4. SAME DISPLAY LOGIC:
+   - Event cards rendered identically
+   - Modal shows same information
+   - Filters work on all events
+
+DISTINGUISHING EVENTS:
+──────────────────────
+
+If you need to identify event source:
+
+College Event:
+- college_id IS NOT NULL
+- created_by_uploader IS NULL
+- college_name shows in organizer field
+
+Upload Event:
+- college_id IS NULL
+- created_by_uploader IS NOT NULL
+- uploader_email available in view
+- organizer defaults to "YUVA India"
+
+Query Example:
+```sql
+-- Get only upload events
+SELECT * FROM published_events
+WHERE created_by_uploader IS NOT NULL;
+
+-- Get only college events
+SELECT * FROM published_events
+WHERE college_id IS NOT NULL;
+
+-- Get all events (default)
+SELECT * FROM published_events;
+```
+
+================================================================================
+8. SECURITY & PERMISSIONS
+================================================================================
+
+EMAIL VERIFICATION:
+───────────────────
+- Required before any upload
+- 6-digit code sent to email
+- Code valid for session only
+- Session stored in sessionStorage
+
+UPLOADER TRACKING:
+──────────────────
+- Every uploader recorded in event_uploaders table
+- Email, verification time, upload count tracked
+- Audit trail for all uploads
+- Can deactivate uploaders via is_active flag
+
+ROW LEVEL SECURITY:
+───────────────────
+
+event_uploaders table:
+```sql
+-- Anyone can read active uploaders
+CREATE POLICY "Allow read access to active uploaders"
+ON event_uploaders FOR SELECT
+USING (is_active = true);
+
+-- Anyone can register as uploader
+CREATE POLICY "Allow insert for new uploaders"
+ON event_uploaders FOR INSERT
+WITH CHECK (true);
+```
+
+events table:
+```sql
+-- Allow uploader inserts
+CREATE POLICY "Allow event uploaders to insert events"
+ON events FOR INSERT
+WITH CHECK (created_by_uploader IS NOT NULL);
+```
+
+STORAGE PERMISSIONS:
+────────────────────
+- event_images bucket: Public read
+- Upload requires authentication
+- 2MB file size limit
+- Image types only (jpg, png, webp)
+
+PREVENTING ABUSE:
+─────────────────
+1. Email verification required
+2. All uploads tracked by email
+3. Can review uploader history
+4. Can deactivate abusive uploaders
+5. RLS prevents unauthorized access
+
+================================================================================
+9. SOFT DELETE SYSTEM (NEW!)
+================================================================================
+
+WHAT IS SOFT DELETE?
+────────────────────
+Soft delete is a data management pattern where deleted events are marked as
+deleted instead of being permanently removed from the database. This ensures:
+
+✓ Complete event history is preserved
+✓ Statistics remain accurate
+✓ Deleted events can be recovered by admins
+✓ Audit trails show deletion history
+✓ No data loss from accidental deletion
+
+HOW SOFT DELETE WORKS IN EVENT UPLOAD PORTAL:
+──────────────────────────────────────────────
+When you delete an uploaded event:
+
+1. DELETION TRIGGER:
+   - User clicks "Delete" button on event card
+   - Confirmation dialog appears
+   - User confirms deletion
+
+2. DATABASE OPERATION:
+   ┌────────────────────────────────────────┐
+   │ UPDATE events                          │
+   │ SET is_deleted = true,                 │
+   │     deleted_at = NOW()                 │
+   │ WHERE id = [event_id]                  │
+   └────────────────────────────────────────┘
+
+3. IMMEDIATE EFFECTS:
+   - Event marked with is_deleted = true
+   - Timestamp recorded in deleted_at field
+   - All event data preserved unchanged
+   - No information lost
+
+4. USER EXPERIENCE:
+   - Event disappears from page immediately
+   - Not shown in event listings
+   - Not searchable
+   - Success notification displayed
+
+WHAT SOFT DELETE PRESERVES:
+────────────────────────────
+Behind the scenes:
+✓ Event record in database (with is_deleted = true)
+✓ All event details (title, description, date, location)
+✓ Banner image stored in Supabase Storage
+✓ Registration information
+✓ Attendance/registration records
+✓ Audit trail (know when it was deleted)
+✓ Statistics (event counts still include it)
+
+DELETED EVENTS REMAIN INVISIBLE:
+────────────────────────────────
+Deleted events are filtered from all user-facing pages:
+
+LOCATION              FILTER LOGIC
+─────────────────────────────────────────────────────────
+Upcoming page         .eq('is_deleted', false)
+Past page             .eq('is_deleted', false)
+Home page             .eq('is_deleted', false)
+Search results        .eq('is_deleted', false)
+College dashboard     .filter(ev => !ev.is_deleted)
+
+This means deleted events:
+✗ Don't appear in event listings
+✗ Can't be found by search
+✗ Don't show in statistics for users
+✗ Can't be registered for
+✗ Aren't shared on social media
+
+But they ARE available:
+✓ To database administrators
+✓ For recovery/restoration
+✓ For audit purposes
+✓ In statistical reports
+✓ For legal/compliance records
+
+HOW TO DELETE AN UPLOADED EVENT:
+─────────────────────────────────
+From Event Upload Portal (event-upload.js):
+
+1. Go to your "My Events" section
+2. Find the event you want to delete
+3. Click the red "Delete" button (trash icon)
+4. Confirmation dialog appears:
+   "Are you sure? This cannot be undone."
+5. Click "OK" to confirm deletion
+6. Event marked as deleted
+7. Event disappears from your list
+8. Success notification appears
+
+ADMIN EVENT RESTORATION:
+─────────────────────────
+If an admin needs to restore a deleted event:
+
+VIA DATABASE QUERY:
+┌────────────────────────────────────────┐
+│ UPDATE events                          │
+│ SET is_deleted = false,                │
+│     deleted_at = NULL                  │
+│ WHERE id = [event_id]                  │
+└────────────────────────────────────────┘
+
+VIA JAVASCRIPT FUNCTION:
+┌────────────────────────────────────────┐
+│ async function restoreEvent(eventId) { │
+│   const { data, error } =              │
+│     await supabase                     │
+│       .from('events')                  │
+│       .update({                        │
+│         is_deleted: false,             │
+│         deleted_at: null               │
+│       })                               │
+│       .eq('id', eventId);              │
+│                                        │
+│   if (!error) {                        │
+│     console.log('Event restored!');    │
+│   }                                    │
+│ }                                      │
+└────────────────────────────────────────┘
+
+DATABASE SCHEMA CHANGES:
+────────────────────────
+New columns added to events table:
+
+Column Name:    is_deleted
+Type:          BOOLEAN
+Default:       false
+Purpose:       Marks events as deleted
+Set By:        Soft delete mechanism
+
+Column Name:    deleted_at
+Type:          TIMESTAMP WITH TIME ZONE
+Default:       NULL
+Purpose:       Records deletion time
+Set By:        Soft delete mechanism
+
+Index for Performance:
+┌────────────────────────────────────────┐
+│ CREATE INDEX idx_events_is_deleted     │
+│ ON events (is_deleted);                │
+└────────────────────────────────────────┘
+
+CONSISTENCY ACROSS UPLOAD PORTAL:
+──────────────────────────────────
+Soft delete is consistently applied:
+
+1. EVENT DISPLAY (event-upload.js):
+   - Shows only non-deleted events
+   - Filters: .eq('is_deleted', false)
+   - Updates automatically when event deleted
+
+2. EVENT PAGES (event.js):
+   - Upcoming page filters soft-deleted
+   - Past page filters soft-deleted
+   - Home page filters soft-deleted
+   - Search excludes soft-deleted
+
+3. COLLEGE DASHBOARD (unit.js):
+   - Same soft delete pattern
+   - Same filtering logic
+   - Consistent behavior across system
+
+4. STATISTICS:
+   - Soft-deleted events counted
+   - Participation records preserved
+   - Activity metrics accurate
+   - Reporting unaffected
+
+WHY SOFT DELETE INSTEAD OF PERMANENT DELETE?
+───────────────────────────────────────────────
+Soft delete was chosen because:
+
+BENEFITS:
+✓ Preserves statistics (event count, participation)
+✓ Maintains audit trail (know what was deleted)
+✓ Allows recovery (restore if deleted by mistake)
+✓ Complies with data retention policies
+✓ Provides legal protection
+✓ Safe for accidental deletions
+✓ Consistent with industry standards
+
+RISKS OF PERMANENT DELETE:
+✗ Loses participation records
+✗ Breaks statistics and reports
+✗ Removes audit trail
+✗ No recovery option
+✗ Violates retention policies
+✗ Irreversible mistakes
+✗ Legal liability
+
+MIGRATION & COMPATIBILITY:
+────────────────────────────
+Soft delete is backward compatible:
+
+✓ Existing events get is_deleted = false (default)
+✓ No data migration required
+✓ No downtime needed
+✓ Immediate functionality
+✓ No breaking changes
+✓ Works with existing code
+
+================================================================================
+10. TROUBLESHOOTING
+================================================================================
+
+ISSUE: Email verification code not received
+SOLUTION:
+- Check spam folder
+- Verify email service is configured
+- Check console for code (development only)
+- Ensure Google Apps Script is deployed
+
+ISSUE: Event not appearing on Upcoming page
+SOLUTION:
+- Check display_on_upcoming is true
+- Verify end_at >= NOW()
+- Check event status is 'upcoming' or 'scheduled'
+- Run: SELECT * FROM published_events WHERE id = 'event-id'
+
+ISSUE: Banner upload fails
+SOLUTION:
+- Check file size < 2MB
+- Verify file is image type
+- Ensure event_images bucket exists
+- Check storage permissions
+
+ISSUE: Session lost after refresh
+SOLUTION:
+- sessionStorage is tab-specific
+- Re-verify email if needed
+- Consider using localStorage for persistence
+
+ISSUE: Category dropdown empty
+SOLUTION:
+- Verify event_categories table has data
+- Check RLS policies on event_categories
+- Check browser console for errors
+
+ISSUE: Events not showing in user's list
+SOLUTION:
+- Verify created_by_uploader is set correctly
+- Check query filters
+- Ensure published_events view includes uploader_email
+
+================================================================================
+11. TECHNICAL SPECIFICATIONS
+================================================================================
+
+BROWSER COMPATIBILITY:
+──────────────────────
+- Chrome 90+
+- Firefox 88+
+- Safari 14+
+- Edge 90+
+
+REQUIRED APIS:
+──────────────
+- Supabase JS Client v2
+- FileReader API (for image preview)
+- sessionStorage API
+- Fetch API
+
+PERFORMANCE:
+────────────
+- Image upload: ~2-5 seconds (2MB)
+- Event submission: ~1-2 seconds
+- Events list load: ~500ms
+- Category load: ~300ms
+
+FILE SIZE LIMITS:
+─────────────────
+- Banner image: 2MB max
+- Recommended: 600x400px
+- Formats: JPG, PNG, WebP
+
+DATABASE LIMITS:
+────────────────
+- Title: 255 characters
+- Description: Unlimited (TEXT)
+- Email: 255 characters
+- No limit on events per uploader
+
+SUPABASE CONFIGURATION:
+───────────────────────
+URL: https://jgsrsjwmywiirtibofth.supabase.co
+Anon Key: sb_publishable_5KtvO0cEHfnECBoyp2CQnw_RC3_x2me
+
+Storage Bucket: event_images
+- Public: true
+- Max file size: 2MB
+- Allowed types: image/*
+
+================================================================================
+SUMMARY
+================================================================================
+
+The Event Upload Portal provides a lightweight, email-verified way to submit
+events that automatically integrate with the existing YUVA event system.
+
+KEY BENEFITS:
+✓ No admin panel complexity
+✓ Reuses existing infrastructure
+✓ Automatic date-based migration
+✓ Traceable and auditable
+✓ Zero impact on college dashboard
+✓ Unified event display
+
+MAINTENANCE:
+- Monitor event_uploaders table for abuse
+- Review upload statistics periodically
+- Deactivate problematic uploaders if needed
+- No special syncing or migration required
+
+For questions or issues, contact the YUVA technical team.
+
+================================================================================
+END OF MANUAL
+================================================================================

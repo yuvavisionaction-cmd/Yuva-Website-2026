@@ -235,12 +235,13 @@ class EventsPage {
             const now = new Date().toISOString();
 
             // Fetch upcoming events (events that haven't ended yet)
-            // Automatic migration: Any event with end_at >= now appears here
+            // IMPORTANT: Only show non-deleted events (is_deleted = false)
             const { data, error } = await supabaseClient
                 .from('published_events')
                 .select('*')
-                .eq('display_on_upcoming', true)  // Only get events marked for upcoming page
-                .gte('end_at', now)                // Events that haven't ended yet (automatic migration)
+                .eq('is_deleted', false)           // FILTER: Exclude soft-deleted events
+                .eq('display_on_upcoming', true)   // Only get events marked for upcoming page
+                .gte('end_at', now)                // Events that haven't ended yet
                 .order('start_at', { ascending: true })
                 .limit(50);
 
@@ -279,36 +280,26 @@ class EventsPage {
             }
         }
 
+        // FIX: Using placehold.co instead of via.placeholder.com
         return {
             id: e.id || Math.random().toString(36).substr(2, 9),
             title: e.title || 'Untitled Event',
-
-            // Use long_description if available (from event_publications), fallback to description
             description: e.long_description || e.description || '',
-
-            // Use banner_url from event_publications if available
-            banner_url: e.banner_url || 'https://via.placeholder.com/600x400/ccc/999?text=Event',
-
+            banner_url: e.banner_url || 'https://placehold.co/600x400?text=Event',
             start_at: e.start_at || new Date().toISOString(),
             end_at: e.end_at || '',
             location: e.location || 'Online',
-
-            // Use mode and category from event_publications (extended details)
             mode: (e.mode || 'offline').toLowerCase(),
             category: e.category || 'General',
-
-            // Use extended details from event_publications
             speakers: speakers,
             registration_url: e.registration_url || '#',
             capacity: e.capacity || null,
-
             status: e.status || 'upcoming',
-            organizer: e.college_name || 'YUVA India',
-
-            // Additional metadata
+            organizer: e.college_name || 'Youth United for Vision and Action',
             college_code: e.college_code || '',
             display_on_home: e.display_on_home || false,
-            display_on_upcoming: e.display_on_upcoming || false
+            display_on_upcoming: e.display_on_upcoming || false,
+            display_on_past: e.display_on_past || false
         };
     }
     /**
@@ -341,7 +332,7 @@ class EventsPage {
                 end_at: e.end_at,
                 location: e.location,
                 category: e.category || 'Event',
-                organizer: e.college_name || 'YUVA India'
+                organizer: e.college_name || 'Youth United for Vision and Action'
             }));
         } catch (err) {
             console.error('Error fetching home page events:', err);
@@ -1528,15 +1519,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-let eventsPageInstance = null;
-
-document.addEventListener('DOMContentLoaded', () => {
-    // Initialize custom dropdowns first
-    customDropdownInstance = new CustomDropdown();
-
-    // Then initialize events page
-    eventsPageInstance = new EventsPage();
-});
 
 /*=================================================================
   PAST EVENTS PAGE CLASS - Extends EventsPage
@@ -1562,11 +1544,12 @@ class PastEventsPage extends EventsPage {
             const now = new Date().toISOString();
 
             // Fetch past events using display_on_past flag
-            // The database triggers automatically manage this flag based on end_at date
+            // IMPORTANT: Only show non-deleted events (is_deleted = false)
             const { data, error } = await supabaseClient
                 .from('published_events')
                 .select('*')
-                .eq('display_on_past', true)  // Use the new display_on_past column
+                .eq('is_deleted', false)           // FILTER: Exclude soft-deleted events
+                .eq('display_on_past', true)       // Use the display_on_past column
                 .order('end_at', { ascending: false })  // Most recent first
                 .limit(this.eventsPerPage);
 
@@ -1794,7 +1777,19 @@ class PastEventsPage extends EventsPage {
 
     renderFeatured() {
         const container = document.getElementById('featured-event-container');
-        if (!container || this.events.length === 0) return;
+        if (!container) return;
+
+        // Show empty state if no events
+        if (this.events.length === 0) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 60px 20px; color: #64748b;">
+                    <i class="far fa-calendar-times" style="font-size: 4rem; margin-bottom: 20px; color: #cbd5e1;"></i>
+                    <h3 style="color: #000080; margin-bottom: 12px;">No Past Events</h3>
+                    <p>Check back later for completed events</p>
+                </div>
+            `;
+            return;
+        }
 
         // Get the most recent past event (first in the sorted list)
         const latestEvent = this.events[0];
@@ -1815,60 +1810,62 @@ class PastEventsPage extends EventsPage {
         else timeAgoText = `${Math.floor(daysAgo / 365)} years ago`;
 
         container.innerHTML = `
-            <div class=\"latest-event-visual\">
-                <div class=\"event-image-wrapper\">
-                    <img src=\"${latestEvent.banner_url}\" alt=\"${latestEvent.title}\" 
-                         onerror=\"this.src='https://via.placeholder.com/1200x600/667eea/ffffff?text=Past+Event'\">
-                    <div class=\"image-overlay\"></div>
-                    <div class=\"completed-badge-modern\">
-                        <i class=\"fas fa-check-circle\"></i>
-                        <span>Completed</span>
+            <div class="latest-event-card">
+                <div class="latest-event-visual">
+                    <div class="event-image-wrapper">
+                        <img src="${latestEvent.banner_url}" alt="${latestEvent.title}" 
+                             onerror="this.onerror=null; this.src='https://placehold.co/1200x600?text=Past+Event'">
+                        <div class="image-overlay"></div>
+                        <div class="completed-badge-modern">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Completed</span>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class=\"latest-event-details\">
-                <div class=\"event-date-badge\">
-                    <div class=\"date-number\">${day}</div>
-                    <div class=\"date-month\">${month}</div>
-                    <div class=\"date-year\">${year}</div>
-                </div>
-                <div class=\"event-info\">
-                    <div class=\"event-meta-tags\">
-                        <span class=\"meta-tag time-ago\">
-                            <i class=\"fas fa-history\"></i> ${timeAgoText}
-                        </span>
-                        <span class=\"meta-tag location\">
-                            <i class=\"fas fa-map-marker-alt\"></i> ${latestEvent.location}
-                        </span>
-                        ${latestEvent.mode === 'online' ? '<span class=\"meta-tag mode\"><i class=\"fas fa-globe\"></i> Online</span>' : ''}
+                <div class="latest-event-details">
+                    <div class="event-date-badge">
+                        <div class="date-number">${day}</div>
+                        <div class="date-month">${month}</div>
+                        <div class="date-year">${year}</div>
                     </div>
-                    <h3 class=\"event-title\">${latestEvent.title}</h3>
-                    <p class=\"event-description\">${latestEvent.description.substring(0, 200)}${latestEvent.description.length > 200 ? '...' : ''}</p>
-                    <div class=\"event-stats-modern\">
-                        <div class=\"stat-modern\">
-                            <i class=\"fas fa-clock\"></i>
-                            <span>${time}</span>
+                    <div class="event-info">
+                        <div class="event-meta-tags">
+                            <span class="meta-tag time-ago">
+                                <i class="fas fa-history"></i> ${timeAgoText}
+                            </span>
+                            <span class="meta-tag location">
+                                <i class="fas fa-map-marker-alt"></i> ${latestEvent.location}
+                            </span>
+                            ${latestEvent.mode === 'online' ? '<span class="meta-tag mode"><i class="fas fa-globe"></i> Online</span>' : ''}
                         </div>
-                        ${latestEvent.capacity ? `
-                        <div class=\"stat-modern\">
-                            <i class=\"fas fa-users\"></i>
-                            <span>${latestEvent.capacity}+ Attended</span>
+                        <h3 class="event-title">${latestEvent.title}</h3>
+                        <p class="event-description">${latestEvent.description.substring(0, 200)}${latestEvent.description.length > 200 ? '...' : ''}</p>
+                        <div class="event-stats-modern">
+                            <div class="stat-modern">
+                                <i class="fas fa-clock"></i>
+                                <span>${time}</span>
+                            </div>
+                            ${latestEvent.capacity ? `
+                            <div class="stat-modern">
+                                <i class="fas fa-users"></i>
+                                <span>${latestEvent.capacity}+ Attended</span>
+                            </div>
+                            ` : ''}
+                            <div class="stat-modern">
+                                <i class="fas fa-tag"></i>
+                                <span>${latestEvent.category || 'Event'}</span>
+                            </div>
                         </div>
-                        ` : ''}
-                        <div class=\"stat-modern\">
-                            <i class=\"fas fa-tag\"></i>
-                            <span>${latestEvent.category || 'Event'}</span>
+                        <div class="event-actions-modern">
+                            <button class="btn-modern-primary" onclick="pastEventsPageInstance.openModal(pastEventsPageInstance.events[0])">
+                                <i class="fas fa-info-circle"></i>
+                                <span>View Details</span>
+                            </button>
+                            <button class="btn-modern-secondary" onclick="pastEventsPageInstance.selectedEvent = pastEventsPageInstance.events[0]; pastEventsPageInstance.shareEvent();">
+                                <i class="fas fa-share-alt"></i>
+                                <span>Share</span>
+                            </button>
                         </div>
-                    </div>
-                    <div class=\"event-actions-modern\">
-                        <button class=\"btn-modern-primary\" onclick=\"pastEventsPageInstance.openModal(pastEventsPageInstance.events[0])\">
-                            <i class=\"fas fa-info-circle\"></i>
-                            <span>View Details</span>
-                        </button>
-                        <button class=\"btn-modern-secondary\" onclick=\"pastEventsPageInstance.selectedEvent = pastEventsPageInstance.events[0]; pastEventsPageInstance.shareEvent();\">
-                            <i class=\"fas fa-share-alt\"></i>
-                            <span>Share</span>
-                        </button>
                     </div>
                 </div>
             </div>
@@ -1909,3 +1906,29 @@ function updatePastEventInsights(events) {
     const impactEventsEl = document.getElementById('impact-past-events');
     if (impactEventsEl) impactEventsEl.textContent = `${events.length}+`;
 }
+
+// ===============================================
+// ===== SMART PAGE INITIALIZATION =====
+// ===============================================
+
+let eventsPageInstance = null;
+let pastEventsPageInstance = null;
+
+// Initialize custom dropdowns and detect which page we're on
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Initialize custom dropdowns first
+    customDropdownInstance = new CustomDropdown();
+
+    // 2. Detect which page we're on by checking body class
+    const isPastPage = document.body.classList.contains('past-events-page');
+
+    if (isPastPage) {
+        // Initialize Past Events Page
+        console.log('✅ Initializing Past Events Page...');
+        pastEventsPageInstance = new PastEventsPage();
+    } else {
+        // Initialize Upcoming Events Page
+        console.log('✅ Initializing Upcoming Events Page...');
+        eventsPageInstance = new EventsPage();
+    }
+});

@@ -3,8 +3,8 @@
                 Youth United For Vision & Action
 ================================================================================
 
-VERSION: 2025
-LAST UPDATED: December 26, 2025
+VERSION: 2026 (Updated with Soft Delete)
+LAST UPDATED: January 18, 2026
 
 ================================================================================
 TABLE OF CONTENTS
@@ -19,10 +19,11 @@ TABLE OF CONTENTS
 7. FILTER SYSTEM
 8. EVENT MODAL
 9. SHARE FUNCTIONALITY
-10. HOW TO MODIFY CONTENT
-11. TROUBLESHOOTING
-12. RESPONSIVE DESIGN
-13. SEO & ACCESSIBILITY
+10. SOFT DELETE SYSTEM (NEW!)
+11. HOW TO MODIFY CONTENT
+12. TROUBLESHOOTING
+13. RESPONSIVE DESIGN
+14. SEO & ACCESSIBILITY
 
 ================================================================================
 1. OVERVIEW
@@ -1026,7 +1027,7 @@ Step 3 Modal:
 - Display summary shows current settings
 
 ════════════════════════════════════════════════════════════════
-DELETING EVENTS
+DELETING EVENTS (SOFT DELETE)
 ════════════════════════════════════════════════════════════════
 
 TO DELETE AN EVENT:
@@ -1036,12 +1037,236 @@ TO DELETE AN EVENT:
 3. Click "Delete" button (red, trash icon)
 4. Confirmation dialog appears
 5. Click "OK" to confirm
-6. Event deleted from events table
-7. Associated publication record also deleted (cascade)
+6. Event marked as deleted (soft delete)
+7. Event hidden from all pages immediately
 8. Success notification
 9. Events list refreshes
 
-⚠️ WARNING: Deletion is permanent and cannot be undone!
+WHAT HAPPENS WHEN YOU DELETE:
+──────────────────────────────
+Behind the Scenes:
+- Event is NOT removed from database
+- Event marked with is_deleted = true
+- Timestamp recorded in deleted_at field
+- All event data preserved for statistics/audit trail
+
+Visible Effects:
+- Event disappears from Upcoming page
+- Event disappears from Past page  
+- Event disappears from home page
+- Event no longer visible in college dashboard
+- Statistics still count the event (preserved)
+
+SOFT DELETE vs PERMANENT DELETE:
+─────────────────────────────────
+⭐ SOFT DELETE (Current System):
+✓ Event data preserved in database
+✓ Statistics maintained (attendance, registrations, etc.)
+✓ Audit trail preserved (know when deleted and by whom)
+✓ Can be restored by admins if needed
+✓ Safe for accidental deletions
+✓ Complies with data retention policies
+
+❌ Would NOT be safe to permanently delete because:
+✗ Loses attendance/participation records
+✗ Breaks statistics and reporting
+✗ Removes audit trail
+✗ No way to recover if deleted by mistake
+
+════════════════════════════════════════════════════════════════
+10. SOFT DELETE SYSTEM (NEW!)
+════════════════════════════════════════════════════════════════
+
+WHAT IS SOFT DELETE?
+────────────────────
+Soft delete is a data management pattern where events are marked as deleted
+instead of being permanently removed from the database. This allows us to:
+
+✓ Preserve complete event history for statistics and reporting
+✓ Track when and which events were deleted
+✓ Maintain attendance and participation records
+✓ Recover deleted events if needed by administrators
+✓ Comply with data retention and audit requirements
+✓ Keep sports/activity records accurate
+
+HOW SOFT DELETE WORKS:
+──────────────────────
+When you delete an event using the "Delete" button:
+
+DATABASE LEVEL:
+┌─────────────────────────────────────────────────────────┐
+│ UPDATE events                                           │
+│ SET is_deleted = true,                                  │
+│     deleted_at = NOW()                                  │
+│ WHERE id = [event_id]                                   │
+└─────────────────────────────────────────────────────────┘
+
+What gets stored:
+- is_deleted BOOLEAN: Set to true when deleted
+- deleted_at TIMESTAMP: Records exact deletion time
+- All other event data: Preserved unchanged
+
+FILTERING LOGIC ON PAGES:
+─────────────────────────
+Deleted events are automatically hidden from all pages using this filter:
+
+UPCOMING EVENTS PAGE (event.js - Line 239):
+┌─────────────────────────────────────────────────────────┐
+│ .eq('is_deleted', false)      // Only show active events│
+│ .gte('end_at', now)           // Only future events      │
+└─────────────────────────────────────────────────────────┘
+
+PAST EVENTS PAGE (event.js - Line 1547):
+┌─────────────────────────────────────────────────────────┐
+│ .eq('is_deleted', false)      // Only show active events│
+│ .lt('end_at', now)            // Only past events       │
+└─────────────────────────────────────────────────────────┘
+
+HOME PAGE FEATURED EVENTS:
+┌─────────────────────────────────────────────────────────┐
+│ .eq('is_deleted', false)      // Only show active events│
+└─────────────────────────────────────────────────────────┘
+
+COLLEGE DASHBOARD (unit.js - Line 3463):
+┌─────────────────────────────────────────────────────────┐
+│ const activeEvents =                                    │
+│   events.filter(ev => ev.is_deleted !== true);          │
+└─────────────────────────────────────────────────────────┘
+
+USER EXPERIENCE WITH SOFT DELETE:
+──────────────────────────────────
+When a user deletes an event:
+
+BEFORE DELETION:
+- Event visible in Upcoming/Past pages
+- Event shows in college dashboard
+- Registration link available
+- Share button works
+- All details accessible
+
+IMMEDIATELY AFTER DELETION:
+- Event disappears from Upcoming page
+- Event disappears from Past page
+- Event removed from college dashboard
+- Event no longer searchable
+- Success notification shown
+
+FROM DATABASE PERSPECTIVE:
+- Event still exists in database
+- is_deleted flag = true
+- deleted_at timestamp = deletion time
+- All original data preserved
+- Statistics still include this event
+
+ADMIN RESTORATION:
+──────────────────
+If an admin needs to restore a deleted event:
+
+VIA DATABASE (DIRECT SQL):
+┌─────────────────────────────────────────────────────────┐
+│ UPDATE events                                           │
+│ SET is_deleted = false,                                 │
+│     deleted_at = NULL                                   │
+│ WHERE id = [event_id]                                   │
+└─────────────────────────────────────────────────────────┘
+
+VIA JAVASCRIPT FUNCTION (event-upload.js):
+┌─────────────────────────────────────────────────────────┐
+│ async function restoreEvent(eventId) {                  │
+│   const { data, error } =                               │
+│     await supabase                                      │
+│       .from('events')                                   │
+│       .update({                                         │
+│         is_deleted: false,                              │
+│         deleted_at: null                                │
+│       })                                                │
+│       .eq('id', eventId);                               │
+│                                                         │
+│   if (!error) showNotification('Event restored!');      │
+│ }                                                       │
+└─────────────────────────────────────────────────────────┘
+
+DATABASE SCHEMA CHANGES:
+────────────────────────
+Added to events table in Supabase:
+
+Column Name:    is_deleted
+Type:          BOOLEAN
+Default:       false
+Purpose:       Marks if event is deleted
+Usage:         Set to true on deletion
+
+Column Name:    deleted_at
+Type:          TIMESTAMP WITH TIME ZONE
+Default:       NULL
+Purpose:       Records exact deletion timestamp
+Usage:         Set to NOW() on deletion, NULL on restore
+
+Indexes Created:
+┌─────────────────────────────────────────────────────────┐
+│ CREATE INDEX idx_events_is_deleted                      │
+│ ON events (is_deleted);                                 │
+│                                                         │
+│ CREATE INDEX idx_events_deleted_at                      │
+│ ON events (deleted_at);                                 │
+└─────────────────────────────────────────────────────────┘
+
+These indexes speed up filtering queries on soft-deleted events.
+
+STATISTICS PRESERVATION:
+────────────────────────
+Because soft delete doesn't remove events, all statistics remain accurate:
+
+EVENT COUNT REPORTING:
+- "50+ Events Yearly" - Includes deleted events
+- Reports show total YUVA activity
+- Soft-deleted events still count as completed
+
+COLLEGE ACTIVITY TRACKING:
+- Attendance records preserved
+- Participation history intact
+- College contribution metrics accurate
+
+PARTICIPANT RECORDS:
+- Registration data preserved
+- Attendance marks maintained
+- Certificates still valid
+- Participation credits unchanged
+
+SYSTEM-WIDE CONSISTENCY:
+────────────────────────
+Soft delete is used consistently across:
+
+✓ Event Upload Portal (event-upload.js)
+  - Users can delete their events
+  - Deletion is soft (marked, not removed)
+  - Data preserved for statistics
+
+✓ College Dashboard (unit.js)
+  - Mentors can delete college events
+  - Same soft delete mechanism
+  - Data preserved for reporting
+
+✓ Event Display Pages
+  - Upcoming page filters soft-deleted events
+  - Past page filters soft-deleted events
+  - Home page filters soft-deleted events
+  - Search doesn't return soft-deleted events
+
+✓ Database Level
+  - Same is_deleted column in all systems
+  - Same filtering logic applied everywhere
+  - Consistent timestamp tracking
+
+MIGRATION PATH FOR EXISTING DATA:
+──────────────────────────────────
+If events existed before soft delete was implemented:
+
+1. New events ALWAYS have is_deleted = false (default)
+2. Already-existing events INHERIT is_deleted = false
+3. Deleted events get is_deleted = true automatically
+4. No historical data was lost or modified
+5. Backward compatible with existing application logic
 
 ════════════════════════════════════════════════════════════════
 TROUBLESHOOTING EVENT ADDING

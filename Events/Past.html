@@ -6,7 +6,7 @@
     <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <title>Past Events — Relive Our Journey | YUVA India</title>
+    <title>Past Events — Relive Our Journey | Youth United for Vision and Action</title>
     <meta name="description"
         content="Explore YUVA's legacy of impactful events—workshops, debates, cultural programs, and seminars that shaped thousands of youth across India. View photos, summaries, and outcomes." />
     <meta name="keywords"
@@ -31,7 +31,7 @@
     <meta property="og:site_name" content="YUVA — Youth United For Vision & Action" />
     <meta property="og:locale" content="en_IN" />
     <meta property="og:url" content="https://yuva.ind.in/Events/Past.html" />
-    <meta property="og:title" content="Past Events — Relive Our Journey | YUVA India" />
+    <meta property="og:title" content="Past Events — Relive Our Journey | Youth United for Vision and Action" />
     <meta property="og:description"
         content="Explore YUVA's legacy of impactful events that shaped thousands of youth across India." />
     <meta property="og:image" content="https://yuva.ind.in/Images/YUVA%20logo.png" />
@@ -39,7 +39,7 @@
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:url" content="https://yuva.ind.in/Events/Past.html" />
-    <meta name="twitter:title" content="Past Events — Relive Our Journey | YUVA India" />
+    <meta name="twitter:title" content="Past Events — Relive Our Journey | Youth United for Vision and Action" />
     <meta name="twitter:description"
         content="Explore YUVA's legacy of impactful events that shaped thousands of youth across India." />
     <meta name="twitter:image" content="https://yuva.ind.in/Images/YUVA%20logo.png" />
@@ -67,7 +67,7 @@
         "@type": "CollectionPage",
         "@id": "https://yuva.ind.in/Events/Past.html#webpage",
         "url": "https://yuva.ind.in/Events/Past.html",
-        "name": "Past Events — Relive Our Journey | YUVA India",
+        "name": "Past Events — Relive Our Journey | Youth United for Vision and Action",
         "description": "Explore YUVA's legacy of impactful events that shaped thousands of youth across India.",
         "inLanguage": "en",
         "isPartOf": { "@id": "https://yuva.ind.in/#website" },
@@ -93,9 +93,343 @@
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
+
     <!-- CSS -->
     <link rel="stylesheet" href="/style.css">
     <link rel="stylesheet" href="event.css">
+
+    <style>
+        /* Past Events Page Custom Styles */
+
+        /* Container for Latest Event - Add padding and max-width */
+        .latest-event-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 40px;
+        }
+
+        /* Latest Event Header Styling */
+        .latest-event-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .latest-event-header .section-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+        }
+
+        .latest-event-header .section-description {
+            color: #64748b;
+            font-size: 1.1rem;
+            margin: 0;
+            font-weight: 400;
+        }
+
+        /* Latest Event Card - Modern Layout */
+        #featured-event-container .latest-event-card {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            margin: 0;
+            padding: 0;
+        }
+
+        #featured-event-container .latest-event-visual {
+            position: relative;
+            min-height: 450px;
+            grid-column: 1;
+        }
+
+        #featured-event-container .event-image-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        #featured-event-container .event-image-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        #featured-event-container .image-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.3) 100%);
+        }
+
+        #featured-event-container .completed-badge-modern {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #22c55e;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+            z-index: 10;
+        }
+
+        #featured-event-container .latest-event-details {
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            grid-column: 2;
+        }
+
+        #featured-event-container .event-date-badge {
+            background: linear-gradient(135deg, #FF9933 0%, #E67300 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            width: fit-content;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 12px rgba(255, 153, 51, 0.3);
+        }
+
+        #featured-event-container .date-number {
+            font-size: 2.5rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        #featured-event-container .date-month {
+            font-size: 1rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 4px;
+        }
+
+        #featured-event-container .date-year {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin-top: 2px;
+        }
+
+        #featured-event-container .event-info {
+            flex: 1;
+        }
+
+        #featured-event-container .event-meta-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        #featured-event-container .meta-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: #f1f5f9;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        #featured-event-container .meta-tag i {
+            color: #FF9933;
+        }
+
+        #featured-event-container .event-title {
+            font-size: 2rem;
+            color: #000080;
+            margin: 16px 0;
+            font-weight: 700;
+            line-height: 1.3;
+        }
+
+        #featured-event-container .event-description {
+            color: #475569;
+            font-size: 1rem;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        #featured-event-container .event-stats-modern {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        #featured-event-container .stat-modern {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #64748b;
+            font-weight: 600;
+        }
+
+        #featured-event-container .stat-modern i {
+            color: #FF9933;
+            font-size: 1.1rem;
+        }
+
+        #featured-event-container .event-actions-modern {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        #featured-event-container .btn-modern-primary,
+        #featured-event-container .btn-modern-secondary {
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        #featured-event-container .btn-modern-primary {
+            background: linear-gradient(135deg, #000080 0%, #00005C 100%);
+            color: white;
+        }
+
+        #featured-event-container .btn-modern-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0, 0, 128, 0.3);
+        }
+
+        #featured-event-container .btn-modern-secondary {
+            background: white;
+            color: #000080;
+            border: 2px solid #000080;
+        }
+
+        #featured-event-container .btn-modern-secondary:hover {
+            background: #000080;
+            color: white;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 968px) {
+            .latest-event-container {
+                padding: 0 24px;
+            }
+
+            #featured-event-container .latest-event-card {
+                grid-template-columns: 1fr;
+            }
+
+            #featured-event-container .latest-event-visual {
+                min-height: 300px;
+                grid-column: 1;
+            }
+
+            #featured-event-container .latest-event-details {
+                padding: 30px 20px;
+                grid-column: 1;
+            }
+
+            #featured-event-container .event-title {
+                font-size: 1.5rem;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .latest-event-container {
+                padding: 0 16px;
+            }
+
+            #featured-event-container .latest-event-visual {
+                min-height: 250px;
+            }
+
+            #featured-event-container .latest-event-details {
+                padding: 24px 16px;
+            }
+
+            #featured-event-container .event-date-badge {
+                padding: 16px;
+            }
+
+            #featured-event-container .date-number {
+                font-size: 2rem;
+            }
+
+            #featured-event-container .event-title {
+                font-size: 1.25rem;
+            }
+
+            #featured-event-container .event-description {
+                font-size: 0.9rem;
+            }
+
+            #featured-event-container .event-actions-modern {
+                flex-direction: column;
+            }
+
+            #featured-event-container .btn-modern-primary,
+            #featured-event-container .btn-modern-secondary {
+                width: 100%;
+                justify-content: center;
+            }
+
+            #featured-event-container .meta-tag {
+                font-size: 0.75rem;
+                padding: 4px 10px;
+            }
+        }
+
+        /* Empty State Styling */
+        .empty-state-container {
+            text-align: center;
+            padding: 80px 20px;
+            background: #f8fafc;
+            border-radius: 16px;
+            margin: 40px 0;
+        }
+
+        .empty-state-container i {
+            font-size: 5rem;
+            color: #cbd5e1;
+            margin-bottom: 24px;
+        }
+
+        .empty-state-container h3 {
+            color: #000080;
+            font-size: 1.75rem;
+            margin-bottom: 12px;
+        }
+
+        .empty-state-container p {
+            color: #64748b;
+            font-size: 1rem;
+        }
+    </style>
 </head>
 
 <body class="past-events-page">
@@ -405,8 +739,7 @@
                 <div class="latest-event-container">
                     <div class="latest-event-header">
                         <span class="section-badge">Recently Completed</span>
-                        <h2>Latest Event</h2>
-                        <p>Discover our most recent milestone</p>
+                        <p class="section-description">Discover our most recent milestone</p>
                     </div>
                     <div class="latest-event-card" id="featured-event-container">
                         <div class="loading-spinner">
@@ -620,15 +953,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/script.js"></script>
     <script src="event.js"></script>
-    <script>
-        // Initialize Past Events Page
-        let pastEventsPageInstance = null;
-        document.addEventListener('DOMContentLoaded', () => {
-            if (typeof PastEventsPage !== 'undefined') {
-                pastEventsPageInstance = new PastEventsPage();
-            }
-        });
-    </script>
 </body>
 
 </html>

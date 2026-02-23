@@ -901,6 +901,7 @@ textarea.form-input {
     /* Mapped */
     outline-offset: 2px;
 }
+
 /* ===== MOBILE MEDIA QUERIES FOR DONATE PAGE - 2025 ===== */
 
 /* ===== Tablets and Small Laptops (1024px and below) ===== */
@@ -931,6 +932,7 @@ textarea.form-input {
 
 /* ===== Large Mobile / Small Tablets (768px and below) ===== */
 @media screen and (max-width: 768px) {
+
     /* Flash Notifications */
     .flash-container {
         top: 10px;
@@ -1398,6 +1400,7 @@ textarea.form-input {
 
 /* ===== Small Mobile (320px - 480px) ===== */
 @media screen and (max-width: 480px) {
+
     /* Flash Notifications */
     .flash-notification {
         padding: 12px 14px;
@@ -1852,17 +1855,37 @@ textarea.form-input {
         font-size: 14px;
     }
 
+    .custom-label {
+        width: 100%;
+        max-width: 100%;
+        padding: 0 2px;
+        box-sizing: border-box;
+    }
+
     .custom-label span {
         font-size: 14px;
     }
 
+    .custom-amount-container {
+        width: 100%;
+        max-width: 100%;
+        padding: 0 2px;
+        box-sizing: border-box;
+    }
+
     .custom-amount-input-wrapper {
-        max-width: 170px;
+        max-width: 100%;
+        width: 100%;
+        margin: 0;
+        box-sizing: border-box;
     }
 
     .custom-amount-input {
+        width: 100%;
+        max-width: 100%;
         padding: 11px 11px 11px 32px;
         font-size: 12px;
+        box-sizing: border-box;
     }
 
     .currency-symbol {
@@ -2074,21 +2097,38 @@ textarea.form-input {
         font-size: 12px;
     }
 
+    .custom-label {
+        width: 100%;
+        max-width: 100%;
+        padding: 0 2px;
+        box-sizing: border-box;
+    }
+
     .custom-label span {
         font-size: 13px;
     }
 
     .custom-amount-container {
+        width: 100%;
+        max-width: 100%;
         margin-top: 12px;
+        padding: 0 2px;
+        box-sizing: border-box;
     }
 
     .custom-amount-input-wrapper {
-        max-width: 160px;
+        max-width: 100%;
+        width: 100%;
+        margin: 0;
+        box-sizing: border-box;
     }
 
     .custom-amount-input {
+        width: 100%;
+        max-width: 100%;
         padding: 10px 10px 10px 30px;
         font-size: 11px;
+        box-sizing: border-box;
     }
 
     .currency-symbol {
@@ -2173,3 +2213,241 @@ textarea.form-input {
     }
 }
 
+/* ===== Tiny Mobile (345px and below) ===== */
+@media screen and (max-width: 345px) {
+
+    /* Form Container - Reduce padding to prevent overflow */
+    .donation-form-container {
+        padding: 0 6px 32px;
+    }
+
+    .form-card {
+        padding: 14px 10px;
+    }
+
+    /* Form Inputs - Ensure they fit within screen */
+    .form-input {
+        width: 100%;
+        max-width: 100%;
+        padding: 9px 8px;
+        font-size: 11px;
+        box-sizing: border-box;
+    }
+
+    textarea.form-input {
+        min-height: 50px;
+        padding: 9px 8px;
+    }
+
+    /* Form Groups - Ensure no overflow */
+    .form-group {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    .donor-info-grid {
+        gap: 9px;
+    }
+
+    /* Labels - Smaller to save space */
+    .form-label {
+        font-size: 9px;
+        margin-bottom: 3px;
+        gap: 3px;
+    }
+
+    .form-label i {
+        font-size: 8px;
+    }
+
+    /* Section Labels */
+    .section-label {
+        font-size: 10px;
+        margin-bottom: 7px;
+        gap: 4px;
+    }
+
+    .section-label i {
+        font-size: 9px;
+    }
+
+    /* Form Header */
+    .form-header h2 {
+        font-size: 17px;
+    }
+
+    .form-header p {
+        font-size: 10px;
+    }
+
+    /* Amount Grid */
+    .amount-grid {
+        grid-template-columns: 1fr;
+        gap: 5px;
+        width: 100%;
+        max-width: 100%;
+        padding: 0 2px;
+        box-sizing: border-box;
+    }
+
+    .amount-option {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    .amount-label {
+        width: 100%;
+        max-width: 100%;
+        padding: 8px 5px;
+        box-sizing: border-box;
+    }
+
+    /* Custom Amount Input */
+    /* Custom Amount Input */
+    .custom-label {
+        width: 100%;
+        max-width: 100%;
+        padding: 8px 5px;
+        box-sizing: border-box;
+        justify-content: center;
+    }
+
+    .custom-label span {
+        font-size: 11px;
+    }
+
+    .custom-label i {
+        font-size: 10px;
+    }
+
+    .custom-amount-container {
+        width: 100%;
+        max-width: 100%;
+        margin-top: 10px;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    .custom-amount-input-wrapper {
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
+        box-sizing: border-box;
+    }
+
+    .custom-amount-input {
+        width: 100%;
+        max-width: 100%;
+        padding: 9px 9px 9px 28px;
+        font-size: 10px;
+        box-sizing: border-box;
+    }
+
+    .currency-symbol {
+        font-size: 10px;
+        left: 10px;
+    }
+
+    /* Tax Exemption Fields */
+    .tax-exemption-fields {
+        padding: 7px;
+        margin-top: 9px;
+    }
+
+    /* Terms Checkbox */
+    .terms-checkbox-container {
+        margin-top: 10px;
+        gap: 5px;
+        padding: 0 2px;
+    }
+
+    .terms-checkbox-container label {
+        font-size: 9px;
+        line-height: 1.3;
+    }
+
+    .terms-checkbox-container input[type="checkbox"] {
+        width: 13px;
+        height: 13px;
+    }
+
+    /* Donate Button */
+    .donate-button {
+        padding: 11px 8px;
+        font-size: 12px;
+        margin-top: 14px;
+    }
+
+    .button-content {
+        gap: 6px;
+    }
+
+    .button-content i {
+        font-size: 11px;
+    }
+
+    .button-loading {
+        gap: 5px;
+        font-size: 11px;
+    }
+
+    /* Error Messages */
+    .error-message {
+        font-size: 8px;
+        padding: 4px 6px;
+    }
+
+    /* Type Labels */
+    .type-label {
+        padding: 11px 8px;
+        gap: 7px;
+    }
+
+    .type-icon {
+        width: 26px;
+        height: 26px;
+        font-size: 10px;
+    }
+
+    .type-title {
+        font-size: 10px;
+    }
+
+    .type-subtitle {
+        font-size: 8px;
+    }
+
+    /* Hero Section */
+    .donate-hero {
+        padding: 30px 6px 48px;
+    }
+
+    .hero-title {
+        font-size: 1.2rem;
+    }
+
+    .hero-description {
+        font-size: 11px;
+    }
+
+    /* Impact Items */
+    .donate-impact-item {
+        padding: 11px 9px;
+    }
+
+    .impact-icon {
+        width: 30px;
+        height: 30px;
+        font-size: 12px;
+    }
+
+    .donate-impact-number {
+        font-size: 15px;
+    }
+
+    .donate-impact-label {
+        font-size: 8px;
+    }
+}

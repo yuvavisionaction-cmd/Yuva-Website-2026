@@ -172,7 +172,8 @@ The page has 11 main sections from top to bottom:
 
 ┌──────────────────────────────────────────────────────────────┐
 │ 8. UPCOMING EVENTS (Dynamic from Supabase)                   │
-│    - Shows top 3 upcoming events                             │
+│    - Shows top 3 upcoming events where display_on_home=true  │
+│    - Super Admin controls visibility via Advanced Admin      │
 │    - Each card shows:                                         │
 │      • Event banner image                                     │
 │      • Date badge (day + month)                              │
@@ -181,9 +182,15 @@ The page has 11 main sections from top to bottom:
 │      • Description (3 lines max)                             │
 │    - "View All Events" button                                │
 │                                                               │
+│    VISIBILITY CONTROL:                                        │
+│    - Go to Advanced Admin > Events Manager                   │
+│    - Click Edit on event                                     │
+│    - Toggle "Display on Home Page" checkbox                  │
+│    - Save → Instantly updates on homepage                    │
+│                                                               │
 │    STATES:                                                    │
 │    - Loading spinner (while fetching)                        │
-│    - Event cards (if events exist)                           │
+│    - Event cards (if events exist with display_on_home=true) │
 │    - Empty state: "No upcoming events. Stay tuned!"          │
 │    - Error state: "Unable to load events"                    │
 └──────────────────────────────────────────────────────────────┘
@@ -212,23 +219,32 @@ The page has 11 main sections from top to bottom:
 
 FEATURE 1: UPCOMING EVENTS LOADING
 ──────────────────────────────────
-Source: Supabase database → 'events' table
+Source: Supabase database → 'published_events' VIEW
+(Combined data from 'events' table and 'event_publications' table)
 
 HOW IT WORKS:
 1. Page loads → Shows loading spinner
-2. Fetches events from Supabase
-   - Filters: status = 'upcoming' or 'scheduled'
+2. Fetches events from Supabase 'published_events' VIEW
+   - Filters: display_on_home = true (only events set to show on home)
+   - Status = 'scheduled' (only published events)
    - Only future events (based on end_at or start_at)
    - Sorted by start date
    - Limit: 10 events, displays top 3
 3. If 0 events → Shows empty state
-4. If events exist → Renders event cards
+4. If events exist → Renders event cards with mode, capacity, and display settings
 5. Hides loading spinner
+
+HOW TO CONTROL WHICH EVENTS DISPLAY:
+- Go to Advanced Admin → Events Manager
+- Click Edit on any event
+- Check/uncheck "Display on Home Page" checkbox
+- Save changes
+- Homepage automatically updates (display_on_home flag in event_publications)
 
 ERROR HANDLING:
 - Supabase not loaded → "Unable to load events. Refresh page"
 - Database error → "Unable to load events. Try again later"
-- No events → "No upcoming events at the moment. Stay tuned!"
+- No events with display_on_home=true → "No upcoming events at the moment. Stay tuned!"
 
 ──────────────────────────────────────────────────────────────
 
@@ -320,14 +336,44 @@ TABLES USED:
 │ - end_at (end date/time)                                     │
 │ - location (venue, optional)                                 │
 │ - banner_url (event image URL, optional)                     │
-│ - status ('upcoming', 'scheduled', 'completed', etc.)        │
+│ - status ('scheduled', 'completed', 'cancelled', etc.)       │
 │                                                              │
 │ REQUIRED PERMISSIONS:                                        │
 │ - SELECT permission for anon role                            │
 └─────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────┐
-│ TABLE 2: subscriptions                                       │
+│ TABLE 2: event_publications                                  │
+├─────────────────────────────────────────────────────────────┤
+│ Columns:                                                     │
+│ - id (unique identifier)                                     │
+│ - event_id (foreign key to events table)                     │
+│ - mode (event type: 'online', 'offline', 'hybrid')           │
+│ - capacity (number of attendees, null = unlimited)           │
+│ - registration_url (optional registration link)              │
+│ - display_on_home (boolean - show on home page)              │
+│ - display_on_upcoming (boolean - show on upcoming page)      │
+│ - display_on_past (boolean - show on past events page)       │
+│                                                              │
+│ IMPORTANT:                                                   │
+│ - display_on_home controls homepage event visibility         │
+│ - Set via Advanced Admin → Events Manager                    │
+│ - Edited through event form, saved to database              │
+│                                                              │
+│ REQUIRED PERMISSIONS:                                        │
+│ - SELECT permission for anon role                            │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ VIEW: published_events                                       │
+├─────────────────────────────────────────────────────────────┤
+│ Purpose: Combines events + event_publications for easy query │
+│ Usage: Used by homepage and events pages                     │
+│ Contains: All columns from both tables (events + event_pubs) │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ TABLE 3: subscriptions                                       │
 ├─────────────────────────────────────────────────────────────┤
 │ Columns:                                                     │
 │ - email (subscriber email, unique)                           │

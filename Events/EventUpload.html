@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Upload - YUVA India</title>
+    <link rel="shortcut icon" href="/Images/YUVA logo.png" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="event.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --navy: #000080;
+            --navy-dark: #00005C;
+            --saffron: #FF9933;
+            --saffron-dark: #E67300;
+            --green: #138808;
+            --red: #ef4444;
+            --text-primary: #0F172A;
+            --text-secondary: #475569;
+            --text-muted: #64748B;
+            --bg-light: #FAFAF9;
+            --bg-white: #FFFFFF;
+            --bg-subtle: #F5F5F4;
+            --border: #E2E8F0;
+            --success: #22C55E;
+            --success-light: #D1FAE5;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+            --transition: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e8eef7 100%);
+            min-height: 100vh;
+            color: var(--text-primary);
+            padding: 16px;
+        }
+
+        .page-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* ============ VERIFICATION SECTION ============ */
+        .verification-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .verification-container {
+            width: 100%;
+            max-width: 450px;
+            background: var(--bg-white);
+            border-radius: 1.5rem;
+            box-shadow: var(--shadow-lg), 0 20px 25px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -1000px 0; }
+            100% { background-position: 1000px 0; }
+        }
+
+        .verification-header {
+            background: linear-gradient(135deg, var(--navy) 0%, var(--navy-dark) 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        .verification-header h2 {
+            font-size: 2rem;
+            margin-bottom: 8px;
+            font-weight: 700;
+        }
+
+        .verification-header p {
+            opacity: 0.9;
+            font-size: 0.95rem;
+        }
+
+        .verification-body {
+            padding: 40px 30px;
+        }
+
+        /* ============ UPLOAD HEADER ============ */
+        .upload-header-section {
+            background: linear-gradient(135deg, var(--navy) 0%, var(--navy-dark) 100%);
+            color: white;
+            padding: 50px 30px;
+            border-radius: 1.5rem;
+            margin-bottom: 40px;
+            box-shadow: var(--shadow-lg), 0 20px 25px rgba(0, 0, 0, 0.1);
+            animation: slideIn 0.5s ease-out;
+        }
+
+        .upload-header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .upload-header-section h1 {
+            font-size: 2.5rem;
+            margin-bottom: 12px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .upload-header-section p {
+            font-size: 1.1rem;
+            opacity: 0.95;
+            margin-bottom: 25px;
+        }
+
+        .user-info-bar {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .user-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 999px;
+            color: white;
+            font-weight: 600;
+            font-size: 0.95rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .logout-btn {
+            background: rgba(239, 68, 68, 0.9);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 999px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'Inter', sans-serif;
+            border: none;
+            font-size: 0.95rem;
+        }
+
+        .logout-btn:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        /* ============ GRID LAYOUT ============ */
+        .upload-layout {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .upload-section {
+            background: var(--bg-white);
+            border-radius: 1.5rem;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            animation: slideIn 0.6s ease-out;
+        }
+
+        .section-header {
+            background: linear-gradient(135deg, rgba(255, 153, 51, 0.1) 0%, rgba(0, 0, 128, 0.05) 100%);
+            padding: 24px;
+            border-bottom: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section-header h2 {
+            color: var(--navy);
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .section-header i {
+            color: var(--saffron);
+            font-size: 1.5rem;
+        }
+
+        .section-body {
+            padding: 30px;
+        }
+
+        /* ============ FORM ELEMENTS ============ */
+        .form-group {
+            margin-bottom: 24px;
+            position: relative;
+        }
+
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            letter-spacing: 0.3px;
+        }
+
+        .required-indicator {
+            color: var(--red);
+            font-weight: 700;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid var(--border);
+            border-radius: 0.75rem;
+            background: var(--bg-white);
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            font-family: 'Inter', sans-serif;
+            transition: var(--transition);
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--navy);
+            background: #fafbff;
+            box-shadow: 0 0 0 4px rgba(0, 0, 128, 0.1);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .form-group input::placeholder,
+        .form-group textarea::placeholder {
+            color: var(--text-muted);
+            opacity: 0.7;
+        }
+
+        .input-with-icon {
+            position: relative;
+        }
+
+        .input-with-icon i {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            font-size: 1rem;
+            pointer-events: none;
+        }
+
+        .input-with-icon input {
+            padding-left: 44px !important;
+        }
+
+        .validation-icon {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            pointer-events: none;
+        }
+
+        .validation-icon.valid {
+            color: var(--green);
+        }
+
+        .validation-icon.invalid {
+            color: var(--red);
+        }
+
+        .form-error {
+            color: var(--red);
+            font-size: 0.8rem;
+            margin-top: 6px;
+            display: none;
+            font-weight: 500;
+        }
+
+        .form-error.show {
+            display: block;
+            animation: slideDown 0.2s ease-out;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ============ BUTTONS ============ */
+        .btn {
+            width: 100%;
+            padding: 13px 20px;
+            background: linear-gradient(135deg, var(--navy) 0%, var(--navy-dark) 100%);
+            color: white;
+            border: none;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn.loading {
+            background: linear-gradient(90deg, var(--navy) 0%, #1a1a8a 50%, var(--navy) 100%);
+            background-size: 200% 100%;
+            animation: shimmer 2s infinite;
+            position: relative;
+            pointer-events: none;
+        }
+
+        .btn.loading::after {
+            content: '';
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-left: 8px;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, var(--saffron) 0%, var(--saffron-dark) 100%);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--green) 0%, #0F6606 100%);
+        }
+
+        /* ============ MESSAGES ============ */
+        .message {
+            margin: 20px 0;
+            padding: 16px 18px;
+            border-radius: 0.75rem;
+            display: none;
+            font-size: 0.95rem;
+            font-weight: 500;
+            border-left: 4px solid transparent;
+            animation: slideDown 0.3s ease-out;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .message.show {
+            display: block;
+        }
+
+        .message.error {
+            background: #fef2f2;
+            color: var(--red);
+            border-left-color: var(--red);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
+        }
+
+        .message.success {
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            color: #15803d;
+            border-left-color: var(--green);
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.15);
+            font-weight: 600;
+        }
+
+        .message.info {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            color: #003366;
+            border-left-color: var(--navy);
+            box-shadow: 0 4px 12px rgba(0, 0, 128, 0.15);
+        }
+
+        /* ============ FORM LAYOUT ============ */
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .form-full {
+            grid-column: 1 / -1;
+        }
+
+        /* ============ FILE UPLOAD ============ */
+        .file-upload-area {
+            border: 2px dashed var(--border);
+            border-radius: 0.75rem;
+            padding: 40px 24px;
+            text-align: center;
+            background: var(--bg-subtle);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .file-upload-area:hover {
+            border-color: var(--saffron);
+            background: #fff8f0;
+        }
+
+        .file-upload-area.has-file {
+            border-color: var(--green);
+            background: var(--success-light);
+        }
+
+        .file-upload-area i {
+            font-size: 2.5rem;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .file-upload-area p {
+            margin: 8px 0;
+            color: var(--text-secondary);
+        }
+
+        .preview-image {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 0.75rem;
+            margin-top: 16px;
+            border: 2px solid var(--border);
+        }
+
+        /* ============ CHECKBOX STYLES ============ */
+        .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: var(--bg-subtle);
+            border-radius: 0.75rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .checkbox-item:has(input[type="checkbox"]:checked) {
+            background: #e8f4fd;
+            border-color: var(--navy);
+        }
+
+        .checkbox-item:hover {
+            background: #f0f8ff;
+            border-color: var(--navy);
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            min-width: 20px;
+            min-height: 20px;
+            cursor: pointer;
+            accent-color: var(--navy);
+            margin: 0;
+            flex-shrink: 0;
+            appearance: none;
+            -webkit-appearance: none;
+            background: transparent;
+            border: 2px solid var(--navy);
+            border-radius: 4px;
+            position: relative;
+        }
+
+        .checkbox-item input[type="checkbox"]:checked {
+            background: var(--navy);
+            border-color: var(--navy);
+        }
+
+        .checkbox-item input[type="checkbox"]:checked::after {
+            content: '✓';
+            position: absolute;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .checkbox-item input[type="checkbox"]:checked + label {
+            color: var(--navy);
+            font-weight: 700;
+        }
+
+        .checkbox-item label {
+            margin: 0;
+            cursor: pointer;
+            font-weight: 500;
+            flex: 1;
+            user-select: none;
+        }
+
+        /* ============ TIMER ============ */
+        #verificationTimer {
+            text-align: center;
+            margin: 20px 0;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 14px;
+            background: #eff6ff;
+            border-radius: 0.75rem;
+            color: var(--navy);
+            border-left: 4px solid var(--navy);
+        }
+
+        /* ============ EVENTS LIST ============ */
+        .events-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .event-item {
+            background: var(--bg-subtle);
+            border-radius: 0.75rem;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 120px 1fr auto;
+            gap: 20px;
+            align-items: center;
+            transition: var(--transition);
+            border: 2px solid transparent;
+        }
+
+        .event-item:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+            border-color: var(--border);
+        }
+
+        .event-item img {
+            width: 120px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 0.75rem;
+        }
+
+        .event-info h3 {
+            color: var(--navy);
+            margin-bottom: 8px;
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        .event-meta {
+            display: flex;
+            gap: 16px;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            flex-wrap: wrap;
+        }
+
+        .event-meta span {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .event-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: flex-end;
+        }
+
+        .badge {
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge.upcoming {
+            background: var(--success-light);
+            color: #065f2e;
+        }
+
+        .badge.past {
+            background: var(--border);
+            color: var(--text-muted);
+        }
+
+        .btn-delete-event {
+            padding: 6px 12px;
+            background: var(--red);
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+        }
+
+        .btn-delete-event:hover {
+            background: #d43939;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-delete-event:active {
+            transform: translateY(0);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-state i {
+            font-size: 3.5rem;
+            margin-bottom: 16px;
+            color: var(--border);
+        }
+
+        /* ============ RESPONSIVE ============ */
+        @media (min-width: 1200px) {
+            .upload-layout {
+                grid-template-columns: 1.2fr 0.8fr;
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .upload-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 12px;
+            }
+
+            .upload-header-section {
+                padding: 40px 20px;
+            }
+
+            .upload-header-section h1 {
+                font-size: 1.8rem;
+            }
+
+            .user-info-bar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .user-badge,
+            .logout-btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+
+            .event-item {
+                grid-template-columns: 1fr;
+            }
+
+            .event-item img {
+                width: 100%;
+                height: 150px;
+            }
+
+            .section-body {
+                padding: 20px;
+            }
+
+            .btn {
+                padding: 12px 16px;
+                font-size: 0.9rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+
+            .verification-header {
+                padding: 24px 20px;
+            }
+
+            .verification-header h2 {
+                font-size: 1.3rem;
+            }
+
+            .upload-header-section {
+                padding: 30px 16px;
+                margin-bottom: 24px;
+            }
+
+            .upload-header-section h1 {
+                font-size: 1.5rem;
+            }
+
+            .section-header h2 {
+                font-size: 1.2rem;
+            }
+
+            .form-group label {
+                font-size: 0.85rem;
+            }
+
+            .form-group input,
+            .form-group select,
+            .form-group textarea {
+                padding: 11px 14px;
+                font-size: 16px;
+            }
+
+            .btn {
+                padding: 11px 14px;
+                font-size: 0.85rem;
+            }
+
+            .file-upload-area {
+                padding: 30px 16px;
+            }
+
+            .file-upload-area i {
+                font-size: 2rem;
+            }
+        }
+
+        @media (max-width: 325px) {
+            body {
+                padding: 8px;
+            }
+
+            .verification-header {
+                padding: 20px 16px;
+            }
+
+            .verification-header h2 {
+                font-size: 1.1rem;
+            }
+
+            .upload-header-section h1 {
+                font-size: 1.2rem;
+            }
+
+            .form-group input,
+            .form-group select,
+            .form-group textarea {
+                padding: 10px 12px;
+                font-size: 16px;
+            }
+
+            .btn {
+                padding: 10px 12px;
+                font-size: 0.8rem;
+            }
+
+            #verificationTimer {
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page-container">
+        <!-- EMAIL VERIFICATION SECTION -->
+        <div class="verification-wrapper" id="verificationWrapper">
+            <div class="verification-container">
+                <div class="verification-header">
+                    <h2><i class="fas fa-envelope"></i> Verify Email</h2>
+                    <p>Access the Event Upload Portal</p>
+                </div>
+                <div class="verification-body">
+                    <!-- Email Form -->
+                    <div id="emailStep">
+                        <form id="emailForm" novalidate>
+                            <div class="form-group">
+                                <label for="email">Email Address <span class="required-indicator">*</span></label>
+                                <div class="input-with-icon">
+                                    <i class="fas fa-envelope"></i>
+                                    <input type="email" id="email" placeholder="your@example.com" required>
+                                    <span class="validation-icon"></span>
+                                </div>
+                                <div class="form-error"></div>
+                            </div>
+                            <button type="submit" class="btn" id="sendCodeBtn">
+                                <i class="fas fa-paper-plane"></i> Send Code
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Code Form -->
+                    <div id="codeStep" style="display: none;">
+                        <form id="codeForm" novalidate>
+                            <div class="form-group">
+                                <label for="verificationCode">Verification Code <span class="required-indicator">*</span></label>
+                                <div class="input-with-icon">
+                                    <i class="fas fa-key"></i>
+                                    <input type="text" id="verificationCode" placeholder="000000" maxlength="6" inputmode="numeric" pattern="\d{6}" required>
+                                    <span class="validation-icon"></span>
+                                </div>
+                                <div class="form-error"></div>
+                            </div>
+                            <div id="verificationTimer"></div>
+                            <button type="submit" class="btn" id="verifyCodeBtn">
+                                <i class="fas fa-check"></i> Verify
+                            </button>
+                            <button type="button" class="btn btn-secondary" id="resendCodeBtn" style="margin-top: 10px;">
+                                <i class="fas fa-redo"></i> Resend Code
+                            </button>
+                            <button type="button" class="btn" id="backToEmailBtn" style="margin-top: 10px; opacity: 0.7;">
+                                <i class="fas fa-arrow-left"></i> Back
+                            </button>
+                        </form>
+                    </div>
+
+                    <div id="messageBox" class="message"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- UPLOAD SECTION -->
+        <div id="uploadSection" style="display: none;">
+            <div class="upload-header-section">
+                <div class="upload-header-content">
+                    <h1><i class="fas fa-calendar-plus"></i> Event Upload</h1>
+                    <p>Submit events to the YUVA platform</p>
+                    <div class="user-info-bar">
+                        <span class="user-badge">
+                            <i class="fas fa-user-check"></i>
+                            <span id="userEmail"></span>
+                        </span>
+                        <button class="logout-btn" id="logoutBtn">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="upload-layout">
+                <!-- EVENT FORM -->
+                <div class="upload-section">
+                    <div class="section-header">
+                        <i class="fas fa-plus-circle"></i>
+                        <h2>Create Event</h2>
+                    </div>
+                    <div class="section-body">
+                        <form id="eventForm" novalidate>
+                            <div class="form-group">
+                                <label for="eventTitle">Event Title <span class="required-indicator">*</span></label>
+                                <input type="text" id="eventTitle" placeholder="e.g., National Summit 2025" required minlength="5" maxlength="100">
+                                <div class="form-error"></div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="eventDescription">Short Description</label>
+                                <textarea id="eventDescription" placeholder="Brief overview..." rows="3" maxlength="300"></textarea>
+                                <div class="form-error"></div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="eventLongDescription">Full Description</label>
+                                <textarea id="eventLongDescription" placeholder="Detailed information..." rows="5" maxlength="2000"></textarea>
+                                <div class="form-error"></div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="eventStartDate">Start Date & Time <span class="required-indicator">*</span></label>
+                                    <input type="datetime-local" id="eventStartDate" required>
+                                    <div class="form-error"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="eventEndDate">End Date & Time</label>
+                                    <input type="datetime-local" id="eventEndDate">
+                                    <div class="form-error"></div>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="eventLocation">Location</label>
+                                    <input type="text" id="eventLocation" placeholder="e.g., New Delhi" maxlength="100">
+                                    <div class="form-error"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="eventMode">Mode <span class="required-indicator">*</span></label>
+                                    <select id="eventMode" required>
+                                        <option value="">Select Mode</option>
+                                        <option value="online">Online</option>
+                                        <option value="offline">In-Person</option>
+                                        <option value="hybrid">Hybrid</option>
+                                    </select>
+                                    <div class="form-error"></div>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="eventCategory">Category <span class="required-indicator">*</span></label>
+                                    <select id="eventCategory" required>
+                                        <option value="">Select Category</option>
+                                    </select>
+                                    <div class="form-error"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="eventCapacity">Capacity</label>
+                                    <input type="number" id="eventCapacity" placeholder="e.g., 500" min="1" max="999999">
+                                    <div class="form-error"></div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="eventRegistrationUrl">Registration URL</label>
+                                <input type="url" id="eventRegistrationUrl" placeholder="https://" pattern="https?://.+">
+                                <div class="form-error"></div>
+                            </div>
+
+                            <div class="form-group form-full">
+                                <label>Event Banner</label>
+                                <div class="file-upload-area" id="fileUploadArea">
+                                    <i class="fas fa-cloud-upload-alt"></i>
+                                    <p><strong>Click to upload</strong> or drag and drop</p>
+                                    <p style="font-size: 0.85rem;">PNG, JPG, WebP (Max 500KB)</p>
+                                    <input type="file" id="bannerFile" accept="image/*" style="display: none;">
+                                </div>
+                                <img id="previewImage" class="preview-image" style="display: none;">
+                                <div class="form-error"></div>
+                            </div>
+
+                            <div class="form-group form-full">
+                                <label>Display Options <span class="required-indicator">*</span></label>
+                                <div class="checkbox-group">
+                                    <div class="checkbox-item">
+                                        <input type="checkbox" id="displayOnHome">
+                                        <label for="displayOnHome">Show on Home Page</label>
+                                    </div>
+                                    <div class="checkbox-item">
+                                        <input type="checkbox" id="displayOnUpcoming" checked>
+                                        <label for="displayOnUpcoming">Show on Upcoming Events</label>
+                                    </div>
+                                </div>
+                                <div class="form-error"></div>
+                            </div>
+
+                            <button type="submit" class="btn" id="submitEventBtn" style="margin-top: 10px;">
+                                <i class="fas fa-check"></i> Submit Event
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- EVENTS LIST -->
+                <div class="upload-section">
+                    <div class="section-header">
+                        <i class="fas fa-list"></i>
+                        <h2>Your Events</h2>
+                    </div>
+                    <div class="section-body">
+                        <div id="eventsList" class="events-list">
+                            <div class="empty-state">
+                                <i class="fas fa-calendar-times"></i>
+                                <p>No events submitted yet</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="event-upload.js"></script>
+</body>
+</html>

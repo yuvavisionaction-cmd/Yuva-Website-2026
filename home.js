@@ -55,15 +55,16 @@ class HomePageManager {
                 return;
             }
 
-            // 1. Fetch recent and future events (fetch a bit more data to filter client-side)
+            // 1. Fetch recent and future events from published_events view
             // We fetch events starting from "Yesterday" to catch events that started but haven't ended.
             const yesterday = new Date();
             yesterday.setDate(yesterday.getDate() - 1);
 
             const { data: events, error } = await supabaseClient
-                .from('events')
-                .select('id, title, description, start_at, end_at, location, banner_url, status')
-                .in('status', ['upcoming', 'scheduled'])
+                .from('published_events')
+                .select('id, title, description, start_at, end_at, location, banner_url, status, display_on_home')
+                .eq('display_on_home', true)
+                .eq('status', 'scheduled')
                 .gte('start_at', yesterday.toISOString()) // Fetch slightly wider range
                 .order('start_at', { ascending: true })
                 .limit(10); // Fetch 10, then we will filter down to 3

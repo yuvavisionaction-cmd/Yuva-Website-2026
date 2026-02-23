@@ -1,0 +1,922 @@
+================================================================================
+                     YUVA DONATION SYSTEM - USER MANUAL
+                     Youth United For Vision & Action
+================================================================================
+
+VERSION: 2026
+LAST UPDATED: January 18, 2026
+
+================================================================================
+TABLE OF CONTENTS
+================================================================================
+
+1. OVERVIEW
+2. FILE STRUCTURE
+3. EXTERNAL DEPENDENCIES
+4. PAGE SECTIONS
+5. DYNAMIC FEATURES
+6. DATABASE SETUP (SUPABASE)
+7. BACKEND SYSTEM (GOOGLE APPS SCRIPT)
+8. HOW TO MODIFY CONTENT
+9. TROUBLESHOOTING
+10. RESPONSIVE DESIGN
+11. SECURITY & PAYMENT PROCESSING
+12. EMAIL SYSTEM & RECEIPTS
+
+================================================================================
+1. OVERVIEW
+================================================================================
+
+The YUVA Donation System is a comprehensive, secure donation platform that
+integrates Razorpay payment gateway with Supabase database and Google Apps
+Script backend for processing donations.
+
+KEY FEATURES:
+✓ Secure Razorpay payment integration (Test & Live modes)
+✓ Google Apps Script backend for payment verification
+✓ Supabase database for donation records
+✓ Professional email notifications with PDF receipts
+✓ 80G tax exemption support (PAN/Aadhaar validation)
+✓ One-time and recurring donation options
+✓ Real-time form validation
+✓ Toast notification system
+✓ Fully responsive design (mobile, tablet, desktop)
+✓ Loading animations and progress indicators
+✓ Receipt tracking system
+
+================================================================================
+2. FILE STRUCTURE
+================================================================================
+
+MAIN FILES:
+
+1. Donate.html (684 lines)
+   - Main donation page structure
+   - Form with personal info and tax exemption fields
+   - Razorpay integration
+
+2. style.css (2,451 lines, 44,886 bytes)
+   - All styling and visual design
+   - Tricolor theme (India flag colors)
+   - Responsive media queries for all screen sizes
+   - Animations and transitions
+   - Loading states
+
+3. script-supabase.js (698 lines, 25,623 bytes)
+   - Frontend donation logic
+   - Razorpay checkout integration
+   - Form validation
+   - Backend communication
+   - Flash notification system
+
+4. code-supabase.gs (1,046 lines, 34,297 bytes)
+   - Google Apps Script backend
+   - Razorpay order creation & verification
+   - Supabase database operations
+   - Email sending with PDF receipts
+   - Receipt generation system
+
+5. supabase-setup.sql (285 lines)
+   - Database schema for donations table
+   - Row Level Security (RLS) policies
+   - Validation functions
+   - Statistics views
+
+ADDITIONAL FILES:
+- SETUP_GUIDE.md - Deployment instructions
+- QUICK_REFERENCE.md - Quick reference guide
+- README.md - Migration summary
+- RAZORPAY_ERRORS_EXPLAINED.md - Console error explanations
+
+================================================================================
+3. EXTERNAL DEPENDENCIES
+================================================================================
+
+The donation system requires these external libraries:
+
+1. RAZORPAY CHECKOUT (v1)
+   CDN: https://checkout.razorpay.com/v1/checkout.js
+   Purpose: Payment gateway integration
+
+2. SUPABASE JS (v2)
+   CDN: https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2
+   Purpose: Database connection (currently removed from frontend)
+
+3. FONT AWESOME (v6.4.0)
+   CDN: https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css
+   Purpose: Icons throughout the page
+
+4. GOOGLE FONTS
+   Fonts: Inter (400-700), Poppins (400-700)
+   Purpose: Typography
+
+⚠️ WARNING: If Razorpay script fails to load, payment functionality will not work!
+
+================================================================================
+4. PAGE SECTIONS
+================================================================================
+
+The donation page has 5 main sections:
+
+┌──────────────────────────────────────────────────────────────┐
+│ 1. HERO SECTION                                               │
+│    - Animated Ashoka Chakra background                       │
+│    - Tricolor gradient                                        │
+│    - Title: "Support YUVA's Mission"                          │
+│    - Subtitle: "Your contribution empowers youth"             │
+│    - Impact statistics:                                       │
+│      • ₹5,00,000+ Raised                                      │
+│      • 1,000+ Donors                                          │
+│      • 50+ Projects Funded                                    │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ 2. DONATION TYPE SELECTOR                                     │
+│    - One-time Donation (Active)                               │
+│    - Recurring Donation (Coming Soon)                         │
+│    - Visual cards with icons                                  │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ 3. AMOUNT SELECTOR                                            │
+│    - Preset amounts: ₹1,000, ₹2,500, ₹5,000, ₹10,000         │
+│    - Custom amount option                                     │
+│    - Currency symbol (₹)                                      │
+│    - Amount display (shows selected amount)                   │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ 4. DONOR INFORMATION FORM                                     │
+│    Required Fields:                                           │
+│    - First Name                                               │
+│    - Surname                                                  │
+│    - Email Address                                            │
+│    - Mobile Number                                            │
+│    - Full Address                                             │
+│                                                               │
+│    Optional (for 80G Tax Exemption):                          │
+│    - Checkbox: "Do you want 80G/12A/10BE certificate?"        │
+│    - Aadhaar Number (12 digits)                               │
+│    - PAN Number (10 characters, format: ABCDE1234F)           │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ 5. TERMS & SUBMIT                                             │
+│    - Checkbox: "I agree donations are non-refundable"         │
+│    - Submit Button: "Continue to Payment"                     │
+│      • Disabled until terms accepted                          │
+│      • Shows loading spinner during processing                │
+│      • Changes to "Processing..." when clicked                │
+└──────────────────────────────────────────────────────────────┘
+
+================================================================================
+5. DYNAMIC FEATURES
+================================================================================
+
+FEATURE 1: RAZORPAY PAYMENT INTEGRATION
+────────────────────────────────────────
+Flow:
+1. User fills form and clicks "Continue to Payment"
+2. Frontend validates all fields
+3. Backend creates Razorpay order via Google Apps Script
+4. Razorpay checkout modal opens
+5. User completes payment
+6. Backend verifies payment signature
+7. Donation saved to Supabase
+8. Confirmation email sent with PDF receipt
+
+Test Cards:
+- Success: 4111 1111 1111 1111
+- Failure: 4000 0000 0000 0002
+- CVV: Any 3 digits
+- Expiry: Any future date
+
+──────────────────────────────────────────────────────────────
+
+FEATURE 2: FORM VALIDATION
+───────────────────────────
+Client-side validation:
+- First Name: Min 2 chars, letters only
+- Surname: Min 2 chars, letters only
+- Email: Valid email format
+- Phone: 10 digits, starts with 6-9
+- Address: Min 10 characters
+- Aadhaar: Exactly 12 digits (if 80G selected)
+- PAN: Format ABCDE1234F (if 80G selected)
+
+Real-time validation:
+- Shows error message below field
+- Red border on invalid fields
+- Green checkmark on valid fields
+
+──────────────────────────────────────────────────────────────
+
+FEATURE 3: FLASH NOTIFICATION SYSTEM
+─────────────────────────────────────
+Types:
+- Success (Green): Payment successful, data saved
+- Error (Red): Payment failed, validation errors
+- Warning (Orange): Payment cancelled
+- Info (Blue): Processing, connecting
+
+Features:
+- Auto-dismiss after 5-12 seconds
+- Manual close button
+- Stacked notifications
+- Smooth animations
+
+──────────────────────────────────────────────────────────────
+
+FEATURE 4: LOADING STATES
+──────────────────────────
+Button States:
+- Normal: "Continue to Payment" with heart icon
+- Loading: "Processing..." with spinner icon
+- Disabled: Gray background, no interaction
+
+Progress Indicators:
+- "Processing..." - Preparing donation
+- "Creating Order" - Setting up payment
+- "Payment Successful!" - Payment processed
+- "Payment Verified!" - Signature verified
+- "🎉 Donation Successful!" - Final success
+
+──────────────────────────────────────────────────────────────
+
+FEATURE 5: PDF RECEIPT GENERATION
+──────────────────────────────────
+Generated by Google Apps Script:
+- Receipt Number: YUVA-2026-000001 (format)
+- Donor Information
+- Donation Amount
+- Payment ID
+- Date & Time
+- Tax Exemption Details (if applicable)
+- Organization Details
+- Authorized Signature Section
+
+Attached to confirmation email automatically.
+
+================================================================================
+6. DATABASE SETUP (SUPABASE)
+================================================================================
+
+CONFIGURATION:
+URL: https://jgsrsjwmywiirtibofth.supabase.co
+Service Key: (Stored in Google Apps Script)
+
+TABLES USED:
+
+┌─────────────────────────────────────────────────────────────┐
+│ TABLE 1: donations                                           │
+├─────────────────────────────────────────────────────────────┤
+│ Columns:                                                     │
+│ - id (UUID, Primary Key)                                     │
+│ - first_name (TEXT, NOT NULL)                                │
+│ - surname (TEXT, NOT NULL)                                   │
+│ - email (TEXT, NOT NULL)                                     │
+│ - phone (TEXT, NOT NULL)                                     │
+│ - address (TEXT, NOT NULL)                                   │
+│ - amount (NUMERIC, NOT NULL, CHECK > 0)                      │
+│ - donation_type (TEXT, DEFAULT 'one-time')                   │
+│ - payment_id (TEXT, UNIQUE)                                  │
+│ - order_id (TEXT)                                            │
+│ - signature (TEXT)                                           │
+│ - status (TEXT, DEFAULT 'pending')                           │
+│ - wants_80g (BOOLEAN, DEFAULT false)                         │
+│ - aadhaar_number (TEXT, CHECK: 12 digits)                    │
+│ - pan_number (TEXT, CHECK: ABCDE1234F format)                │
+│ - user_agent (TEXT)                                          │
+│ - created_at (TIMESTAMP WITH TIME ZONE)                      │
+│ - updated_at (TIMESTAMP WITH TIME ZONE)                      │
+│                                                              │
+│ CONSTRAINTS:                                                 │
+│ - Unique payment_id                                          │
+│ - Valid Aadhaar (12 digits)                                  │
+│ - Valid PAN (ABCDE1234F format)                              │
+│ - Amount > 0                                                 │
+│                                                              │
+│ INDEXES:                                                     │
+│ - idx_donations_email                                        │
+│ - idx_donations_payment_id                                   │
+│ - idx_donations_created_at                                   │
+│ - idx_donations_status                                       │
+│ - idx_donations_80g                                          │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ TABLE 2: donation_receipts                                   │
+├─────────────────────────────────────────────────────────────┤
+│ Columns:                                                     │
+│ - id (UUID, Primary Key)                                     │
+│ - donation_id (UUID, Foreign Key → donations.id)             │
+│ - receipt_number (TEXT, UNIQUE, NOT NULL)                    │
+│ - receipt_url (TEXT) - PDF storage URL (optional)            │
+│ - sent_via_email (BOOLEAN, DEFAULT false)                    │
+│ - email_sent_at (TIMESTAMP WITH TIME ZONE)                   │
+│ - created_at (TIMESTAMP WITH TIME ZONE)                      │
+│                                                              │
+│ PURPOSE:                                                     │
+│ - Track receipt generation and delivery                      │
+│ - Link receipts to donations                                 │
+│ - Monitor email delivery status                              │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ VIEW: donation_stats                                         │
+├─────────────────────────────────────────────────────────────┤
+│ Purpose: Real-time donation statistics                       │
+│ Columns:                                                     │
+│ - total_donations (COUNT)                                    │
+│ - total_amount (SUM)                                         │
+│ - total_80g_requests (COUNT)                                 │
+│ - avg_donation (AVG)                                         │
+│ - last_donation_date (MAX)                                   │
+└─────────────────────────────────────────────────────────────┘
+
+ROW LEVEL SECURITY (RLS):
+─────────────────────────
+RLS is ENABLED on both tables.
+
+POLICIES:
+1. "Public can insert donations" - INSERT for anon role
+2. "Authenticated users can view all donations" - SELECT for authenticated
+3. "Users can view their own donations" - SELECT by email
+4. "Service role full access" - ALL operations with service key
+
+VALIDATION FUNCTIONS:
+─────────────────────
+1. validate_pan(pan TEXT) → BOOLEAN
+   - Checks PAN format: ABCDE1234F
+   - Case-insensitive
+
+2. validate_aadhaar(aadhaar TEXT) → BOOLEAN
+   - Checks exactly 12 digits
+   - No special characters
+
+3. get_donation_stats() → JSON
+   - Returns real-time statistics
+   - Used for admin dashboard
+
+TO CHANGE SUPABASE CREDENTIALS:
+File: code-supabase.gs (Lines 11-14)
+const CONFIG = {
+  SUPABASE_URL: 'your-url',
+  SUPABASE_SERVICE_KEY: 'your-service-key',
+  ...
+};
+
+================================================================================
+7. BACKEND SYSTEM (GOOGLE APPS SCRIPT)
+================================================================================
+
+File: code-supabase.gs
+
+CONFIGURATION (Lines 6-18):
+const CONFIG = {
+  // Razorpay Credentials
+  RAZORPAY_KEY_ID: 'rzp_test_RCnv6goa4rkg0Q',
+  RAZORPAY_KEY_SECRET: 'qRw549IUqi47RQjbTf1d0clN',
+  
+  // Supabase Configuration
+  SUPABASE_URL: 'https://jgsrsjwmywiirtibofth.supabase.co',
+  SUPABASE_SERVICE_KEY: '[YOUR_SERVICE_KEY]',
+  
+  // Email Configuration
+  ADMIN_EMAIL: 'yuva.vision.action@gmail.com',
+  ORGANIZATION_NAME: 'YUVA - Youth United For Vision & Action',
+  WEBSITE_URL: 'https://yuva.ind.in'
+};
+
+MAIN HANDLERS:
+
+A. doPost(e) - Lines 68-122
+   - Routes requests based on 'path' parameter
+   - Endpoints:
+     • create-order - Creates Razorpay order
+     • verify-payment - Verifies payment signature
+     • save-donation - Saves to Supabase & sends emails
+     • stats - Returns donation statistics
+   - Handles CORS
+   - Returns JSON responses
+
+B. doGet(e) - Lines 31-66
+   - Handles GET requests
+   - Endpoint: test - Tests backend connectivity
+   - Returns system status
+
+C. doOptions(e) - Lines 976-982
+   - Handles CORS preflight requests
+   - Returns CORS headers
+
+RAZORPAY OPERATIONS:
+
+1. createRazorpayOrder(data) - Lines 124-182
+   - Creates Razorpay order
+   - Parameters: amount, currency, receipt
+   - Returns: order_id, amount, currency
+   - Uses HMAC authentication
+
+2. verifyPayment(data) - Lines 184-234
+   - Verifies payment signature
+   - Uses HMAC-SHA256
+   - Validates: order_id, payment_id, signature
+   - Returns: success/failure
+
+SUPABASE OPERATIONS:
+
+1. saveDonation(data) - Lines 236-314
+   - Validates donation data
+   - Saves to Supabase donations table
+   - Sends confirmation email with PDF receipt
+   - Sends admin notification
+   - Saves receipt metadata
+   - Returns: success/error
+
+2. saveToSupabase(donationData) - Lines 316-355
+   - POST request to Supabase REST API
+   - Uses service_role key (bypasses RLS)
+   - Returns: inserted record with ID
+
+3. saveReceiptToSupabase(receiptData) - Lines 954-998
+   - Saves receipt metadata
+   - Links to donation via donation_id
+   - Tracks email delivery status
+
+4. getDonationStats() - Lines 357-388
+   - Fetches statistics from Supabase
+   - Returns: total donations, amount, 80G requests
+
+EMAIL SYSTEM:
+
+1. sendDonationReceipt(donationData, donationId) - Lines 597-952
+   - Generates receipt number: YUVA-YYYY-XXXXXX
+   - Creates PDF receipt
+   - Sends styled HTML email to donor
+   - Attaches PDF receipt
+   - Sends admin notification
+   - Saves receipt metadata
+
+2. generatePDFReceipt(donationData, receiptNumber) - Lines 390-595
+   - Creates PDF using Google Apps Script
+   - Includes all donation details
+   - Professional layout with branding
+   - Tax exemption section (if applicable)
+   - Returns: PDF blob for email attachment
+
+EMAIL TEMPLATES:
+
+DONOR EMAIL:
+- Subject: "Donation Receipt - YUVA - Youth United For Vision & Action"
+- Professional HTML template
+- Gradient header with YUVA branding
+- Donation amount highlighted
+- Complete donation details
+- Impact section (what donation supports)
+- PDF receipt attached
+- Tax exemption notice (if applicable)
+- Social media links
+- Footer with contact info
+
+ADMIN EMAIL:
+- Subject: "New Donation Received: ₹X,XXX from [Name]"
+- Donation amount highlighted
+- Complete donor details in table format
+- Payment information
+- Tax exemption status
+- Action required notice
+- Receipt number for reference
+
+HELPER FUNCTIONS:
+
+1. createCorsResponse(data) - Lines 22-29
+   - Creates CORS-enabled JSON response
+   - Sets appropriate headers
+
+2. testSetup() - Lines 1000-1020
+   - Tests Supabase connection
+   - Verifies configuration
+   - Returns: system status
+
+================================================================================
+8. HOW TO MODIFY CONTENT
+================================================================================
+
+CHANGE HERO TITLE:
+──────────────────
+File: Donate.html (Lines 387-390)
+<h1 class="hero-title">
+    <span class="hero-title-line">Support</span>
+    <span class="hero-title-line hero-title-accent">YUVA's Mission</span>
+</h1>
+
+──────────────────────────────────────────────────────────────
+
+CHANGE HERO DESCRIPTION:
+─────────────────────────
+File: Donate.html (Lines 391-395)
+<p class="hero-description">
+    [Your new description here]
+</p>
+
+──────────────────────────────────────────────────────────────
+
+CHANGE PRESET AMOUNTS:
+───────────────────────
+File: Donate.html (Lines 488-528)
+Modify the value attributes:
+<input type="radio" id="amount1000" name="amount" value="1000">
+<span class="amount-value">1,000</span>
+
+──────────────────────────────────────────────────────────────
+
+ADD NEW AMOUNT OPTION:
+───────────────────────
+Copy this template inside .amount-grid:
+<div class="amount-option">
+    <input type="radio" id="amount20000" name="amount" value="20000">
+    <label for="amount20000" class="amount-label">
+        <span class="amount-currency">₹</span>
+        <span class="amount-value">20,000</span>
+    </label>
+</div>
+
+──────────────────────────────────────────────────────────────
+
+CHANGE RAZORPAY KEYS:
+──────────────────────
+File: code-supabase.gs (Lines 7-8)
+RAZORPAY_KEY_ID: 'your_key_id',
+RAZORPAY_KEY_SECRET: 'your_key_secret',
+
+File: script-supabase.js (Line 11)
+this.razorpayKeyId = 'your_key_id';
+
+⚠️ WARNING: Use TEST keys for testing, LIVE keys for production!
+
+──────────────────────────────────────────────────────────────
+
+CHANGE BACKEND URL:
+────────────────────
+File: script-supabase.js (Line 7)
+this.backendUrl = 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE';
+
+──────────────────────────────────────────────────────────────
+
+CHANGE COLORS:
+──────────────
+File: style.css (Lines 6-62)
+Modify CSS variables in :root
+Example:
+--saffron-primary: #FF9933;
+--navy-chakra: #000080;
+--green-primary: #138808;
+
+──────────────────────────────────────────────────────────────
+
+MODIFY EMAIL TEMPLATE:
+───────────────────────
+File: code-supabase.gs (Lines 609-873)
+Edit the HTML template in sendDonationReceipt()
+- Change colors, fonts, layout
+- Add/remove sections
+- Modify social media links
+
+================================================================================
+9. TROUBLESHOOTING
+================================================================================
+
+ISSUE 1: Payment fails with "Backend URL not configured"
+─────────────────────────────────────────────────────────
+SOLUTION:
+1. Check script-supabase.js line 7
+2. Ensure backendUrl is set to deployed Google Apps Script URL
+3. Verify URL doesn't contain 'YOUR_GOOGLE_APPS_SCRIPT'
+4. Hard refresh page (Ctrl+Shift+R)
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 2: Razorpay modal doesn't open
+─────────────────────────────────────
+SOLUTION:
+1. Check browser console for errors
+2. Verify Razorpay script loaded (check Network tab)
+3. Check if popup blocker is enabled
+4. Verify RAZORPAY_KEY_ID is correct
+5. Try in incognito mode
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 3: Payment successful but not saved to database
+──────────────────────────────────────────────────────
+SOLUTION:
+1. Check Google Apps Script execution logs
+2. Verify SUPABASE_SERVICE_KEY is correct
+3. Check Supabase RLS policies
+4. Verify donations table exists
+5. Check for duplicate payment_id
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 4: Email not received
+────────────────────────────
+SOLUTION:
+1. Check spam/junk folder
+2. Verify ADMIN_EMAIL in code-supabase.gs
+3. Check Google Apps Script execution logs
+4. Verify MailApp permissions granted
+5. Check email address is valid
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 5: PDF receipt not attached
+──────────────────────────────────
+SOLUTION:
+1. Check Google Apps Script logs for PDF generation errors
+2. Verify generatePDFReceipt() function executes
+3. Check email size limits (PDF should be < 5MB)
+4. Verify donation data is complete
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 6: Form validation errors
+────────────────────────────────
+SOLUTION:
+1. Check browser console for JavaScript errors
+2. Verify all validation rules in script-supabase.js
+3. Test each field individually
+4. Check for conflicting CSS
+5. Clear browser cache
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 7: "Custom" amount field overflows on mobile
+───────────────────────────────────────────────────
+SOLUTION:
+1. This is fixed in style.css media queries
+2. Check lines 2244-2370 for 345px breakpoint
+3. Ensure box-sizing: border-box is applied
+4. Verify width: 100% and max-width: 100% are set
+5. Clear browser cache and hard refresh
+
+──────────────────────────────────────────────────────────────
+
+ISSUE 8: Loading spinner doesn't stop
+──────────────────────────────────────
+SOLUTION:
+1. Check network tab for failed requests
+2. Verify backend URL is accessible
+3. Check CORS errors in console
+4. Verify Google Apps Script is deployed as "Anyone"
+5. Check if backend returns valid JSON
+
+================================================================================
+10. RESPONSIVE DESIGN
+================================================================================
+
+The donation page is fully responsive across all devices:
+
+DESKTOP (1920px+):
+- Full hero section with large text
+- 2-column form layout
+- Large amount cards
+- Sidebar visible by default
+
+LAPTOP (1024px - 1920px):
+- Slightly reduced spacing
+- 2-column form layout
+- Medium amount cards
+- Sidebar visible
+
+TABLET (768px - 1024px):
+- 1-2 column form layout
+- Reduced font sizes
+- Smaller amount cards
+- Sidebar collapsible
+
+MOBILE LANDSCAPE (480px - 768px):
+- Single column layout
+- Stacked amount cards
+- Smaller hero text
+- Sidebar hidden by default
+
+MOBILE PORTRAIT (375px - 480px):
+- Single column layout
+- Compact form fields
+- Smaller buttons
+- Touch-optimized inputs
+
+TINY MOBILE (345px and below):
+- Ultra-compact layout
+- Minimal padding (6px sides)
+- Smaller fonts (9-11px)
+- Reduced button padding
+- Custom amount field full width
+- All inputs constrained to screen width
+
+MEDIA QUERIES:
+- @media (max-width: 480px) - Small mobile
+- @media (max-width: 375px) - Extra small mobile
+- @media (max-width: 345px) - Tiny mobile
+- @media (max-width: 320px) - Ultra small mobile
+
+KEY RESPONSIVE FEATURES:
+- box-sizing: border-box on all elements
+- width: 100% and max-width: 100% on containers
+- Flexible padding and margins
+- Scalable font sizes with clamp()
+- Touch-friendly button sizes (min 44x44px)
+
+================================================================================
+11. SECURITY & PAYMENT PROCESSING
+================================================================================
+
+SECURITY MEASURES:
+──────────────────
+1. RAZORPAY_KEY_SECRET never exposed to frontend
+2. Payment verification on backend only
+3. HMAC-SHA256 signature validation
+4. Supabase service_role key stored in backend only
+5. CORS enabled for specific origins
+6. Input validation on both client and server
+7. SQL injection prevention (parameterized queries)
+8. XSS prevention (HTML escaping)
+
+PAYMENT FLOW:
+─────────────
+1. User fills form → Frontend validation
+2. Frontend requests order creation → Backend creates Razorpay order
+3. Razorpay modal opens → User completes payment
+4. Razorpay returns payment details → Frontend receives response
+5. Frontend sends to backend → Backend verifies signature
+6. Backend saves to Supabase → Database record created
+7. Backend sends emails → Donor & admin notified
+8. Frontend shows success → User sees confirmation
+
+RAZORPAY SECURITY:
+──────────────────
+- All payments processed through Razorpay's secure servers
+- PCI DSS compliant
+- 3D Secure authentication
+- Fraud detection
+- Webhook verification (signature validation)
+
+DATA SECURITY:
+──────────────
+- Supabase uses PostgreSQL with encryption at rest
+- SSL/TLS for data in transit
+- Row Level Security (RLS) enabled
+- Service role key for backend operations only
+- Anon key for limited public access
+
+COMPLIANCE:
+───────────
+- PAN/Aadhaar validation for 80G tax exemption
+- Data retention policies
+- Privacy policy compliance
+- GDPR considerations (if applicable)
+
+================================================================================
+12. EMAIL SYSTEM & RECEIPTS
+================================================================================
+
+EMAIL SENDER:
+─────────────
+Name: "YUVA Donation System"
+From: [Google Account associated with Apps Script]
+
+DONOR CONFIRMATION EMAIL:
+──────────────────────────
+Subject: "Donation Receipt - YUVA - Youth United For Vision & Action"
+
+Content:
+- Professional HTML template with YUVA branding
+- Gradient header (Navy to Purple)
+- Personalized greeting
+- Donation amount highlighted (large, green)
+- Donation type (One-time/Recurring)
+- Complete donation details:
+  • Receipt Number (YUVA-2026-XXXXXX)
+  • Payment ID
+  • Date
+  • Status (Completed)
+- Impact section:
+  • Support thousands of students
+  • Organize educational events
+  • Provide scholarships
+  • Create opportunities
+  • Build communities
+- PDF receipt attached
+- Tax exemption notice (if applicable)
+- Call-to-action button ("Visit Our Website")
+- Social media links (Facebook, Instagram, Twitter, LinkedIn)
+- Footer with contact information
+
+ADMIN NOTIFICATION EMAIL:
+──────────────────────────
+Subject: "New Donation Received: ₹X,XXX from [Name]"
+
+Content:
+- Donation amount highlighted
+- Donation type
+- Complete donor details:
+  • Name
+  • Email
+  • Phone
+  • Address
+- Payment information:
+  • Payment ID
+  • Order ID
+  • Amount
+  • Date
+- Tax exemption status (if requested)
+- Receipt number
+- Action required notice
+
+PDF RECEIPT:
+────────────
+Generated by: Google Apps Script (Utilities.newBlob)
+Format: PDF
+Size: ~50-100KB
+
+Content:
+- YUVA logo and branding
+- Receipt title: "DONATION RECEIPT"
+- Receipt number: YUVA-YYYY-XXXXXX
+- Date of donation
+- Donor information (name, email, phone, address)
+- Donation details (amount, payment ID, date, status)
+- Tax exemption section (if applicable):
+  • PAN number
+  • Aadhaar number
+  • 80G/12A/10BE eligibility notice
+- Organization details
+- Authorized signature section
+- Footer with website and email
+
+RECEIPT TRACKING:
+─────────────────
+Table: donation_receipts
+
+Tracks:
+- Receipt number
+- Donation ID (foreign key)
+- Email sent status
+- Email sent timestamp
+- Receipt URL (if stored separately)
+
+This allows:
+- Resending receipts
+- Tracking delivery
+- Audit trail
+- Duplicate prevention
+
+EMAIL CUSTOMIZATION:
+────────────────────
+To modify email templates:
+1. Open code-supabase.gs
+2. Find sendDonationReceipt() function (line 597)
+3. Edit HTML template
+4. Change colors, fonts, content
+5. Add/remove sections
+6. Save and redeploy
+
+To modify PDF receipt:
+1. Open code-supabase.gs
+2. Find generatePDFReceipt() function (line 390)
+3. Edit HTML template
+4. Change layout, styling
+5. Add/remove fields
+6. Save and redeploy
+
+================================================================================
+END OF USER MANUAL
+================================================================================
+
+For technical support or questions, contact:
+YUVA Technical Team
+Email: tech@yuva.ind.in
+
+Last Updated: January 18, 2026
+Version: 2026.1
+
+================================================================================
+DEPLOYMENT CHECKLIST
+================================================================================
+
+□ 1. Setup Supabase database (run supabase-setup.sql)
+□ 2. Create storage bucket (if needed for receipt PDFs)
+□ 3. Configure RLS policies
+□ 4. Deploy Google Apps Script (code-supabase.gs)
+□ 5. Update CONFIG in Google Apps Script
+□ 6. Update backendUrl in script-supabase.js
+□ 7. Test with Razorpay test keys
+□ 8. Verify email delivery
+□ 9. Test PDF receipt generation
+□ 10. Test all form validations
+□ 11. Test on mobile devices
+□ 12. Switch to Razorpay live keys (production only)
+□ 13. Monitor first few donations
+□ 14. Setup backup/export schedule
+
+================================================================================

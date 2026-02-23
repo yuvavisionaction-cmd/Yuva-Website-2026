@@ -1,0 +1,2204 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vimarsh 2026 | Admin Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --primary: #8b0000;
+            --primary-light: #a10000;
+            --cream: #f5e9da;
+            --success: #00c853;
+            --warning: #ffd600;
+            --danger: #ff1744;
+            --dark: #1c1c1c;
+            --text-light: #f5e9da;
+            --glass: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(245, 233, 218, 0.2);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1c1c1c, #2c2c2c, #8b0000);
+            background-attachment: fixed;
+            min-height: 100vh;
+            color: var(--text-light);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header {
+            width: 100%;
+            padding: 1.5rem;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        header h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            background: linear-gradient(to right, var(--cream), var(--primary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .container {
+            width: 95%;
+            max-width: 600px;
+            padding: 2rem 0;
+        }
+
+        /* --- Auth Section --- */
+        .card {
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            padding: 2rem;
+            border-radius: 24px;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .input-group {
+            margin-bottom: 1.2rem;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            color: #fff;
+            font-size: 1rem;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 1rem;
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.3s;
+            background: linear-gradient(to right, var(--primary), var(--primary-light));
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .auth-tabs {
+            display: flex;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            padding: 4px;
+            margin-bottom: 1.5rem;
+        }
+
+        .auth-tab {
+            flex: 1;
+            padding: 0.8rem;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 10px;
+            transition: 0.3s;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .auth-tab.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .input-group {
+            margin-bottom: 1rem;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 0.3rem;
+            font-size: 0.8rem;
+            opacity: 0.8;
+        }
+
+        .input-group input,
+        .input-group select {
+            width: 100%;
+            padding: 0.8rem;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            color: #fff;
+            font-size: 0.95rem;
+            outline: none;
+        }
+
+        /* --- Navigation --- */
+        #adminNav {
+            display: none;
+            width: 100%;
+            max-width: 600px;
+            margin-bottom: 1.5rem;
+            justify-content: space-around;
+        }
+
+        .nav-item {
+            padding: 0.8rem 1.2rem;
+            cursor: pointer;
+            border-radius: 12px;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            font-size: 0.9rem;
+            transition: 0.3s;
+        }
+
+        .nav-item.active {
+            background: var(--primary);
+            border-color: var(--cream);
+        }
+
+        /* --- View Sections --- */
+        .view-section {
+            display: none;
+        }
+
+        .view-section.active {
+            display: block;
+        }
+
+        #reader {
+            width: 100% !important;
+            border: none !important;
+            border-radius: 18px;
+            overflow: hidden;
+        }
+
+        /* --- Stats/Logs for Tech Head --- */
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 1.2rem;
+            border-radius: 18px;
+            text-align: center;
+            border: 1px solid var(--glass-border);
+        }
+
+        .stat-card h4 {
+            font-size: 0.75rem;
+            opacity: 0.6;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card div {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--cream);
+        }
+
+        .dashboard-section {
+            background: var(--glass);
+            border-radius: 20px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--glass-border);
+        }
+
+        .dashboard-section h3 {
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--cream);
+        }
+
+        .activity-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.8rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        .activity-info span {
+            display: block;
+            font-size: 0.7rem;
+            opacity: 0.6;
+        }
+
+        .zone-bar-container {
+            margin-bottom: 0.8rem;
+        }
+
+        .zone-bar-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            margin-bottom: 4px;
+        }
+
+        .zone-bar-bg {
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .zone-bar-fill {
+            height: 100%;
+            background: var(--primary);
+            border-radius: 3px;
+        }
+
+        /* --- Result Overlays --- */
+        #resultOverlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+
+        .result-content {
+            width: 90%;
+            max-width: 400px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 2rem;
+            border-radius: 30px;
+            text-align: center;
+            border: 2px solid var(--glass-border);
+        }
+
+        .status-success {
+            border-color: var(--success);
+        }
+
+        .status-duplicate {
+            border-color: var(--warning);
+        }
+
+        .status-failed {
+            border-color: var(--danger);
+        }
+
+        .participant-details {
+            margin-top: 1.2rem;
+            text-align: left;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 1.2rem;
+            border-radius: 15px;
+            font-size: 0.9rem;
+        }
+
+        .loader {
+            display: none;
+            width: 30px;
+            height: 30px;
+            border: 3px solid var(--glass);
+            border-top-color: var(--cream);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 1rem auto;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* --- Toast Notifications --- */
+        #toastContainer {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 350px;
+        }
+
+        .toast {
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            border-left: 4px solid;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: slideIn 0.3s ease-out;
+            min-width: 280px;
+        }
+
+        .toast.success {
+            border-left-color: var(--success);
+        }
+
+        .toast.error {
+            border-left-color: var(--danger);
+        }
+
+        .toast.warning {
+            border-left-color: var(--warning);
+        }
+
+        .toast.info {
+            border-left-color: #2196F3;
+        }
+
+        .toast-icon {
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .toast-content {
+            flex: 1;
+            font-size: 0.9rem;
+        }
+
+        .toast-close {
+            cursor: pointer;
+            opacity: 0.6;
+            transition: 0.2s;
+            font-size: 1.2rem;
+        }
+
+        .toast-close:hover {
+            opacity: 1;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            to {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+        }
+
+        /* --- Confirmation Modal --- */
+        #confirmModal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9998;
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        .modal-content {
+            background: var(--glass);
+            backdrop-filter: blur(30px);
+            border-radius: 24px;
+            padding: 2rem;
+            max-width: 450px;
+            width: 90%;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            animation: scaleIn 0.3s ease-out;
+        }
+
+        .modal-header {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--cream);
+        }
+
+        .modal-body {
+            font-size: 0.95rem;
+            opacity: 0.9;
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+
+        .modal-btn {
+            padding: 0.7rem 1.5rem;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .modal-btn-cancel {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-light);
+        }
+
+        .modal-btn-cancel:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .modal-btn-confirm {
+            background: var(--primary);
+            color: white;
+        }
+
+        .modal-btn-confirm:hover {
+            background: var(--primary-light);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes scaleIn {
+            from {
+                transform: scale(0.9);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        /* --- Loading Overlay --- */
+        #loadingOverlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9997;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid var(--glass);
+            border-top-color: var(--cream);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .loading-text {
+            font-size: 1rem;
+            color: var(--cream);
+            opacity: 0.9;
+        }
+
+        /* --- Day-wise Analytics --- */
+        .day-card {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 15px;
+            margin-bottom: 1rem;
+            border: 1px solid var(--glass-border);
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .day-card:hover {
+            border-color: var(--primary);
+        }
+
+        .day-header {
+            padding: 1rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+            transition: background 0.2s;
+        }
+
+        .day-header:hover {
+            background: rgba(139, 0, 0, 0.1);
+        }
+
+        .day-header-left {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+        }
+
+        .day-expand-icon {
+            font-size: 0.9rem;
+            transition: transform 0.3s;
+            color: var(--cream);
+        }
+
+        .day-card.expanded .day-expand-icon {
+            transform: rotate(90deg);
+        }
+
+        .day-date {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--cream);
+        }
+
+        .day-count {
+            font-size: 0.75rem;
+            opacity: 0.7;
+            margin-left: 0.5rem;
+        }
+
+        .day-total-badge {
+            background: var(--primary);
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .day-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease-out;
+        }
+
+        .day-card.expanded .day-content {
+            max-height: 2000px;
+        }
+
+        .day-content-inner {
+            padding: 0 1rem 1rem 1rem;
+        }
+
+        .zone-section {
+            margin-bottom: 0.8rem;
+            padding-left: 1rem;
+            border-left: 2px solid var(--primary);
+        }
+
+        .zone-header {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--cream);
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .zone-count {
+            background: rgba(139, 0, 0, 0.3);
+            padding: 0.2rem 0.6rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+        }
+
+        .college-item {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 0.6rem;
+            border-radius: 10px;
+            margin-bottom: 0.4rem;
+            margin-left: 1rem;
+        }
+
+        .college-name {
+            font-size: 0.8rem;
+            font-weight: 500;
+            margin-bottom: 0.3rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .college-total {
+            color: var(--success);
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .category-breakdown {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            margin-top: 0.3rem;
+            font-size: 0.7rem;
+            opacity: 0.8;
+        }
+
+        .category-tag {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.2rem 0.5rem;
+            border-radius: 8px;
+            white-space: nowrap;
+        }
+
+        .category-tag.student {
+            border-left: 3px solid #4CAF50;
+        }
+
+        .category-tag.teacher {
+            border-left: 3px solid #2196F3;
+        }
+
+        .category-tag.scholar {
+            border-left: 3px solid #FF9800;
+        }
+
+        .category-tag.other {
+            border-left: 3px solid #9E9E9E;
+        }
+
+        .no-data-message {
+            text-align: center;
+            padding: 2rem 1rem;
+            opacity: 0.5;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 600px) {
+            .day-header {
+                padding: 0.8rem;
+            }
+
+            .day-date {
+                font-size: 0.85rem;
+            }
+
+            .college-item {
+                margin-left: 0.5rem;
+            }
+
+            .category-breakdown {
+                font-size: 0.65rem;
+            }
+        }
+
+        /* --- Member Stats (Read-Only for Check-in Staff) --- */
+        .member-stats-container {
+            width: 100%;
+            margin-bottom: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .session-info {
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            padding: 1rem;
+            border-radius: 15px;
+            border: 1px solid var(--glass-border);
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .session-info-left {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+        }
+
+        .session-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.2rem;
+        }
+
+        .session-details h3 {
+            font-size: 0.95rem;
+            margin-bottom: 0.2rem;
+        }
+
+        .session-details p {
+            font-size: 0.75rem;
+            opacity: 0.7;
+        }
+
+        .session-time {
+            font-size: 0.85rem;
+            opacity: 0.8;
+        }
+
+        .member-counters {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 0.8rem;
+            margin-bottom: 1rem;
+        }
+
+        .member-counter-card {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 1rem;
+            border-radius: 15px;
+            text-align: center;
+            border: 1px solid var(--glass-border);
+        }
+
+        .member-counter-card h4 {
+            font-size: 0.7rem;
+            opacity: 0.6;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+        }
+
+        .member-counter-card .count {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--cream);
+        }
+
+        .zone-mini-cards {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.6rem;
+            margin-bottom: 1rem;
+        }
+
+        .zone-mini-card {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 0.8rem;
+            border-radius: 12px;
+            border-left: 3px solid var(--primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .zone-mini-card .zone-name {
+            font-size: 0.75rem;
+            opacity: 0.8;
+        }
+
+        .zone-mini-card .zone-count {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--success);
+        }
+
+        .recent-feed {
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            padding: 1rem;
+            border-radius: 15px;
+            border: 1px solid var(--glass-border);
+        }
+
+        .recent-feed h4 {
+            font-size: 0.85rem;
+            margin-bottom: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            opacity: 0.9;
+        }
+
+        .recent-feed-item {
+            padding: 0.6rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            margin-bottom: 0.5rem;
+            font-size: 0.8rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .recent-feed-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .recent-feed-info {
+            flex: 1;
+        }
+
+        .recent-feed-name {
+            font-weight: 600;
+            margin-bottom: 0.2rem;
+        }
+
+        .recent-feed-college {
+            font-size: 0.7rem;
+            opacity: 0.6;
+        }
+
+        .recent-feed-time {
+            font-size: 0.7rem;
+            opacity: 0.5;
+            white-space: nowrap;
+        }
+
+        .no-activity {
+            text-align: center;
+            padding: 1.5rem;
+            opacity: 0.5;
+            font-size: 0.85rem;
+        }
+
+        @media (max-width: 600px) {
+            .member-counters {
+                grid-template-columns: 1fr;
+            }
+
+            .zone-mini-cards {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>Vimarsh Admin</h1>
+    </header>
+
+    <div class="container">
+        <!-- 1. LOGIN VIEW -->
+        <!-- 1. AUTH VIEW -->
+        <div id="loginView" class="card">
+            <header style="margin-bottom: 1.5rem; padding: 0; background: none; border: none;">
+                <h2 style="text-align: center;">Secure Access</h2>
+                <p style="text-align: center; font-size: 0.9rem; opacity: 0.7;">Admin Portal Access</p>
+            </header>
+
+            <div class="auth-tabs">
+                <div class="auth-tab active" onclick="setAuthMode('login')">Login</div>
+                <div class="auth-tab" onclick="setAuthMode('register')">Register</div>
+            </div>
+
+            <form id="authForm" onsubmit="event.preventDefault();">
+                <!-- Login Fields -->
+                <div id="loginForm">
+                    <div class="input-group">
+                        <label>Email</label>
+                        <input type="email" id="loginEmail" placeholder="admin@vimarsh.com">
+                    </div>
+                    <div class="input-group">
+                        <label>Password</label>
+                        <input type="password" id="loginPassword" placeholder="••••••••">
+                    </div>
+                    <button class="btn" style="margin-top: 10px;" onclick="handleSignIn()">Login</button>
+                </div>
+
+                <!-- Register Fields -->
+                <div id="registerForm" style="display: none;">
+                    <div class="input-group">
+                        <label>Full Name</label>
+                        <input type="text" id="regName" placeholder="Enter your name">
+                    </div>
+                    <div class="input-group">
+                        <label>Email</label>
+                        <input type="email" id="regEmail" placeholder="admin@vimarsh.com">
+                    </div>
+                    <div class="input-group">
+                        <label>Password</label>
+                        <input type="password" id="regPassword" placeholder="Min 6 characters">
+                    </div>
+                    <div class="input-group">
+                        <label>Desired Role</label>
+                        <select id="regRole">
+                            <option value="member">Check-in Staff (Member)</option>
+                            <option value="tech_head">Manager (Tech Head)</option>
+                        </select>
+                    </div>
+                    <button class="btn" style="margin-top: 10px;" onclick="handleSignUp()">Register</button>
+                </div>
+
+                <div id="authLoader" class="loader" style="margin-top: 15px;"></div>
+                <p id="authError"
+                    style="color: #ff5252; font-size: 0.85rem; margin-top: 10px; text-align: center; display: none;">
+                </p>
+
+                <!-- New: Profile Completion for existing YUVA users -->
+                <div id="completeProfileForm"
+                    style="display: none; border-top: 1px solid var(--glass-border); margin-top: 1.5rem; padding-top: 1.5rem;">
+                    <p style="font-size: 0.85rem; margin-bottom: 1rem; opacity: 0.8;">Account found! Choose your Vimarsh
+                        role to continue:</p>
+                    <div class="input-group">
+                        <label>Select Your Admin Role</label>
+                        <select id="completeRole">
+                            <option value="member">Check-in Staff (Member)</option>
+                            <option value="tech_head">Manager (Tech Head)</option>
+                        </select>
+                    </div>
+                    <button class="btn" onclick="saveAdminProfile()">Complete Admin Setup</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- 2. MAIN NAV (Shown after login) -->
+        <div id="adminNav">
+            <div class="nav-item active" onclick="switchView('scan')"><i class="fas fa-qrcode"></i> Scan</div>
+
+            <!-- Member Stats Button (for regular members) -->
+            <div id="memberStatsNav" style="display: none;">
+                <div class="nav-item" onclick="switchView('memberStats')"><i class="fas fa-chart-bar"></i> Stats</div>
+            </div>
+
+            <!-- Tech Head Navigation (Stats + Search) -->
+            <div id="techOnlyNav" style="display: none; gap: .5rem; display: flex;">
+                <div class="nav-item" onclick="switchView('stats')"><i class="fas fa-chart-line"></i> Stats</div>
+                <div class="nav-item" onclick="switchView('search')"><i class="fas fa-search"></i> Search</div>
+            </div>
+
+            <div class="nav-item" onclick="logout()"><i class="fas fa-sign-out-alt"></i></div>
+        </div>
+
+        <!-- 3. VIEWS -->
+        <!-- View: Scan -->
+        <div id="viewScan" class="view-section">
+            <!-- Member Session Info (Above Scanner) -->
+            <div id="memberSessionInfo" class="session-info" style="display: none; margin-bottom: 1rem;">
+                <div class="session-info-left">
+                    <div class="session-avatar" id="sessionAvatar">?</div>
+                    <div class="session-details">
+                        <h3 id="sessionName">Loading...</h3>
+                        <p id="sessionRole">Member</p>
+                    </div>
+                </div>
+                <div class="session-time" id="sessionTime">--:--</div>
+            </div>
+
+            <!-- QR Scanner Card -->
+            <div class="card" style="padding: 1rem;">
+                <div id="reader"></div>
+                <div style="text-align: center; padding: 1rem;">
+                    <p style="opacity: 0.7; font-size: 0.9rem;">Scanner Active</p>
+                    <div id="scanLoader" class="loader"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Member Stats View (For Regular Members) -->
+        <div id="viewMemberStats" class="view-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h2 style="font-size: 1.4rem;">Live Statistics</h2>
+                <div id="memberLastUpdate" style="font-size: 0.7rem; opacity: 0.5;">Updating...</div>
+            </div>
+
+            <!-- Session Info Card -->
+            <div class="session-info" style="margin-bottom: 1.5rem;">
+                <div class="session-info-left">
+                    <div class="session-avatar" id="memberStatsAvatar">?</div>
+                    <div class="session-details">
+                        <h3 id="memberStatsName">Loading...</h3>
+                        <p id="memberStatsRole">Member</p>
+                    </div>
+                </div>
+                <div class="session-time" id="memberStatsTime">--:--</div>
+            </div>
+
+            <!-- Today's Stats -->
+            <div class="dashboard-section">
+                <h3><i class="fas fa-calendar-day"></i> Today's Check-ins</h3>
+                <div class="member-counters">
+                    <div class="member-counter-card">
+                        <h4>Total</h4>
+                        <div class="count" id="memberStatsTodayTotal">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Zone Breakdown -->
+            <div class="dashboard-section">
+                <h3><i class="fas fa-map-marked-alt"></i> Zone Breakdown</h3>
+                <div id="memberStatsZoneCards" class="zone-mini-cards">
+                    <p class="no-activity" style="grid-column: 1 / -1;">No zone data yet.</p>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="dashboard-section">
+                <h3><i class="fas fa-clock"></i> Recent Check-ins</h3>
+                <div id="memberStatsRecentFeed">
+                    <p class="no-activity">No recent activity yet.</p>
+                </div>
+            </div>
+
+            <button class="btn" onclick="refreshMemberStats()" style="background: var(--glass); margin-top: 1rem;">
+                <i class="fas fa-sync-alt"></i> Refresh Stats
+            </button>
+        </div>
+
+        <!-- 3. STATS VIEW (Tech Head Only) -->
+        <div id="viewStats" class="view-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h2 style="font-size: 1.4rem;">Operational Visibility</h2>
+                <div id="lastUpdate" style="font-size: 0.7rem; opacity: 0.5;">Updating...</div>
+            </div>
+
+            <div class="stat-grid">
+                <div class="stat-card">
+                    <h4>Total</h4>
+                    <div id="statTotal">0</div>
+                </div>
+                <div class="stat-card">
+                    <h4>In</h4>
+                    <div id="statIn" style="color: var(--success);">0</div>
+                </div>
+                <div class="stat-card">
+                    <h4>Kits</h4>
+                    <div id="statKits" style="color: var(--warning);">0</div>
+                </div>
+                <div class="stat-card" style="border-color: #00bcd4;">
+                    <h4>Bands</h4>
+                    <div id="statBands" style="color: #00bcd4;">0</div>
+                </div>
+                <div class="stat-card">
+                    <h4>Rem.</h4>
+                    <div id="statLeft">0</div>
+                </div>
+            </div>
+
+            <div class="dashboard-section">
+                <h3><i class="fas fa-history"></i> Recent Activity</h3>
+                <div id="activityFeed">
+                    <p style="text-align: center; opacity: 0.5; padding: 1rem;">No check-ins today yet.</p>
+                </div>
+            </div>
+
+            <div class="dashboard-section">
+                <h3><i class="fas fa-map-marked-alt"></i> Zone-wise Attendance</h3>
+                <div id="zoneStatsContainer">
+                    <p style="text-align: center; opacity: 0.5; padding: 1rem;">Waiting for data...</p>
+                </div>
+            </div>
+
+            <div id="dayWiseSection" class="dashboard-section" style="display: none;">
+                <h3><i class="fas fa-calendar-day"></i> Day-wise Check-in Analytics</h3>
+                <p style="font-size: 0.75rem; opacity: 0.7; margin-bottom: 1rem;">
+                    Detailed breakdown by date, zone, college, and payment category
+                </p>
+                <div id="dayWiseContainer">
+                    <p class="no-data-message">Loading day-wise breakdown...</p>
+                </div>
+            </div>
+
+            <div id="exportSection" class="dashboard-section" style="display: none;">
+                <h3><i class="fas fa-file-export"></i> Data Exports</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <button class="btn" onclick="exportData('registrations')"
+                        style="background: rgba(255,255,255,0.1); font-size: 0.8rem;">
+                        <i class="fas fa-users"></i> Registrations
+                    </button>
+                    <button class="btn" onclick="exportData('logs')"
+                        style="background: rgba(255,255,255,0.1); font-size: 0.8rem;">
+                        <i class="fas fa-list-alt"></i> Check-in Logs
+                    </button>
+                </div>
+            </div>
+
+            <div id="batchSection" class="dashboard-section" style="display: none;">
+                <h3><i class="fas fa-boxes"></i> Batch Operations</h3>
+                <p style="font-size: 0.75rem; opacity: 0.7; margin-bottom: 1rem;">Mark all checked-in participants as
+                    issued</p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <button class="btn" onclick="batchUpdate('kit_issued', true)"
+                        style="background: var(--warning); font-size: 0.8rem;">
+                        <i class="fas fa-box"></i> Issue All Kits
+                    </button>
+                    <button class="btn" onclick="batchUpdate('wristband_issued', true)"
+                        style="background: #00bcd4; font-size: 0.8rem;">
+                        <i class="fas fa-id-badge"></i> Issue All Bands
+                    </button>
+                </div>
+            </div>
+
+            <button class="btn" onclick="refreshStats()" style="background: var(--glass); margin-top: 1rem;">
+                <i class="fas fa-sync-alt"></i> Force Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- View: Search (Tech Head Only) -->
+    <div id="viewSearch" class="view-section">
+        <div class="card">
+            <div class="input-group">
+                <input type="text" id="searchInput" placeholder="Search by Name or Email...">
+            </div>
+            <button class="btn" onclick="searchParticipant()">Find Participant</button>
+            <div id="searchResults" style="margin-top: 1rem;"></div>
+        </div>
+    </div>
+    </div>
+
+    <!-- Result Overlay -->
+    <div id="resultOverlay">
+        <div id="resultBox" class="result-content">
+            <div style="font-size: 4rem; margin-bottom: 1rem;" id="resIcon"></div>
+            <h2 id="resTitle"></h2>
+            <p id="resMsg" style="margin-top: 0.5rem; opacity: 0.8;"></p>
+            <div id="pDetails" class="participant-details"></div>
+            <button class="btn" onclick="closeOverlay()" style="margin-top: 1.5rem; background: var(--glass);">Continue
+                Scanning</button>
+        </div>
+    </div>
+
+    <!-- Toast Notifications Container -->
+    <div id="toastContainer"></div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmModal">
+        <div class="modal-content">
+            <div class="modal-header" id="modalHeader">Confirm Action</div>
+            <div class="modal-body" id="modalBody">Are you sure you want to proceed?</div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-cancel" onclick="closeConfirmModal()">Cancel</button>
+                <button class="modal-btn modal-btn-confirm" id="modalConfirmBtn">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text" id="loadingText">Processing...</div>
+    </div>
+
+    <script>
+        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxGn90pe_oHXLvnLExZPKAVMUH1GNQZBAOi2IgNm3TcrABRP_-61ssszRZnK5m7Nm7C/exec';
+        let currentUser = JSON.parse(localStorage.getItem('vimarsh_admin_session_user'));
+        let sessionToken = localStorage.getItem('vimarsh_admin_token');
+        let html5QrCode;
+        let isScanning = false;
+        let isProcessingScan = false;
+        let pendingUser = null; // For intermediate profile step
+        let refreshInterval = null;
+
+        window.onload = () => {
+            if (currentUser && sessionToken) {
+                initPortal();
+            } else {
+                document.getElementById('loginView').style.display = 'block';
+                document.getElementById('adminNav').style.display = 'none';
+            }
+        };
+
+        // ============ UTILITY FUNCTIONS ============
+
+        function showLoader(id, show) { document.getElementById(id).style.display = show ? 'block' : 'none'; }
+
+        // Show Loading Overlay
+        function showLoading(text = 'Processing...') {
+            document.getElementById('loadingText').innerText = text;
+            document.getElementById('loadingOverlay').style.display = 'flex';
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+
+        // Toast Notifications
+        function showToast(message, type = 'info', duration = 4000) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+
+            const icons = {
+                success: '✅',
+                error: '❌',
+                warning: '⚠️',
+                info: 'ℹ️'
+            };
+
+            toast.innerHTML = `
+                <div class="toast-icon">${icons[type] || icons.info}</div>
+                <div class="toast-content">${message}</div>
+                <div class="toast-close" onclick="this.parentElement.remove()">×</div>
+            `;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease-out';
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+
+        // Confirmation Modal
+        let confirmCallback = null;
+
+        function showConfirm(title, message, onConfirm) {
+            document.getElementById('modalHeader').innerText = title;
+            document.getElementById('modalBody').innerText = message;
+            confirmCallback = onConfirm;
+
+            document.getElementById('modalConfirmBtn').onclick = () => {
+                if (confirmCallback) confirmCallback();
+                closeConfirmModal();
+            };
+
+            document.getElementById('confirmModal').style.display = 'flex';
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirmModal').style.display = 'none';
+            confirmCallback = null;
+        }
+
+        // Session Expiry Auto-Logout
+        function checkSessionExpiry() {
+            if (!sessionToken || !currentUser) return;
+
+            // Session tokens expire after 24 hours
+            const sessionData = localStorage.getItem('vimarsh_admin_session_user');
+            if (!sessionData) {
+                logout();
+                return;
+            }
+
+            try {
+                const user = JSON.parse(sessionData);
+                // Check if session is older than 24 hours
+                const sessionAge = Date.now() - (user.loginTime || 0);
+                const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+
+                if (sessionAge > TWENTY_FOUR_HOURS) {
+                    showToast('Session expired. Please login again.', 'warning');
+                    setTimeout(() => logout(), 2000);
+                }
+            } catch (e) {
+                console.error('Session check error:', e);
+            }
+        }
+
+        // Check session every 5 minutes
+        setInterval(checkSessionExpiry, 5 * 60 * 1000);
+
+        function setAuthMode(mode) {
+            document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('loginForm').style.display = mode === 'login' ? 'block' : 'none';
+            document.getElementById('registerForm').style.display = mode === 'register' ? 'block' : 'none';
+            document.getElementById('completeProfileForm').style.display = 'none'; // Hide profile form when switching modes
+            document.getElementById('authError').style.display = 'none';
+        }
+
+        async function handleSignIn() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            if (!email || !password) return alert('Enter email and password');
+
+            showLoader('authLoader', true);
+            document.getElementById('authError').style.display = 'none';
+            try {
+                const res = await fetch(`${APPS_SCRIPT_URL}?origin=${encodeURIComponent(window.location.origin)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ action: 'signInAdmin', email, password })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    if (data.needsProfile) {
+                        // User exists in YUVA but not as admin
+                        pendingUser = data.admin;
+                        document.getElementById('loginForm').style.display = 'none';
+                        document.getElementById('completeProfileForm').style.display = 'block';
+                        document.querySelector('.auth-tabs').style.display = 'none';
+                    } else {
+                        // Add login timestamp for session expiry tracking
+                        data.admin.loginTime = Date.now();
+                        localStorage.setItem('vimarsh_admin_session_user', JSON.stringify(data.admin));
+                        localStorage.setItem('vimarsh_admin_token', data.sessionToken);
+                        currentUser = data.admin;
+                        sessionToken = data.sessionToken;
+                        initPortal();
+                    }
+                } else {
+                    document.getElementById('authError').innerText = data.error || 'Login failed';
+                    document.getElementById('authError').style.display = 'block';
+                }
+            } catch (e) { showToast('Login error: ' + e, 'error'); }
+            showLoader('authLoader', false);
+        }
+
+        async function saveAdminProfile() {
+            const role = document.getElementById('completeRole').value;
+            showLoader('authLoader', true);
+            try {
+                const res = await fetch(`${APPS_SCRIPT_URL}?origin=${encodeURIComponent(window.location.origin)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({
+                        action: 'completeAdminProfile',
+                        userId: pendingUser.id,
+                        email: pendingUser.email,
+                        fullName: pendingUser.full_name,
+                        role: role
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    localStorage.setItem('vimarsh_admin_session_user', JSON.stringify(data.admin));
+                    localStorage.setItem('vimarsh_admin_token', data.sessionToken);
+                    currentUser = data.admin;
+                    sessionToken = data.sessionToken;
+                    initPortal();
+                } else {
+                    showToast(data.error || 'Update failed', 'error');
+                }
+            } catch (e) { showToast('Profile update error: ' + e, 'error'); }
+            showLoader('authLoader', false);
+        }
+
+        async function handleSignUp() {
+            const fullName = document.getElementById('regName').value.trim();
+            const email = document.getElementById('regEmail').value.trim();
+            const password = document.getElementById('regPassword').value;
+            const role = document.getElementById('regRole').value;
+
+            if (!fullName || !email || !password) {
+                showToast('Please fill all fields', 'warning');
+                return;
+            }
+
+            showLoader('authLoader', true);
+            document.getElementById('authError').style.display = 'none';
+            try {
+                const res = await fetch(`${APPS_SCRIPT_URL}?origin=${encodeURIComponent(window.location.origin)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ action: 'signUpAdmin', fullName, email, password, role })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('Registration successful! Please login.', 'success');
+                    setAuthMode('login');
+                    document.querySelectorAll('.auth-tab')[0].click();
+                } else {
+                    document.getElementById('authError').innerText = data.error || 'Registration failed';
+                    document.getElementById('authError').style.display = 'block';
+                }
+            } catch (e) { showToast('Registration error: ' + e, 'error'); }
+            showLoader('authLoader', false);
+        }
+
+        function checkSession() {
+            // Basic role check and UI init 
+            initPortal();
+        }
+
+        function initPortal() {
+            document.getElementById('loginView').style.display = 'none';
+            document.getElementById('adminNav').style.display = 'flex';
+            if (currentUser.role !== 'tech_head' && currentUser.role !== 'super_admin') {
+                // Hide tech-only features
+                document.getElementById('techOnlyNav').style.display = 'none';
+                document.getElementById('exportSection').style.display = 'none';
+                document.getElementById('batchSection').style.display = 'none';
+                document.getElementById('dayWiseSection').style.display = 'none';
+
+                // Show member stats button
+                document.getElementById('memberStatsNav').style.display = 'block';
+                document.getElementById('memberSessionInfo').style.display = 'block';
+
+                // Initialize session info
+                initMemberSession();
+
+                // Auto-refresh member stats every 30 seconds (when in member stats view)
+                if (refreshInterval) clearInterval(refreshInterval);
+                refreshInterval = setInterval(() => {
+                    if (document.getElementById('viewMemberStats').classList.contains('active')) {
+                        refreshMemberStatsView();
+                    }
+                }, 30000);
+
+                // Initial load of member stats (removed - only loads when clicking Stats button)
+
+            } else {
+                // Show tech-only features
+                document.getElementById('techOnlyNav').style.display = 'flex';
+                document.getElementById('exportSection').style.display = 'block';
+                document.getElementById('batchSection').style.display = 'block';
+                document.getElementById('dayWiseSection').style.display = 'block';
+
+                // Hide member stats features for tech heads
+                document.getElementById('memberStatsNav').style.display = 'none';
+                document.getElementById('memberSessionInfo').style.display = 'none';
+
+                // Auto-refresh stats every 60 seconds
+                if (refreshInterval) clearInterval(refreshInterval);
+                refreshInterval = setInterval(() => {
+                    if (document.getElementById('viewStats').classList.contains('active')) {
+                        refreshStats(true);
+                    }
+                }, 60000);
+            }
+            switchView('scan');
+        }
+
+        function switchView(view) {
+            // Hide all views and remove active class from all nav items
+            document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+
+            // Show the target view
+            const targetView = document.getElementById('view' + view.charAt(0).toUpperCase() + view.slice(1));
+            if (targetView) targetView.classList.add('active');
+
+            // Find and activate the correct nav item based on the icon/text
+            // This is more reliable than relying on the 'event' object
+            const navItems = document.querySelectorAll('.nav-item');
+            navItems.forEach(item => {
+                const text = item.innerText.toLowerCase();
+                const icon = item.querySelector('i')?.className.toLowerCase() || '';
+                if (text.includes(view) || icon.includes(view)) {
+                    item.classList.add('active');
+                }
+            });
+
+            if (view === 'scan' && !isScanning) startScanner();
+            else if (view !== 'scan' && isScanning) stopScanner();
+
+            if (view === 'stats') refreshStats();
+            if (view === 'memberStats') refreshMemberStatsView();
+        }
+
+        function startScanner() {
+            html5QrCode = new Html5Qrcode("reader");
+            html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, onScan)
+                .then(() => isScanning = true)
+                .catch(err => console.error("Scanner failed:", err));
+        }
+
+        function stopScanner() {
+            if (html5QrCode && isScanning) {
+                html5QrCode.stop().then(() => {
+                    isScanning = false;
+                    html5QrCode = null;
+                });
+            }
+        }
+
+        async function onScan(qrHash) {
+            // CRITICAL: Block duplicate scanning requests
+            if (isProcessingScan || document.getElementById('resultOverlay').style.display === 'flex') return;
+
+            isProcessingScan = true;
+            navigator.vibrate?.(50);
+
+            // Immediately pause scanning logic locally (though API takes time)
+            showLoader('scanLoader', true);
+
+            try {
+                // Capture Browser Identity for logs
+                const userAgent = navigator.userAgent;
+
+                const res = await fetch(`${APPS_SCRIPT_URL}?origin=${encodeURIComponent(window.location.origin)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({
+                        action: 'checkIn',
+                        qrHash,
+                        adminId: currentUser.id,
+                        sessionToken,
+                        userAgent: userAgent // Send identity to logs
+                    })
+                });
+                const data = await res.json();
+
+                if (data.status === 'unauthorized' && data.message.includes('expired')) {
+                    logout();
+                    showToast('Session expired. Please login again.', 'warning');
+                    return;
+                }
+
+                showResult(data);
+            } catch (e) {
+                showToast('Scan Error: ' + e, 'error');
+                isProcessingScan = false; // Allow retry on error
+            }
+            showLoader('scanLoader', false);
+        }
+
+        function showResult(res) {
+            const box = document.getElementById('resultBox');
+            box.className = 'result-content';
+            document.getElementById('pDetails').innerHTML = '';
+
+            if (res.success) {
+                box.classList.add('status-success');
+                document.getElementById('resIcon').innerHTML = '✅';
+                document.getElementById('resTitle').innerText = 'ENTRY ALLOWED';
+                document.getElementById('resMsg').innerText = res.message;
+                document.getElementById('pDetails').innerHTML = `
+                    <div style="margin-bottom:5px"><b>Name:</b> ${res.participant.name}</div>
+                    <div style="margin-bottom:5px"><b>ID:</b> ${res.participant.registrationId}</div>
+                    <div style="margin-bottom:5px"><b>College:</b> ${res.participant.college}</div>
+                `;
+            } else if (res.status === 'already_checked_in') {
+                box.classList.add('status-duplicate');
+                document.getElementById('resIcon').innerHTML = '⚠️';
+                document.getElementById('resTitle').innerText = 'ALREADY IN';
+                document.getElementById('resMsg').innerText = res.message;
+            } else {
+                box.classList.add('status-failed');
+                document.getElementById('resIcon').innerHTML = '❌';
+                document.getElementById('resTitle').innerText = 'DENIED';
+                document.getElementById('resMsg').innerText = res.message || res.error;
+            }
+            document.getElementById('resultOverlay').style.display = 'flex';
+        }
+
+        function closeOverlay() {
+            document.getElementById('resultOverlay').style.display = 'none';
+            isProcessingScan = false;
+        }
+
+        async function refreshStats(silent = false) {
+            if (!silent) {
+                ['statTotal', 'statIn', 'statKits', 'statBands', 'statLeft'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.innerText = '...';
+                });
+            }
+
+            try {
+                const res = await fetch(`${APPS_SCRIPT_URL}?origin=${encodeURIComponent(window.location.origin)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({
+                        action: 'getStats',
+                        adminId: currentUser.id,
+                        sessionToken: sessionToken
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    // Update Counters
+                    document.getElementById('statTotal').innerText = data.stats.total;
+                    document.getElementById('statIn').innerText = data.stats.checkedIn;
+                    document.getElementById('statKits').innerText = data.stats.kits || 0;
+                    document.getElementById('statBands').innerText = data.stats.wristbands || 0;
+                    document.getElementById('statLeft').innerText = data.stats.remaining;
+                    document.getElementById('lastUpdate').innerText = 'Last updated: ' + new Date().toLocaleTimeString();
+
+                    // Update Activity Feed
+                    const feed = document.getElementById('activityFeed');
+                    if (data.recentActivity && data.recentActivity.length > 0) {
+                        feed.innerHTML = data.recentActivity.map(item => `
+                            <div class="activity-item">
+                                <div class="activity-info">
+                                    <strong>${item.first_name} ${item.last_name}</strong>
+                                    <span style="font-size: 0.75rem; opacity: 0.8;">
+                                        Kits: ${item.kit_issued ? '✅' : '❌'} | Bands: ${item.wristband_issued ? '✅' : '❌'}
+                                    </span>
+                                </div>
+                                <div style="font-size: 0.7rem; text-align: right;">
+                                    <div style="color: var(--success); font-weight: bold;">Verified</div>
+                                    <div style="opacity: 0.5;">${new Date(item.checked_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                </div>
+                            </div>
+                        `).join('');
+                    } else {
+                        feed.innerHTML = '<p style="text-align: center; opacity: 0.5; padding: 1rem;">No check-ins today yet.</p>';
+                    }
+
+                    // Update Zone Stats
+                    const zoneContainer = document.getElementById('zoneStatsContainer');
+                    const zones = Object.entries(data.zoneStats).sort((a, b) => b[1] - a[1]);
+                    if (zones.length > 0) {
+                        const maxVal = Math.max(...zones.map(z => z[1]));
+                        zoneContainer.innerHTML = zones.map(([name, count]) => {
+                            const percent = (count / maxVal) * 100;
+                            return `
+                                <div class="zone-bar-container">
+                                    <div class="zone-bar-header">
+                                        <span>${name}</span>
+                                        <strong>${count}</strong>
+                                    </div>
+                                    <div class="zone-bar-bg">
+                                        <div class="zone-bar-fill" style="width: ${percent}%"></div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('');
+                    } else {
+                        zoneContainer.innerHTML = '<p style="text-align: center; opacity: 0.5; padding: 1rem;">No data per zone yet.</p>';
+                    }
+
+                    // Render Day-wise Breakdown (if data available)
+                    if (data.dayWiseBreakdown) {
+                        renderDayWiseBreakdown(data.dayWiseBreakdown);
+                    }
+                }
+            } catch (e) { console.error('Stats Update Error:', e); }
+        }
+
+        /**
+         * Render Day-wise Breakdown
+         * Creates expandable day cards with zone → college → category hierarchy
+         */
+        function renderDayWiseBreakdown(breakdown) {
+            const container = document.getElementById('dayWiseContainer');
+
+            if (!breakdown || Object.keys(breakdown).length === 0) {
+                container.innerHTML = '<p class="no-data-message">No check-in data available yet.</p>';
+                return;
+            }
+
+            // Sort days in descending order (most recent first)
+            const sortedDays = Object.keys(breakdown).sort((a, b) => new Date(b) - new Date(a));
+
+            container.innerHTML = sortedDays.map(date => {
+                const dayData = breakdown[date];
+                const dayName = formatDayName(date);
+
+                // Build zone sections
+                const zoneSections = Object.entries(dayData.zones)
+                    .sort((a, b) => b[1].total - a[1].total) // Sort zones by count
+                    .map(([zoneName, zoneData]) => {
+                        // Build college items
+                        const collegeItems = Object.entries(zoneData.colleges)
+                            .sort((a, b) => b[1].total - a[1].total) // Sort colleges by count
+                            .map(([collegeName, collegeData]) => {
+                                // Build category tags
+                                const categoryTags = Object.entries(collegeData.categories)
+                                    .map(([category, count]) => {
+                                        const categoryClass = category.toLowerCase().includes('student') ? 'student' :
+                                            category.toLowerCase().includes('teacher') ? 'teacher' :
+                                                category.toLowerCase().includes('scholar') ? 'scholar' : 'other';
+                                        return `<span class="category-tag ${categoryClass}">${category}: ${count}</span>`;
+                                    }).join('');
+
+                                return `
+                                    <div class="college-item">
+                                        <div class="college-name">
+                                            <span>${collegeName}</span>
+                                            <span class="college-total">${collegeData.total}</span>
+                                        </div>
+                                        <div class="category-breakdown">
+                                            ${categoryTags}
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('');
+
+                        return `
+                            <div class="zone-section">
+                                <div class="zone-header">
+                                    <span>${zoneName}</span>
+                                    <span class="zone-count">${zoneData.total}</span>
+                                </div>
+                                ${collegeItems}
+                            </div>
+                        `;
+                    }).join('');
+
+                return `
+                    <div class="day-card" id="day-${date}">
+                        <div class="day-header" onclick="toggleDayCard('${date}')">
+                            <div class="day-header-left">
+                                <i class="fas fa-chevron-right day-expand-icon"></i>
+                                <div>
+                                    <div class="day-date">${dayName}</div>
+                                    <div class="day-count">${date}</div>
+                                </div>
+                            </div>
+                            <div class="day-total-badge">${dayData.total} check-ins</div>
+                        </div>
+                        <div class="day-content">
+                            <div class="day-content-inner">
+                                ${zoneSections}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        /**
+         * Toggle Day Card Expansion
+         */
+        function toggleDayCard(date) {
+            const card = document.getElementById(`day-${date}`);
+            if (card) {
+                card.classList.toggle('expanded');
+            }
+        }
+
+        /**
+         * Format date to friendly day name
+         */
+        function formatDayName(dateStr) {
+            const date = new Date(dateStr + 'T00:00:00');
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+
+            const dateOnly = new Date(date);
+            dateOnly.setHours(0, 0, 0, 0);
+
+            if (dateOnly.getTime() === today.getTime()) {
+                return 'Today';
+            } else if (dateOnly.getTime() === yesterday.getTime()) {
+                return 'Yesterday';
+            } else {
+                const options = { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' };
+                return date.toLocaleDateString('en-US', options);
+            }
+        }
+
+        /**
+         * Initialize Member Session Info
+         * Displays user name, role, and current time
+         */
+        function initMemberSession() {
+            // Set session name and avatar
+            const fullName = currentUser.full_name || currentUser.email;
+            const initials = fullName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+
+            document.getElementById('sessionName').textContent = fullName;
+            document.getElementById('sessionAvatar').textContent = initials;
+            document.getElementById('sessionRole').textContent = currentUser.role === 'member' ? 'Check-in Staff' : 'Tech Head';
+
+            // Update time every second
+            updateSessionTime();
+            setInterval(updateSessionTime, 1000);
+        }
+
+        /**
+         * Update Session Time Display
+         */
+        function updateSessionTime() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            });
+            document.getElementById('sessionTime').textContent = timeStr;
+        }
+
+        /**
+         * Refresh Member Stats
+         * Fetches and displays lightweight stats for members
+         */
+        async function refreshMemberStats(silent = false) {
+            try {
+                const res = await fetch(`${APPS_SCRIPT_URL}?origin=${encodeURIComponent(window.location.origin)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({
+                        action: 'getMemberStats',
+                        adminId: currentUser.id,
+                        sessionToken: sessionToken
+                    })
+                });
+                const data = await res.json();
+
+                if (data.success && data.memberStats) {
+                    const stats = data.memberStats;
+
+                    // Update today's total
+                    document.getElementById('memberTodayTotal').textContent = stats.todayTotal || 0;
+
+                    // Update zone breakdown
+                    renderZoneMiniCards(stats.zoneCounts || {});
+
+                    // Update recent activity feed
+                    renderRecentFeed(stats.recentCheckIns || []);
+                }
+            } catch (e) {
+                console.error('Member Stats Update Error:', e);
+            }
+        }
+
+        /**
+         * Render Zone Mini Cards
+         */
+        function renderZoneMiniCards(zoneCounts) {
+            const container = document.getElementById('zoneMinCards');
+
+            if (!zoneCounts || Object.keys(zoneCounts).length === 0) {
+                container.innerHTML = '<p class="no-activity" style="grid-column: 1 / -1;">No zone data yet.</p>';
+                return;
+            }
+
+            // Sort zones by count (descending)
+            const sortedZones = Object.entries(zoneCounts).sort((a, b) => b[1] - a[1]);
+
+            container.innerHTML = sortedZones.map(([zone, count]) => `
+                <div class="zone-mini-card">
+                    <span class="zone-name">${zone}</span>
+                    <span class="zone-count">${count}</span>
+                </div>
+            `).join('');
+        }
+
+        /**
+         * Render Recent Activity Feed
+         */
+        function renderRecentFeed(recentCheckIns) {
+            const container = document.getElementById('memberRecentFeed');
+
+            if (!recentCheckIns || recentCheckIns.length === 0) {
+                container.innerHTML = '<p class="no-activity">No recent activity yet.</p>';
+                return;
+            }
+
+            container.innerHTML = recentCheckIns.map(item => `
+                <div class="recent-feed-item">
+                    <div class="recent-feed-info">
+                        <div class="recent-feed-name">${item.name}</div>
+                        <div class="recent-feed-college">${item.college || 'Unknown College'}</div>
+                    </div>
+                    <div class="recent-feed-time">${item.time}</div>
+                </div>
+            `).join('');
+        }
+
+        /**
+         * Refresh Member Stats View
+         * Populates the dedicated member stats view with data
+         */
+        async function refreshMemberStatsView() {
+            try {
+                const res = await fetch(`${APPS_SCRIPT_URL}?origin=${encodeURIComponent(window.location.origin)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({
+                        action: 'getMemberStats',
+                        adminId: currentUser.id,
+                        sessionToken: sessionToken
+                    })
+                });
+                const data = await res.json();
+
+                if (data.success && data.memberStats) {
+                    const stats = data.memberStats;
+
+                    // Update session info in stats view
+                    const fullName = currentUser.full_name || currentUser.email;
+                    const initials = fullName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+                    document.getElementById('memberStatsName').textContent = fullName;
+                    document.getElementById('memberStatsAvatar').textContent = initials;
+                    document.getElementById('memberStatsRole').textContent = 'Check-in Staff';
+
+                    const now = new Date();
+                    const timeStr = now.toLocaleTimeString('en-US', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true
+                    });
+                    document.getElementById('memberStatsTime').textContent = timeStr;
+
+                    // Update today's total
+                    document.getElementById('memberStatsTodayTotal').textContent = stats.todayTotal || 0;
+
+                    // Update zone breakdown
+                    const zoneContainer = document.getElementById('memberStatsZoneCards');
+                    if (!stats.zoneCounts || Object.keys(stats.zoneCounts).length === 0) {
+                        zoneContainer.innerHTML = '<p class="no-activity" style="grid-column: 1 / -1;">No zone data yet.</p>';
+                    } else {
+                        const sortedZones = Object.entries(stats.zoneCounts).sort((a, b) => b[1] - a[1]);
+                        zoneContainer.innerHTML = sortedZones.map(([zone, count]) => `
+                            <div class="zone-mini-card">
+                                <span class="zone-name">${zone}</span>
+                                <span class="zone-count">${count}</span>
+                            </div>
+                        `).join('');
+                    }
+
+                    // Update recent activity feed
+                    const feedContainer = document.getElementById('memberStatsRecentFeed');
+                    if (!stats.recentCheckIns || stats.recentCheckIns.length === 0) {
+                        feedContainer.innerHTML = '<p class="no-activity">No recent activity yet.</p>';
+                    } else {
+                        feedContainer.innerHTML = stats.recentCheckIns.map(item => `
+                            <div class="recent-feed-item">
+                                <div class="recent-feed-info">
+                                    <div class="recent-feed-name">${item.name}</div>
+                                    <div class="recent-feed-college">${item.college || 'Unknown College'}</div>
+                                </div>
+                                <div class="recent-feed-time">${item.time}</div>
+                            </div>
+                        `).join('');
+                    }
+
+                    // Update last update time
+                    document.getElementById('memberLastUpdate').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
+                }
+            } catch (e) {
+                console.error('Member Stats View Update Error:', e);
+            }
+        }
+
+        async function exportData(type) {
+            const btn = event.currentTarget;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Fetching...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch(`${APPS_SCRIPT_URL}?origin=${encodeURIComponent(window.location.origin)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({
+                        action: type === 'registrations' ? 'exportRegistrations' : 'exportLogs',
+                        adminId: currentUser.id,
+                        sessionToken: sessionToken
+                    })
+                });
+                const data = await res.json();
+
+                if (data.success && data.data.length > 0) {
+                    downloadCSV(data.data, `vimarsh_2026_${type}_${new Date().toISOString().split('T')[0]}.csv`);
+                    showToast('Export successful! File downloaded.', 'success');
+                } else if (data.data && data.data.length === 0) {
+                    showToast('No data found to export.', 'warning');
+                } else {
+                    showToast('Export failed: ' + (data.error || 'Unknown error'), 'error');
+                }
+            } catch (e) {
+                showToast('Export Error: ' + e, 'error');
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        function downloadCSV(data, filename) {
+            if (!data || !data.length) return;
+
+            const headers = Object.keys(data[0]);
+            const csvRows = [];
+            csvRows.push(headers.join(','));
+
+            for (const row of data) {
+                const values = headers.map(header => {
+                    let val = row[header];
+                    if (val === null || val === undefined) val = '';
+                    // Flatten simple nested objects (like vim26_registrations in logs)
+                    if (typeof val === 'object') val = JSON.stringify(val).replace(/"/g, '""');
+                    const escaped = ('' + val).replace(/"/g, '""');
+                    return `"${escaped}"`;
+                });
+                csvRows.push(values.join(','));
+            }
+
+            const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", filename);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
+
+        async function searchParticipant() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) return;
+
+            const resultsDiv = document.getElementById('searchResults');
+            resultsDiv.innerHTML = '<div class="loader" style="display:block"></div>';
+
+            try {
+                const res = await fetch(`${APPS_SCRIPT_URL}?origin=${encodeURIComponent(window.location.origin)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({
+                        action: 'searchRegistrations',
+                        query,
+                        adminId: currentUser.id,
+                        sessionToken: sessionToken
+                    })
+                });
+                const data = await res.json();
+
+                resultsDiv.innerHTML = '';
+                if (data.success && data.results.length > 0) {
+                    const isTech = currentUser.role === 'tech_head' || currentUser.role === 'super_admin';
+                    data.results.forEach(p => {
+                        const div = document.createElement('div');
+                        div.className = 'participant-details';
+                        div.style.marginBottom = '15px';
+
+                        let issuanceControls = '';
+                        if (isTech && p.checked_in) {
+                            issuanceControls = `
+                                <div style="margin-top: 10px; display: flex; gap: 10px;">
+                                    <button class="btn" style="padding: 6px; font-size: 0.7rem; flex: 1; background: ${p.kit_issued ? 'var(--success)' : 'rgba(255,255,255,0.1)'}" 
+                                            onclick="toggleIssuance('${p.registration_id}', 'kit_issued', ${!p.kit_issued})">
+                                        Kit: ${p.kit_issued ? 'Issued' : 'Mark Issued'}
+                                    </button>
+                                    <button class="btn" style="padding: 6px; font-size: 0.7rem; flex: 1; background: ${p.wristband_issued ? 'var(--success)' : 'rgba(255,255,255,0.1)'}" 
+                                            onclick="toggleIssuance('${p.registration_id}', 'wristband_issued', ${!p.wristband_issued})">
+                                        Band: ${p.wristband_issued ? 'Issued' : 'Mark Issued'}
+                                    </button>
+                                </div>
+                            `;
+                        }
+
+                        div.innerHTML = `
+                            <div style="display: flex; justify-content: space-between; align-items: start;">
+                                <strong>${p.first_name} ${p.last_name}</strong>
+                                <span style="font-size: 0.75rem; opacity: 0.6;">${p.registration_id}</span>
+                            </div>
+                            <div style="font-size: 0.8rem; margin: 4px 0;">Status: ${p.checked_in ? '✅ In' : '❌ Pending'}</div>
+                            <div style="font-size: 0.75rem; opacity: 0.7;">${p.email}</div>
+                            ${issuanceControls}
+                        `;
+                        resultsDiv.appendChild(div);
+                    });
+                } else {
+                    resultsDiv.innerHTML = '<p style="text-align:center; opacity:0.6">No results found.</p>';
+                }
+            } catch (e) { resultsDiv.innerHTML = 'Error searching.'; }
+        }
+
+        async function toggleIssuance(regId, field, value) {
+            showLoading('Updating status...');
+            try {
+                const res = await fetch(`${APPS_SCRIPT_URL}?origin=${encodeURIComponent(window.location.origin)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({
+                        action: 'updateParticipantStatus',
+                        registrationId: regId,
+                        field: field,
+                        value: value,
+                        adminId: currentUser.id,
+                        sessionToken: sessionToken
+                    })
+                });
+                const data = await res.json();
+                hideLoading();
+                if (data.success) {
+                    showToast('Status updated successfully', 'success');
+                    searchParticipant(); // Refresh search list
+                    refreshStats(true); // Sync stats
+                } else {
+                    showToast('Update failed: ' + data.error, 'error');
+                }
+            } catch (e) {
+                hideLoading();
+                showToast('Error: ' + e, 'error');
+            }
+        }
+
+        async function batchUpdate(field, value) {
+            const fieldName = field === 'kit_issued' ? 'Kits' : 'Wristbands';
+
+            showConfirm(
+                'Batch Update Confirmation',
+                `Mark ALL checked-in participants' ${fieldName} as issued?\n\nThis will update everyone who has already checked in.`,
+                async () => {
+                    showLoading(`Updating all ${fieldName.toLowerCase()}...`);
+                    try {
+                        const res = await fetch(`${APPS_SCRIPT_URL}?origin=${encodeURIComponent(window.location.origin)}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                            body: JSON.stringify({
+                                action: 'batchUpdateStatus',
+                                field: field,
+                                value: value,
+                                adminId: currentUser.id,
+                                sessionToken: sessionToken
+                            })
+                        });
+                        const data = await res.json();
+                        hideLoading();
+                        if (data.success) {
+                            showToast(`Success! ${data.message}`, 'success', 5000);
+                            refreshStats(true); // Refresh stats to show updated counts
+                        } else {
+                            showToast('Batch update failed: ' + data.error, 'error');
+                        }
+                    } catch (e) {
+                        hideLoading();
+                        showToast('Error: ' + e, 'error');
+                    }
+                }
+            );
+        }
+
+        function logout() {
+            localStorage.removeItem('vimarsh_admin_session_user');
+            localStorage.removeItem('vimarsh_admin_token');
+            location.reload();
+        }
+
+        function resetLogin() {
+            document.getElementById('step2').style.display = 'none';
+            document.getElementById('step1').style.display = 'block';
+        }
+    </script>
+</body>
+
+</html>

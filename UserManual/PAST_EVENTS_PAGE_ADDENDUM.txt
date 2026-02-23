@@ -3,7 +3,7 @@
                 Youth United For Vision & Action
 ================================================================================
 
-VERSION: 2026
+VERSION: 2026 (Updated with Soft Delete)
 LAST UPDATED: January 16, 2026
 
 ================================================================================
@@ -596,6 +596,116 @@ VISUAL TESTING:
 ☐ Hover effect lifts card
 ☐ Image zooms on hover
 ☐ Shadows render correctly
+
+================================================================================
+SOFT DELETE SYSTEM - IMPACT ON PAST EVENTS PAGE
+================================================================================
+
+WHAT IS SOFT DELETE?
+────────────────────
+The Past Events page now uses a soft delete system, which means deleted events
+are marked as deleted rather than permanently removed from the database.
+
+HOW IT WORKS ON PAST EVENTS PAGE:
+──────────────────────────────────
+When an event is deleted:
+
+1. DATABASE OPERATION:
+   - Event marked with is_deleted = true
+   - deleted_at timestamp recorded
+   - All event data preserved
+
+2. PAST EVENTS PAGE DISPLAY:
+   - Event automatically hidden from page
+   - Disappears from Latest Event section
+   - Removed from event grid
+   - Won't appear in search results
+
+3. STATISTICS PRESERVATION:
+   - Event still counts in total event statistics
+   - Attendance records maintained
+   - Participation history preserved
+   - College contribution records intact
+
+FILTERING LOGIC:
+─────────────────
+The Past Events page uses this query filter (event.js - Line 1547):
+
+┌──────────────────────────────────────────┐
+│ .eq('is_deleted', false)                 │
+│ .lt('end_at', now)                       │
+│ .order('end_at', { ascending: false })   │
+└──────────────────────────────────────────┘
+
+This means:
+✓ Only shows events where is_deleted = false
+✓ Only shows events that have passed (end_at < now)
+✓ Events are sorted by completion date (newest first)
+
+EXAMPLE SCENARIOS:
+───────────────────
+SCENARIO 1: User deletes a past event
+→ Event marked as deleted
+→ Event disappears from Past Events page
+→ Event no longer shows in Latest Event section
+→ Statistics still count this event
+→ Admin can restore if needed
+
+SCENARIO 2: Past event already displayed, then deleted
+→ Page might need refresh to see change
+→ Event removed after refresh
+→ Automatic reload triggered if deletion initiated from dashboard
+
+SCENARIO 3: Deleted event restored by admin
+→ Event becomes visible again on Past Events page
+→ Appears in correct chronological order
+→ Latest Event section updates if it's the most recent
+
+USER EXPERIENCE:
+─────────────────
+Users will see:
+✓ Clean Past Events page with no deleted events
+✓ Latest Event section shows only active completed events
+✓ Accurate event history without deleted entries
+✓ Consistent experience with Upcoming Events page
+
+Deleted events are NOT visible:
+✗ Not in event grid
+✗ Not in search results
+✗ Not in Latest Event card
+✗ Not in statistics breakdown
+
+TECHNICAL DETAILS:
+───────────────────
+Database Columns Added:
+- is_deleted (BOOLEAN) - Default: false
+- deleted_at (TIMESTAMP) - Default: NULL
+
+Indexes for Performance:
+- idx_events_is_deleted
+- idx_events_deleted_at
+
+Query Performance:
+- Soft delete filtering is fast (uses indexed column)
+- No additional complexity in database queries
+- Minimal performance impact
+
+CONSISTENCY ACROSS PAGES:
+──────────────────────────
+Soft delete works the same way on all pages:
+
+Page              Filter Logic
+─────────────────────────────────────────────
+Upcoming Events   .eq('is_deleted', false) + future date
+Past Events       .eq('is_deleted', false) + past date
+Home Page         .eq('is_deleted', false)
+College Dashboard .filter(ev => !ev.is_deleted)
+
+All pages hide deleted events automatically.
+
+================================================================================
+TESTING CHECKLIST
+================================================================================
 
 RESPONSIVE TESTING:
 ───────────────────

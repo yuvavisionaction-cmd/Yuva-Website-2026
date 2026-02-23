@@ -1,0 +1,2554 @@
+// ============================================================================
+// VIMARSH 2026 - GOOGLE APPS SCRIPT BACKEND
+// ============================================================================
+// Purpose: Secure payment processing, verification, and audit system
+// Architecture: Apps Script → Razorpay + Supabase (no Google Sheets dependency)
+// Deployment: Web App (Execute as: Me, Access: Anyone)
+// ============================================================================
+
+// ============================================================================
+// SECTION 1: CONFIGURATION
+// ============================================================================
+
+const CONFIG = {
+  // Razorpay Credentials (Live)
+  RAZORPAY_KEY_ID: 'rzp_test_RCnv6goa4rkg0Q',
+  RAZORPAY_KEY_SECRET: 'qRw549IUqi47RQjbTf1d0clN',
+  RAZORPAY_WEBHOOK_SECRET: 'Nj:MvHNKdArL9_6', // TODO: Add webhook secret from Razorpay Dashboard → Webhooks → Secret
+  
+  // Supabase Configuration (UPDATE THESE WITH YOUR ACTUAL VALUES)
+  SUPABASE_URL: 'https://jgsrsjwmywiirtibofth.supabase.co', // TODO: Update with your Supabase URL
+  SUPABASE_SERVICE_ROLE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impnc3JzandteXdpaXJ0aWJvZnRoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTA3NjY0OCwiZXhwIjoyMDc0NjUyNjQ4fQ.tQ9aD4OP1okfdgNr8O4LqIkYAF4rUvbRBN4XBW-KrZo', // TODO: Update with your service role key
+  
+  // Payment Configuration
+  PAYMENT_AMOUNTS: {
+    'Student': 30000, // ₹300 in paise
+    'Teacher': 120000, // ₹1200 in paise
+    'Research Scholar': 50000, // ₹500 in paise
+    'Other': 120000 // ₹1200 in paise
+  },
+  
+  // Email Configuration
+  EMAIL_FROM: 'Vimarsh Registration Portal',
+  SUPPORT_EMAIL: 'yuvavimarsh.helpdesk@gmail.com',
+  EMAIL_RETRY_MAX: 3,
+  EMAIL_RETRY_DELAY_HOURS: 2,
+  
+  // Event Details
+  EVENT_NAME: 'Vimarsh 2026',
+  ORGANIZATION_NAME: 'YUVA-Youth United For Vision & Action',
+  
+  // Audit Configuration
+  AUDIT_LOOKBACK_DAYS: 7,
+  
+  // Security
+  SESSION_SECRET: 'VIM26_ADMIN_SECURE_TOKEN_2026', // Change this periodically
+  SESSION_DURATION_HOURS: 24,
+  OTP_EXPIRY_MINUTES: 10,
+  ALLOWED_ORIGINS: [
+    'https://yuva.ind.in',
+    'http://yuva.ind.in',
+    'https://www.yuva.ind.in',
+    'http://localhost:3000',
+    'http://localhost:8080',
+    'http://127.0.0.1:5500',
+    'http://127.0.0.1:8080',
+    'null' // For local file testing
+  ]
+};
+
+// ============================================================================
+// SECTION 2: MAIN ENTRY POINT (doPost)
+// ============================================================================
+
+/**
+ * Main entry point for all POST requests from frontend
+ * Routes to appropriate handler based on action parameter
+ */
+function doPost(e) {
+  try {
+    // Get raw payload for webhook signature verification
+    const rawPayload = e.postData.contents;
+    
+    // Parse request
+    const params = JSON.parse(rawPayload);
+    const action = params.action;
+    
+    // Special handling for Razorpay webhooks (signature verification required)
+    if (action === 'razorpayWebhook') {
+      const signature = e.parameter['X-Razorpay-Signature'] || 
+                       (e.parameters && e.parameters['X-Razorpay-Signature'] && e.parameters['X-Razorpay-Signature'][0]);
+      
+      // Verify webhook signature BEFORE processing
+      if (!verifyRazorpayWebhookSignature(rawPayload, signature)) {
+        Logger.log('Webhook rejected: Invalid signature');
+        return createResponse({ error: 'Unauthorized', message: 'Invalid webhook signature' }, 401);
+      }
+      
+      Logger.log('Webhook signature verified successfully');
+    }
+    
+    Logger.log('[DEBUG] Action detected: ' + action);
+    
+    // CORS handling (skip for Razorpay webhooks)
+    if (action !== 'razorpayWebhook') {
+      Logger.log('[DEBUG] Running CORS check (action is NOT razorpayWebhook)');
+      const origin = e.parameter.origin || '';
+      Logger.log('[DEBUG] Origin value: "' + origin + '"');
+      if (!CONFIG.ALLOWED_ORIGINS.includes(origin)) {
+        Logger.log('[DEBUG] Origin not in allowed list, rejecting');
+        return createResponse({ error: 'Invalid origin' }, 403);
+      }
+    } else {
+      Logger.log('[DEBUG] Skipping CORS check (action IS razorpayWebhook)');
+    }
+    
+    // Route to appropriate handler
+    switch (action) {
+      case 'createOrder':
+        return handleCreateOrder(params);
+      case 'verifyPayment':
+        return handleVerifyPayment(params);
+      case 'checkStatus':
+        return handleCheckStatus(params);
+      case 'checkIn':
+        return handleCheckIn(params);
+      case 'getStats':
+        return handleGetStats(params);
+      case 'getMemberStats':
+        return handleGetMemberStats(params);
+      case 'searchRegistrations':
+        return handleSearchRegistrations(params);
+      case 'signUpAdmin':
+        return handleAdminSignUp(params);
+      case 'signInAdmin':
+        return handleAdminSignIn(params);
+      case 'completeAdminProfile':
+        return handleCompleteAdminProfile(params);
+      case 'exportRegistrations':
+        return handleExportRegistrations(params);
+      case 'exportLogs':
+        return handleExportLogs(params);
+      case 'updateParticipantStatus':
+        return handleUpdateParticipantStatus(params);
+      case 'batchUpdateStatus':
+        return handleBatchUpdateStatus(params);
+      case 'razorpayWebhook':
+        return handleRazorpayWebhook(params);
+      case 'generateTicketHTML':
+        return handleGenerateTicketHTML(params);
+      default:
+        return createResponse({ error: 'Invalid action' }, 400);
+    }
+    
+  } catch (error) {
+    Logger.log('doPost Error: ' + error.toString());
+    return createResponse({ 
+      error: 'Internal server error',
+      details: error.toString() 
+    }, 500);
+  }
+}
+
+/**
+ * Handle GET requests (for testing/health check)
+ */
+function doGet(e) {
+  return createResponse({
+    status: 'online',
+    service: 'Vimarsh 2026 Payment Backend',
+    timestamp: new Date().toISOString()
+  });
+}
+
+// ============================================================================
+// SECTION 3: ORDER CREATION
+// ============================================================================
+
+/**
+ * Create Razorpay order and insert pending registration in Supabase
+ * This is idempotent - if called multiple times with same email, returns existing pending order
+ */
+function handleCreateOrder(params) {
+  try {
+    const {
+      firstName,
+      lastName,
+      email,
+      mobile,
+      ageGroup,
+      bloodGroup,
+      collegeId,
+      collegeName,
+      zoneId,
+      zoneName,
+      state,
+      paymentCategory,
+      previousVimarsh,
+      howYouKnow
+    } = params;
+    
+    // Validate required fields
+    if (!email || !mobile || !collegeId || !paymentCategory) {
+      return createResponse({ error: 'Missing required fields' }, 400);
+    }
+    
+    // Check for existing completed payment (Using lowercase table name)
+    const existingCompleted = checkExistingPayment(email);
+    if (existingCompleted) {
+      return createResponse({
+        success: false,
+        error: 'duplicate_registration',
+        message: 'This email is already registered with a completed payment',
+        registrationId: existingCompleted.registration_id
+      });
+    }
+    
+    // Check for existing pending order (within last 30 minutes)
+    const existingPending = checkPendingOrder(email);
+    if (existingPending) {
+      return createResponse({
+        success: true,
+        orderId: existingPending.razorpay_order_id,
+        amount: existingPending.amount_paid,
+        registrationId: existingPending.registration_id,
+        message: 'Returning existing pending order'
+      });
+    }
+    
+    // Generate registration ID
+    const registrationId = generateRegistrationId(collegeId);
+    
+    // Determine amount
+    const amount = CONFIG.PAYMENT_AMOUNTS[paymentCategory] || CONFIG.PAYMENT_AMOUNTS['Other'];
+    
+    // Create Razorpay order
+    const razorpayOrder = createRazorpayOrder(amount, registrationId, email);
+    
+    // Generate QR hash
+    const qrHash = generateQRHash(registrationId);
+    
+    // Insert into Supabase (pending status)
+    const registration = {
+      registration_id: registrationId,
+      first_name: firstName,
+      last_name: lastName || '',
+      email: email,
+      mobile: mobile,
+      age_group: ageGroup,
+      blood_group: bloodGroup,
+      college_id: parseInt(collegeId),
+      zone_id: parseInt(zoneId),
+      college_name: collegeName,
+      zone_name: zoneName,
+      state: state,
+      payment_category: paymentCategory,
+      previous_vimarsh: previousVimarsh || '',
+      how_you_know: howYouKnow || '',
+      razorpay_order_id: razorpayOrder.id,
+      payment_status: 'pending',
+      amount_paid: amount / 100, // Save in Rupees, not Paise
+      qr_code_hash: qrHash,
+      email_sent: false
+    };
+    
+    const insertResult = supabaseInsert('vim26_registrations', registration);
+    
+    if (insertResult.error) {
+      Logger.log('Supabase Insert Error: ' + JSON.stringify(insertResult.error));
+      return createResponse({ 
+        success: false,
+        error: 'Database error',
+        message: insertResult.error.message || 'Failed to save registration to database',
+        details: insertResult.error 
+      });
+    }
+    
+    // Return order details to frontend
+    return createResponse({
+      success: true,
+      orderId: razorpayOrder.id,
+      amount: amount,
+      currency: 'INR',
+      registrationId: registrationId,
+      keyId: CONFIG.RAZORPAY_KEY_ID
+    });
+    
+  } catch (error) {
+    Logger.log('handleCreateOrder Error: ' + error.toString());
+    return createResponse({ 
+      success: false,
+      error: 'Order creation failed',
+      message: error.message || 'An unexpected error occurred during order creation',
+      details: error.toString() 
+    });
+  }
+}
+
+/**
+ * Generate deterministic registration ID by calling Supabase function
+ */
+function generateRegistrationId(collegeId) {
+  const result = supabaseRPC('vim26_generate_registration_id', {
+    p_college_id: parseInt(collegeId)
+  });
+  
+  if (result.error) {
+    throw new Error('Failed to generate registration ID: ' + JSON.stringify(result.error));
+  }
+  
+  return result.data;
+}
+
+/**
+ * Generate deterministic QR hash by calling Supabase function
+ */
+function generateQRHash(registrationId) {
+  const result = supabaseRPC('vim26_generate_qr_hash', {
+    p_registration_id: registrationId
+  });
+  
+  if (result.error) {
+    throw new Error('Failed to generate QR hash: ' + JSON.stringify(result.error));
+  }
+  
+  return result.data;
+}
+
+/**
+ * Create Razorpay order via API
+ */
+function createRazorpayOrder(amount, registrationId, email) {
+  const url = 'https://api.razorpay.com/v1/orders';
+  
+  const payload = {
+    amount: amount,
+    currency: 'INR',
+    receipt: registrationId,
+    notes: {
+      registration_id: registrationId,
+      email: email,
+      event: 'Vimarsh 2026'
+    }
+  };
+  
+  const options = {
+    method: 'post',
+    headers: {
+      'Authorization': 'Basic ' + Utilities.base64Encode(
+        CONFIG.RAZORPAY_KEY_ID + ':' + CONFIG.RAZORPAY_KEY_SECRET
+      ),
+      'Content-Type': 'application/json'
+    },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+  
+  const response = UrlFetchApp.fetch(url, options);
+  const responseCode = response.getResponseCode();
+  const responseData = JSON.parse(response.getContentText());
+  
+  if (responseCode !== 200) {
+    throw new Error('Razorpay order creation failed: ' + JSON.stringify(responseData));
+  }
+  
+  return responseData;
+}
+
+/**
+ * Check if email already has a completed payment
+ */
+function checkExistingPayment(email) {
+  const result = supabaseQuery('vim26_registrations', {
+    select: 'registration_id,payment_status',
+    email: `eq.${email}`,
+    payment_status: 'eq.completed'
+  });
+  
+  if (result.data && result.data.length > 0) {
+    return result.data[0];
+  }
+  
+  return null;
+}
+
+/**
+ * Check for pending order created in last 30 minutes
+ */
+function checkPendingOrder(email) {
+  const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+  
+  const result = supabaseQuery('vim26_registrations', {
+    select: 'registration_id,razorpay_order_id,amount_paid',
+    email: `eq.${email}`,
+    payment_status: 'eq.pending',
+    created_at: `gte.${thirtyMinutesAgo}`
+  });
+  
+  if (result.data && result.data.length > 0) {
+    return result.data[0];
+  }
+  
+  return null;
+}
+
+// ============================================================================
+// SECTION 4: PAYMENT VERIFICATION
+// ============================================================================
+
+/**
+ * Verify Razorpay payment signature and update registration
+ * This is idempotent - multiple calls with same payment_id will not duplicate updates
+ */
+function handleVerifyPayment(params) {
+  try {
+    const {
+      razorpayOrderId,
+      razorpayPaymentId,
+      razorpaySignature
+    } = params;
+    
+    // Validate required fields
+    if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+      return createResponse({ error: 'Missing payment details' }, 400);
+    }
+    
+    // Check if already verified (idempotency check)
+    const existingVerification = checkExistingVerification(razorpayPaymentId);
+    if (existingVerification) {
+      return createResponse({
+        success: true,
+        alreadyVerified: true,
+        registrationId: existingVerification.registration_id,
+        message: 'Payment already verified'
+      });
+    }
+    
+    // Verify signature
+    const isValid = verifyRazorpaySignature(
+      razorpayOrderId,
+      razorpayPaymentId,
+      razorpaySignature
+    );
+    
+    if (!isValid) {
+      // Log failed verification attempt
+      Logger.log(`Invalid signature for payment ${razorpayPaymentId}`);
+      return createResponse({ 
+        success: false,
+        error: 'invalid_signature',
+        message: 'Payment verification failed: Invalid signature. Please contact support.' 
+      });
+    }
+    
+    // Fetch payment details from Razorpay for additional validation
+    const paymentDetails = fetchRazorpayPayment(razorpayPaymentId);
+    
+    if (paymentDetails.status !== 'captured' && paymentDetails.status !== 'authorized') {
+      return createResponse({ 
+        success: false,
+        error: 'payment_not_successful',
+        message: `Payment was not successful. Razorpay status: ${paymentDetails.status}`,
+        status: paymentDetails.status
+      });
+    }
+    
+    // Update registration in Supabase
+    const updateResult = supabaseUpdate('vim26_registrations', {
+      razorpay_order_id: `eq.${razorpayOrderId}`
+    }, {
+      razorpay_payment_id: razorpayPaymentId,
+      payment_status: 'completed',
+      payment_verified_at: new Date().toISOString(),
+      payment_signature: razorpaySignature
+    });
+    
+    if (updateResult.error) {
+      Logger.log('Supabase Update Error: ' + JSON.stringify(updateResult.error));
+      return createResponse({ 
+        success: false,
+        error: 'Database update failed',
+        message: 'Failed to update registration status in database.',
+        details: updateResult.error 
+      });
+    }
+    
+    // Fetch complete registration details
+    const registration = supabaseQuery('vim26_registrations', {
+      select: '*',
+      razorpay_payment_id: `eq.${razorpayPaymentId}`
+    });
+    
+    if (!registration.data || registration.data.length === 0) {
+      throw new Error('Registration not found after update');
+    }
+    
+    const regData = registration.data[0];
+    
+    // Send confirmation email (async, don't block response)
+    try {
+      sendConfirmationEmail(regData);
+    } catch (emailError) {
+      // Log email failure but don't fail the verification
+      Logger.log('Email send failed: ' + emailError.toString());
+      logEmailFailure(regData.registration_id, regData.email, emailError.toString());
+    }
+    
+    // Return success response
+    return createResponse({
+      success: true,
+      registrationId: regData.registration_id,
+      qrHash: regData.qr_code_hash,
+      message: 'Payment verified successfully'
+    });
+    
+  } catch (error) {
+    Logger.log('handleVerifyPayment Error: ' + error.toString());
+    return createResponse({ 
+      success: false,
+      error: 'Verification failed',
+      message: 'An internal error occurred during payment verification: ' + error.message,
+      details: error.toString() 
+    });
+  }
+}
+
+/**
+ * Verify Razorpay signature using HMAC SHA256
+ */
+function verifyRazorpaySignature(orderId, paymentId, signature) {
+  const message = orderId + '|' + paymentId;
+  const expectedSignature = Utilities.computeHmacSha256Signature(
+    message,
+    CONFIG.RAZORPAY_KEY_SECRET
+  );
+  
+  const expectedSignatureHex = expectedSignature
+    .map(byte => ('0' + (byte & 0xFF).toString(16)).slice(-2))
+    .join('');
+  
+  return expectedSignatureHex === signature;
+}
+
+/**
+ * Fetch payment details from Razorpay
+ */
+function fetchRazorpayPayment(paymentId) {
+  const url = `https://api.razorpay.com/v1/payments/${paymentId}`;
+  
+  const options = {
+    method: 'get',
+    headers: {
+      'Authorization': 'Basic ' + Utilities.base64Encode(
+        CONFIG.RAZORPAY_KEY_ID + ':' + CONFIG.RAZORPAY_KEY_SECRET
+      )
+    },
+    muteHttpExceptions: true
+  };
+  
+  const response = UrlFetchApp.fetch(url, options);
+  const responseCode = response.getResponseCode();
+  const responseData = JSON.parse(response.getContentText());
+  
+  if (responseCode !== 200) {
+    throw new Error('Failed to fetch payment details: ' + JSON.stringify(responseData));
+  }
+  
+  return responseData;
+}
+
+/**
+ * Check if payment has already been verified
+ */
+function checkExistingVerification(paymentId) {
+  const result = supabaseQuery('vim26_registrations', {
+    select: 'registration_id,payment_status',
+    razorpay_payment_id: `eq.${paymentId}`,
+    payment_status: 'eq.completed'
+  });
+  
+  if (result.data && result.data.length > 0) {
+    return result.data[0];
+  }
+  
+  return null;
+}
+
+/**
+ * Razorpay Webhook Handler - Safety Net for Missed Client Callbacks
+ * Catches payments that succeed but don't complete due to browser closure
+ */
+function handleRazorpayWebhook(params) {
+  try {
+    const { event, payload } = params;
+    
+    // Only process payment.captured events
+    if (event !== 'payment.captured') {
+      return createResponse({ success: true, message: 'Event ignored' });
+    }
+    
+    const payment = payload.payment || {};
+    const orderId = payment.order_id;
+    const paymentId = payment.id;
+    
+    if (!orderId || !paymentId) {
+      Logger.log('Webhook: Missing order_id or payment_id');
+      return createResponse({ success: true, message: 'Invalid payload' });
+    }
+    
+    // Find registration by order_id
+    const regResult = supabaseQuery('vim26_registrations', {
+      razorpay_order_id: `eq.${orderId}`,
+      select: 'registration_id,email,payment_status,email_sent,first_name,last_name'
+    });
+    
+    if (!regResult.data || regResult.data.length === 0) {
+      Logger.log('Webhook: Order not found: ' + orderId);
+      return createResponse({ success: true, message: 'Order not found' });
+    }
+    
+    const registration = regResult.data[0];
+    
+    // If already completed, skip (client callback already processed)
+    if (registration.payment_status === 'completed') {
+      Logger.log('Webhook: Already completed: ' + registration.registration_id);
+      return createResponse({ success: true, message: 'Already processed' });
+    }
+    
+    // Update payment status
+    const updateResult = supabaseUpdate('vim26_registrations', {
+      registration_id: `eq.${registration.registration_id}`
+    }, {
+      payment_status: 'completed',
+      razorpay_payment_id: paymentId,
+      updated_at: new Date().toISOString()
+    });
+    
+    if (updateResult.error) {
+      Logger.log('Webhook: Update failed: ' + JSON.stringify(updateResult.error));
+      return createResponse({ error: 'Update failed' }, 500);
+    }
+    
+    // Send email if not already sent (safety net)
+    if (!registration.email_sent) {
+      Logger.log('Webhook: Sending missed email for ' + registration.registration_id);
+      
+      // Fetch full registration data for email
+      const fullReg = supabaseQuery('vim26_registrations', {
+        registration_id: `eq.${registration.registration_id}`,
+        select: '*'
+      });
+      
+      if (fullReg.data && fullReg.data.length > 0) {
+        sendConfirmationEmail(fullReg.data[0]);
+      }
+    }
+    
+    Logger.log('Webhook: Successfully processed payment for ' + registration.registration_id);
+    return createResponse({ success: true, message: 'Payment processed' });
+    
+  } catch (e) {
+    Logger.log('Webhook Error: ' + e.toString());
+    return createResponse({ error: e.toString() }, 500);
+  }
+}
+
+// ============================================================================
+// SECTION 5: STATUS CHECK
+// ============================================================================
+
+/**
+ * Check registration status by email or registration ID
+ * Returns full registration details for ticket regeneration
+ */
+function handleCheckStatus(params) {
+  try {
+    const { email, registrationId } = params;
+    
+    if (!email && !registrationId) {
+      return createResponse({ error: 'Email or registration ID required' }, 400);
+    }
+    
+    let query = {
+      select: 'registration_id,first_name,last_name,email,mobile,college_name,zone_name,payment_category,amount_paid,payment_status,qr_code_hash,razorpay_order_id,razorpay_payment_id,email_sent,created_at'
+    };
+    
+    if (registrationId) {
+      query.registration_id = `eq.${registrationId}`;
+    } else {
+      query.email = `ilike.${email}`;
+    }
+    
+    const result = supabaseQuery('vim26_registrations', query);
+    
+    if (!result.data || result.data.length === 0) {
+      return createResponse({ 
+        success: true,
+        found: false,
+        message: 'No registration found' 
+      });
+    }
+    
+    return createResponse({
+      success: true,
+      found: true,
+      registrations: result.data
+    });
+    
+  } catch (error) {
+    Logger.log('handleCheckStatus Error: ' + error.toString());
+    return createResponse({ 
+      success: false,
+      error: 'Status check failed',
+      message: error.message,
+      details: error.toString() 
+    });
+  }
+}
+
+// ============================================================================
+// SECTION 6: CHECK-IN SYSTEM
+// ============================================================================
+
+/**
+ * Handle QR Scan Check-in
+ * Guaranteed atomic via Supabase Row Locking (FOR UPDATE)
+ */
+function handleCheckIn(params) {
+  try {
+    const { qrHash, adminId, sessionToken, userAgent } = params;
+
+    if (!qrHash || !adminId || !sessionToken) {
+      return createResponse({ 
+        success: false, 
+        error: 'Missing required parameters' 
+      }, 400);
+    }
+
+    // 1. Verify Session and Admin Role
+    const session = verifySessionToken(adminId, sessionToken);
+    if (!session.valid) {
+      return createResponse({ 
+        success: false, 
+        status: 'unauthorized',
+        message: 'Your session has expired or is invalid. Please login again.' 
+      }, 401);
+    }
+
+    const admin = session.admin;
+
+    // 2. Call Atomic Check-in RPC
+    const rpcResult = supabaseRPC('vim26_atomic_check_in', {
+      p_qr_hash: qrHash,
+      p_admin_id: adminId,
+      p_user_agent: userAgent || 'Portal'
+    });
+
+    if (rpcResult.error) {
+      Logger.log('Check-in RPC Error: ' + JSON.stringify(rpcResult.error));
+      return createResponse({ 
+        success: false, 
+        status: 'error',
+        message: 'Internal Database Error during check-in',
+        details: rpcResult.error
+      }, 500);
+    }
+
+    // RPC returns JSON already if supabaseRPC is fixed
+    const statusData = rpcResult.data;
+    
+    // Format response for the frontend
+    const isSuccess = statusData.status === 'success';
+    
+    return createResponse({
+      success: isSuccess,
+      status: statusData.status,
+      action: statusData.action,
+      message: statusData.message,
+      participant: isSuccess && statusData.participant ? {
+        name: statusData.participant.name,
+        registrationId: statusData.participant.registrationId,
+        college: statusData.participant.college
+      } : null
+    });
+
+  } catch (error) {
+    Logger.log('handleCheckIn Error: ' + error.toString());
+    return createResponse({ 
+      success: false, 
+      error: 'Check-in processing failed',
+      details: error.toString() 
+    }, 500);
+  }
+}
+
+/**
+ * Verify a session token and return admin info
+ */
+function verifySessionToken(adminId, token) {
+  try {
+    const decoded = verifySignedToken(token);
+    if (!decoded || decoded.id !== adminId || decoded.otp !== 'SESSION') {
+      return { valid: false };
+    }
+
+    if (new Date() > new Date(decoded.expiry)) {
+      return { valid: false };
+    }
+
+    const admin = verifyAdmin(adminId);
+    if (!admin) return { valid: false };
+
+    return { valid: true, admin: admin };
+  } catch (e) {
+    return { valid: false };
+  }
+}
+
+/**
+ * Get Comprehensive Dashboard Stats (Tech Head Only)
+ */
+function handleGetStats(params) {
+  const { adminId, sessionToken } = params;
+  
+  const session = verifySessionToken(adminId, sessionToken);
+  if (!session.valid || (session.admin.role !== 'tech_head' && session.admin.role !== 'super_admin')) {
+    return createResponse({ error: 'Unauthorized' }, 403);
+  }
+
+  try {
+    // 1. Core Counters (Select necessary fields for filtering/aggregation)
+    const totalData = supabaseQuery('vim26_registrations', { select: 'id', payment_status: 'eq.completed' }).data || [];
+    const inData = supabaseQuery('vim26_registrations', { 
+      select: 'zone_name,kit_issued,wristband_issued', 
+      payment_status: 'eq.completed', 
+      checked_in: 'eq.true' 
+    }).data || [];
+
+    // 2. Recent Activity Feed (Last 15 check-ins)
+    const recentActivity = supabaseQuery('vim26_registrations', { 
+      select: 'first_name,last_name,registration_id,college_name,zone_name,checked_in_at,wristband_issued,kit_issued',
+      payment_status: 'eq.completed',
+      checked_in: 'eq.true',
+      order: 'checked_in_at.desc',
+      limit: 15
+    }).data || [];
+
+    // 3. Overall Inventory & Zone Stats
+    const zoneStats = {};
+    let kitsIssued = 0;
+    let wristbandsIssued = 0;
+
+    inData.forEach(p => {
+      // Zone Aggregation
+      if (p.zone_name) {
+        zoneStats[p.zone_name] = (zoneStats[p.zone_name] || 0) + 1;
+      }
+      // Item Tally
+      if (p.kit_issued) kitsIssued++;
+      if (p.wristband_issued) wristbandsIssued++;
+    });
+
+    const total = totalData.length;
+    const checkedIn = inData.length;
+
+    // 4. Day-wise Breakdown (for Tech Head/Super Admin analytics)
+    const dayWiseBreakdown = getDayWiseBreakdown();
+
+    return createResponse({
+      success: true,
+      stats: {
+        total: total,
+        checkedIn: checkedIn,
+        remaining: Math.max(0, total - checkedIn),
+        kits: kitsIssued,
+        wristbands: wristbandsIssued
+      },
+      recentActivity: recentActivity,
+      zoneStats: zoneStats,
+      dayWiseBreakdown: dayWiseBreakdown
+    });
+  } catch (e) {
+    Logger.log('handleGetStats Error: ' + e.toString());
+    return createResponse({ error: e.toString() }, 500);
+  }
+}
+
+/**
+ * Get Day-wise Breakdown of Check-ins
+ * Organizes check-in data by: Day → Zone → College → Payment Category
+ * @returns {Object} Hierarchical breakdown object
+ */
+function getDayWiseBreakdown() {
+  try {
+    // Fetch all checked-in registrations with necessary fields
+    const checkedInData = supabaseQuery('vim26_registrations', {
+      select: 'checked_in_at,zone_name,college_name,payment_category',
+      payment_status: 'eq.completed',
+      checked_in: 'eq.true',
+      order: 'checked_in_at.desc'
+    });
+
+    if (checkedInData.error || !checkedInData.data) {
+      Logger.log('getDayWiseBreakdown Error: ' + JSON.stringify(checkedInData.error));
+      return {};
+    }
+
+    const breakdown = {};
+
+    // Process each check-in record
+    checkedInData.data.forEach(record => {
+      if (!record.checked_in_at) return; // Skip if no timestamp
+
+      // Extract date (YYYY-MM-DD format)
+      const checkInDate = record.checked_in_at.split('T')[0];
+      const zoneName = record.zone_name || 'Unknown Zone';
+      const collegeName = record.college_name || 'Unknown College';
+      const category = record.payment_category || 'Other';
+
+      // Initialize day if not exists
+      if (!breakdown[checkInDate]) {
+        breakdown[checkInDate] = {
+          total: 0,
+          zones: {}
+        };
+      }
+
+      // Initialize zone if not exists
+      if (!breakdown[checkInDate].zones[zoneName]) {
+        breakdown[checkInDate].zones[zoneName] = {
+          total: 0,
+          colleges: {}
+        };
+      }
+
+      // Initialize college if not exists
+      if (!breakdown[checkInDate].zones[zoneName].colleges[collegeName]) {
+        breakdown[checkInDate].zones[zoneName].colleges[collegeName] = {
+          total: 0,
+          categories: {}
+        };
+      }
+
+      // Initialize category if not exists
+      if (!breakdown[checkInDate].zones[zoneName].colleges[collegeName].categories[category]) {
+        breakdown[checkInDate].zones[zoneName].colleges[collegeName].categories[category] = 0;
+      }
+
+      // Increment counters
+      breakdown[checkInDate].total++;
+      breakdown[checkInDate].zones[zoneName].total++;
+      breakdown[checkInDate].zones[zoneName].colleges[collegeName].total++;
+      breakdown[checkInDate].zones[zoneName].colleges[collegeName].categories[category]++;
+    });
+
+    return breakdown;
+
+  } catch (e) {
+    Logger.log('getDayWiseBreakdown Exception: ' + e.toString());
+    return {};
+  }
+}
+
+/**
+ * Get Member Stats (Read-Only for Check-in Staff)
+ * Provides lightweight operational visibility without modification capabilities
+ * @param {Object} params - Request parameters
+ * @returns {Object} Member-specific stats (today's total, recent check-ins, zone counts)
+ */
+function handleGetMemberStats(params) {
+  const { adminId, sessionToken } = params;
+  
+  // Verify session (any authenticated admin can access, but we'll return member-appropriate data)
+  const session = verifySessionToken(adminId, sessionToken);
+  if (!session.valid) {
+    return createResponse({ error: 'Unauthorized' }, 403);
+  }
+
+  try {
+    // Get today's date in YYYY-MM-DD format
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    
+    // 1. Get today's total check-ins (lightweight query)
+    const todayCheckIns = supabaseQuery('vim26_registrations', {
+      select: 'id,zone_name',
+      payment_status: 'eq.completed',
+      checked_in: 'eq.true',
+      checked_in_at: `gte.${todayStr}T00:00:00`
+    });
+
+    const todayTotal = todayCheckIns.data ? todayCheckIns.data.length : 0;
+
+    // 2. Calculate zone-wise counts for today
+    const zoneCounts = {};
+    if (todayCheckIns.data) {
+      todayCheckIns.data.forEach(record => {
+        const zone = record.zone_name || 'Unknown';
+        zoneCounts[zone] = (zoneCounts[zone] || 0) + 1;
+      });
+    }
+
+    // 3. Get recent check-ins (last 10, for activity feed)
+    const recentActivity = supabaseQuery('vim26_registrations', {
+      select: 'first_name,last_name,registration_id,college_name,zone_name,checked_in_at',
+      payment_status: 'eq.completed',
+      checked_in: 'eq.true',
+      order: 'checked_in_at.desc',
+      limit: 10
+    });
+
+    // Format recent activity for display
+    const recentCheckIns = (recentActivity.data || []).map(record => ({
+      name: `${record.first_name} ${record.last_name}`,
+      registrationId: record.registration_id,
+      college: record.college_name,
+      zone: record.zone_name,
+      time: new Date(record.checked_in_at).toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: true 
+      })
+    }));
+
+    return createResponse({
+      success: true,
+      memberStats: {
+        todayTotal: todayTotal,
+        zoneCounts: zoneCounts,
+        recentCheckIns: recentCheckIns,
+        lastUpdated: new Date().toISOString()
+      }
+    });
+
+  } catch (e) {
+    Logger.log('handleGetMemberStats Error: ' + e.toString());
+    return createResponse({ error: e.toString() }, 500);
+  }
+}
+
+/**
+ * Export All Registrations (Tech Head Only)
+ */
+function handleExportRegistrations(params) {
+  const { adminId, sessionToken } = params;
+  const session = verifySessionToken(adminId, sessionToken);
+  if (!session.valid || (session.admin.role !== 'tech_head' && session.admin.role !== 'super_admin')) {
+    return createResponse({ error: 'Unauthorized' }, 403);
+  }
+
+  try {
+    const result = supabaseQuery('vim26_registrations', { 
+      select: '*',
+      order: 'created_at.asc'
+    });
+    return createResponse({ success: true, data: result.data || [] });
+  } catch (e) {
+    return createResponse({ error: e.toString() }, 500);
+  }
+}
+
+/**
+ * Export Check-in Logs (Tech Head Only)
+ */
+function handleExportLogs(params) {
+  const { adminId, sessionToken } = params;
+  const session = verifySessionToken(adminId, sessionToken);
+  if (!session.valid || (session.admin.role !== 'tech_head' && session.admin.role !== 'super_admin')) {
+    return createResponse({ error: 'Unauthorized' }, 403);
+  }
+
+  try {
+    const result = supabaseQuery('vim26_check_in_logs', { 
+      select: '*,vim26_registrations(first_name,last_name)',
+      order: 'timestamp.desc'
+    });
+    return createResponse({ success: true, data: result.data || [] });
+  } catch (e) {
+    return createResponse({ error: e.toString() }, 500);
+  }
+}
+
+/**
+ * Update Participant Status (Tech Head Only)
+ */
+function handleUpdateParticipantStatus(params) {
+  const { adminId, sessionToken, registrationId, field, value } = params;
+  
+  const session = verifySessionToken(adminId, sessionToken);
+  if (!session.valid || (session.admin.role !== 'tech_head' && session.admin.role !== 'super_admin')) {
+    return createResponse({ error: 'Unauthorized: Tech Head access required' }, 403);
+  }
+
+  const result = supabaseUpdate('vim26_registrations', {
+    registration_id: `eq.${registrationId}`
+  }, {
+    [field]: value,
+    updated_at: new Date().toISOString()
+  });
+
+  if (result.error) return createResponse({ error: 'Update failed' }, 500);
+  return createResponse({ success: true, message: 'Updated successfully' });
+}
+
+/**
+ * Batch Update Status (Tech Head Only) - Mark all checked-in as issued
+ */
+function handleBatchUpdateStatus(params) {
+  const { adminId, sessionToken, field, value } = params;
+  
+  const session = verifySessionToken(adminId, sessionToken);
+  if (!session.valid || (session.admin.role !== 'tech_head' && session.admin.role !== 'super_admin')) {
+    return createResponse({ error: 'Unauthorized: Tech Head access required' }, 403);
+  }
+
+  // Validate field
+  if (!['kit_issued', 'wristband_issued'].includes(field)) {
+    return createResponse({ error: 'Invalid field' }, 400);
+  }
+
+  try {
+    // Update all checked-in participants
+    const result = supabaseUpdate('vim26_registrations', {
+      checked_in: 'eq.true',
+      payment_status: 'eq.completed'
+    }, {
+      [field]: value,
+      updated_at: new Date().toISOString()
+    });
+
+    if (result.error) {
+      Logger.log('Batch update error: ' + JSON.stringify(result.error));
+      return createResponse({ error: 'Batch update failed' }, 500);
+    }
+
+    return createResponse({ 
+      success: true, 
+      message: `Batch updated all checked-in participants: ${field} = ${value}` 
+    });
+  } catch (e) {
+    return createResponse({ error: e.toString() }, 500);
+  }
+}
+
+/**
+ * Search Registrations (Tech Head Only)
+ */
+function handleSearchRegistrations(params) {
+  const { query, adminId, sessionToken } = params;
+  
+  const session = verifySessionToken(adminId, sessionToken);
+  if (!session.valid || (session.admin.role !== 'tech_head' && session.admin.role !== 'super_admin')) {
+    return createResponse({ error: 'Unauthorized' }, 403);
+  }
+
+  try {
+    const result = supabaseQuery('vim26_registrations', {
+      select: 'first_name,last_name,email,registration_id,checked_in,checked_in_at,wristband_issued,kit_issued',
+      or: `(first_name.ilike.*${query}*,last_name.ilike.*${query}*,email.ilike.*${query}*,registration_id.ilike.*${query}*)`,
+      limit: 15
+    });
+
+    return createResponse({
+      success: true,
+      results: result.data || []
+    });
+  } catch (e) {
+    return createResponse({ error: e.toString() }, 500);
+  }
+}
+
+/**
+ * Utility: Create a signed JWT-like token
+ */
+function createSignedToken(id, otp, expiry) {
+  const payload = JSON.stringify({ id, otp, expiry });
+  const signature = Utilities.computeHmacSha256Signature(payload, CONFIG.SESSION_SECRET);
+  const signatureHex = signature.map(b => ('0' + (b & 0xFF).toString(16)).slice(-2)).join('');
+  return Utilities.base64EncodeWebSafe(payload) + '.' + signatureHex;
+}
+
+/**
+ * Utility: Verify a signed token
+ */
+function verifySignedToken(token) {
+  const parts = token.split('.');
+  if (parts.length !== 2) return null;
+
+  const payloadStr = Utilities.newBlob(Utilities.base64DecodeWebSafe(parts[0])).getDataAsString();
+  const expectedSignature = Utilities.computeHmacSha256Signature(payloadStr, CONFIG.SESSION_SECRET);
+  const signatureHex = expectedSignature.map(b => ('0' + (b & 0xFF).toString(16)).slice(-2)).join('');
+
+  if (signatureHex !== parts[1]) return null;
+  return JSON.parse(payloadStr);
+}
+
+/**
+ * Helper to verify admin status
+ */
+function verifyAdmin(adminId) {
+  const result = supabaseQuery('vim26_admin_users', {
+    select: 'id,role,active',
+    id: `eq.${adminId}`,
+    active: 'eq.true'
+  });
+  
+  if (result.data && result.data.length > 0) {
+    return result.data[0];
+  }
+  return null;
+}
+
+// ============================================================================
+// SECTION 6.5: TICKET GENERATION
+// ============================================================================
+
+/**
+ * Handle ticket HTML generation request from frontend
+ * Returns pre-filled HTML template for client-side PDF conversion
+ */
+function handleGenerateTicketHTML(params) {
+  try {
+
+    const registrationId = params.registrationId;
+    const firstName = params.firstName;
+    const lastName = params.lastName;
+    const collegeName = params.collegeName;
+    const zoneName = params.zoneName;
+    const qrCodeHash = params.qrCodeHash;
+
+    const result = generateTicketHTML({
+      registrationId,
+      firstName,
+      lastName,
+      collegeName,
+      zoneName,
+      qrCodeHash
+    });
+
+    return ContentService.createTextOutput(JSON.stringify(result))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch (e) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success:false,
+      error:e.toString()
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+/**
+ * Generate complete HTML for ticket with data injected
+ * Uses inline template with variable substitution
+ * Returns HTML string ready for client-side PDF conversion
+ */
+function generateTicketHTML(data) {
+  try {
+    const {
+      registrationId,
+      firstName,
+      lastName,
+      collegeName,
+      zoneName,
+      qrCodeHash
+    } = data;
+    
+    // Format display values
+    const participantName = `${firstName} ${lastName}`.trim();
+    const collegeInfo = collegeName || 'N/A';
+    const zoneInfo = zoneName || 'N/A';
+    const ticketId = registrationId;
+    
+    // Generate QR Code URL - SAME PARAMETERS AS EMAIL
+    // Email uses: size=350&margin=1&ecLevel=H
+    const qrCodeUrl = `https://quickchart.io/qr?text=${encodeURIComponent(qrCodeHash)}&size=350&margin=1&ecLevel=H`;
+    
+    Logger.log('Generating ticket HTML with:');
+    Logger.log('  Registration ID → ' + ticketId);
+    Logger.log('  Participant Name → ' + participantName);
+    Logger.log('  College → ' + collegeInfo);
+    Logger.log('  Zone → ' + zoneInfo);
+    Logger.log('  QR Code Hash → ' + qrCodeHash);
+    Logger.log('  QR Code URL → ' + qrCodeUrl);
+    
+    // Get inline template and process it
+    let ticketHTML = getInlineTicketTemplate({
+      registrationId: ticketId,
+      firstName: firstName,
+      lastName: lastName,
+      collegeName: collegeInfo,
+      zoneName: zoneInfo,
+      qrCodeHash: qrCodeHash,
+      qrCodeUrl: qrCodeUrl
+    });
+    
+    Logger.log('✅ Ticket HTML generated successfully. Length: ' + ticketHTML.length + ' characters');
+    
+    return {
+      success: true,
+      html: ticketHTML
+    };
+    
+  } catch (error) {
+    Logger.log('generateTicketHTML Error: ' + error.toString());
+    return {
+      success: false,
+      error: 'Failed to generate ticket HTML',
+      message: error.toString()
+    };
+  }
+}
+
+/**
+ * Get inline ticket template with variable substitution
+ * FINAL FIX: No writing-mode, no rotation — sidebar uses stacked horizontal text
+ * @param {Object} vars - Variables to inject into template
+ * @returns {String} - Complete HTML with variables substituted
+ */
+function getInlineTicketTemplate(vars) {
+  const template = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vimarsh 2026 - Event Ticket</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;500;600;700&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body, html {
+            width: 100%;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #e8e0d8;
+            font-family: 'Inter', sans-serif;
+            padding: 20px;
+        }
+
+        /* ── TICKET: always landscape, never wraps ─────────────────────── */
+        .ticket {
+            width: 100%;
+            max-width: 860px;
+            /* aspect-ratio keeps height proportional to width */
+            aspect-ratio: 860 / 290;
+            display: flex;
+            flex-direction: row;
+            background: #fffaf5;
+            border: 5px solid #8b0000;
+            border-radius: 12px;
+            box-shadow: 0 16px 48px rgba(139,0,0,0.25);
+            overflow: hidden;
+            /* Prevent any shrinking that causes portrait */
+            min-width: 500px;
+        }
+
+        /* ── LEFT SIDEBAR: stacked text, no rotation ───────────────────── */
+        .ticket-sidebar {
+            width: 140px;
+            min-width: 140px;
+            max-width: 140px;
+            flex-shrink: 0;
+            background: #8b0000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 18px 12px;
+            gap: 8px;
+            border-right: 3px solid rgba(245,233,218,0.5);
+            position: relative;
+        }
+
+        /* Top & bottom decorative dashes */
+        .ticket-sidebar::before,
+        .ticket-sidebar::after {
+            content: '';
+            position: absolute;
+            left: 0; right: 0;
+            height: 3px;
+            background: repeating-linear-gradient(
+                90deg,
+                rgba(245,233,218,0.6) 0px, rgba(245,233,218,0.6) 8px,
+                transparent 8px, transparent 16px
+            );
+        }
+        .ticket-sidebar::before { top: 0; }
+        .ticket-sidebar::after  { bottom: 0; }
+
+        /* Circle logo */
+        .event-logo {
+            width: 48px;
+            height: 48px;
+            background: #fffaf5;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Playfair Display', serif;
+            font-weight: 900;
+            font-size: 22px;
+            color: #8b0000;
+            border: 2px solid rgba(245,233,218,0.7);
+            flex-shrink: 0;
+        }
+
+        /* Horizontal divider */
+        .sidebar-divider {
+            width: 60%;
+            height: 1px;
+            background: rgba(245,233,218,0.35);
+        }
+
+        /* VIMARSH — stacked horizontally, fits sidebar width perfectly */
+        .sidebar-brand {
+            font-family: 'Playfair Display', serif;
+            font-size: 22px;
+            font-weight: 900;
+            color: #ffffff;
+            letter-spacing: 3px;
+            text-align: center;
+            line-height: 1;
+            text-transform: uppercase;
+            /* Slightly shrink if needed but never overflow */
+            white-space: nowrap;
+            transform: scaleX(0.95);
+        }
+
+        .sidebar-year {
+            font-family: 'Playfair Display', serif;
+            font-size: 15px;
+            font-weight: 700;
+            color: rgba(245,233,218,0.9);
+            letter-spacing: 5px;
+            text-align: center;
+        }
+
+        .sidebar-tagline {
+            font-size: 6.5px;
+            color: rgba(245,233,218,0.55);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            text-align: center;
+            line-height: 1.7;
+        }
+
+        /* ── MIDDLE: Participant info ───────────────────────────────────── */
+        .ticket-info {
+            flex: 1;
+            padding: 20px 26px;
+            background: #ffffff;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            border-right: 2px dashed #ddd0be;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .admit-label {
+            display: inline-block;
+            background: #8b0000;
+            color: white;
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 8px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            align-self: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .name-block {
+            padding-bottom: 10px;
+            border-bottom: 1.5px solid #f5e9da;
+            margin-bottom: 12px;
+        }
+
+        .field-label {
+            font-size: 8px;
+            font-weight: 700;
+            color: #8b0000;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .participant-name {
+            font-family: 'Playfair Display', serif;
+            font-size: 22px;
+            font-weight: 700;
+            color: #8b0000;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            line-height: 1.1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .info-row {
+            display: flex;
+            gap: 36px;
+        }
+
+        .info-item { display: flex; flex-direction: column; gap: 3px; }
+
+        .info-content {
+            font-size: 12px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .registration-footer {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1.5px solid #f5e9da;
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+        }
+
+        .reg-id {
+            font-size: 11px;
+            font-weight: 700;
+            color: #8b0000;
+            letter-spacing: 1px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 62%;
+        }
+
+        .reg-label {
+            font-size: 7px;
+            color: #aaa;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-top: 2px;
+        }
+
+        .footer-dates { text-align: right; flex-shrink: 0; }
+
+        .footer-date-text {
+            font-size: 10px;
+            font-weight: 700;
+            color: #8b0000;
+            letter-spacing: 1px;
+            white-space: nowrap;
+        }
+
+        .footer-org-text {
+            font-size: 7px;
+            color: #bbb;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 2px;
+        }
+
+        /* ── RIGHT: QR panel ────────────────────────────────────────────── */
+        .ticket-qr {
+            width: 180px;
+            min-width: 180px;
+            max-width: 180px;
+            flex-shrink: 0;
+            background: #fffaf5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 16px 14px;
+            gap: 8px;
+            position: relative;
+        }
+
+        /* Notch */
+        .ticket-qr::before {
+            content: '';
+            position: absolute;
+            left: -10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 18px;
+            height: 18px;
+            background: #e8e0d8;
+            border-radius: 50%;
+            border: 3px solid #8b0000;
+            z-index: 10;
+        }
+
+        .qr-title {
+            font-size: 7.5px;
+            font-weight: 700;
+            color: #8b0000;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            text-align: center;
+        }
+
+        .qr-container {
+            background: white;
+            padding: 9px;
+            border-radius: 8px;
+            border: 3px solid #8b0000;
+            box-shadow: 0 4px 14px rgba(139,0,0,0.15);
+        }
+
+        .qr-container img {
+            display: block;
+            width: 110px;
+            height: 110px;
+        }
+
+        .qr-instruction {
+            font-size: 7px;
+            color: #999;
+            text-align: center;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="ticket">
+
+        <!-- LEFT: Sidebar — stacked horizontal text, zero rotation -->
+        <div class="ticket-sidebar">
+            <div class="event-logo">V</div>
+            <div class="sidebar-divider"></div>
+            <div class="sidebar-brand">VIMARSH</div>
+            <div class="sidebar-year">2026</div>
+            <div class="sidebar-divider"></div>
+            <div class="sidebar-tagline">National<br>Youth<br>Conclave</div>
+        </div>
+
+        <!-- MIDDLE: Participant Info -->
+        <div class="ticket-info">
+            <div>
+                <div class="admit-label">Entry Pass</div>
+                <div class="name-block">
+                    <div class="field-label">Participant Name</div>
+                    <div class="participant-name">\${firstName} \${lastName}</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-item">
+                        <div class="field-label">Institution</div>
+                        <div class="info-content">\${collegeName}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="field-label">Zone</div>
+                        <div class="info-content">\${zoneName}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="registration-footer">
+                <div>
+                    <div class="reg-id">#\${registrationId}</div>
+                    <div class="reg-label">Registration Number</div>
+                </div>
+                <div class="footer-dates">
+                    <div class="footer-date-text">11 – 13 JULY 2026</div>
+                    <div class="footer-org-text">Youth United For Vision &amp; Action</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: QR Code -->
+        <div class="ticket-qr">
+            <div class="qr-title">Entry Verification</div>
+            <div class="qr-container">
+                <img src="\${qrCodeUrl}" alt="QR Code">
+            </div>
+            <div class="qr-instruction">Present this QR code at the venue entrance</div>
+        </div>
+
+    </div>
+</body>
+</html>`;
+
+  let html = template;
+  html = html.replace(/\$\{registrationId\}/g, String(vars.registrationId || ''));
+  html = html.replace(/\$\{firstName\}/g,      String(vars.firstName     || ''));
+  html = html.replace(/\$\{lastName\}/g,       String(vars.lastName      || ''));
+  html = html.replace(/\$\{collegeName\}/g,    String(vars.collegeName   || ''));
+  html = html.replace(/\$\{zoneName\}/g,       String(vars.zoneName      || ''));
+  html = html.replace(/\$\{qrCodeUrl\}/g,      String(vars.qrCodeUrl     || ''));
+
+  return html;
+}
+
+// ============================================================================
+// SECTION 7: EMAIL DELIVERY
+// ============================================================================
+
+/**
+ * Send confirmation email with ticket
+ */
+function sendConfirmationEmail(registration) {
+  const subject = `Vimarsh 2026 Registration Confirmed - ${registration.registration_id}`;
+  const htmlBody = generateEmailTemplate(registration);
+
+  try {
+    GmailApp.sendEmail(
+      registration.email,
+      subject,
+      '', // Plain text body
+      { 
+        htmlBody: htmlBody, 
+        name: CONFIG.EMAIL_FROM 
+      }
+    );
+
+    Logger.log(`📧 Email sent to ${registration.email}. Attempting database status update...`);
+    Logger.log(`Target Registration ID: [${registration.registration_id}]`);
+
+    // Prepare update payload
+    const updatePayload = {
+      email_sent: true,
+      email_sent_at: new Date().toISOString()
+    };
+
+    Logger.log(`Update Payload: ${JSON.stringify(updatePayload)}`);
+
+    // Update email_sent flag
+    const updateResult = supabaseUpdate('vim26_registrations', {
+      registration_id: `eq.${registration.registration_id}`
+    }, updatePayload);
+
+    if (updateResult.error) {
+      Logger.log(`❌ DATABASE UPDATE FAILED for ${registration.registration_id}: ${JSON.stringify(updateResult.error)}`);
+    } else if (!updateResult.data || updateResult.data.length === 0) {
+      Logger.log(`⚠️ DATABASE UPDATE SILENTLY FAILED: No rows updated for ID [${registration.registration_id}].`);
+      Logger.log(`Potential causes: 1. Row not found (ID mismatch) 2. Trigger intervention 3. RLS constraint`);
+    } else {
+      Logger.log(`✅ DATABASE UPDATED SUCCESSFULLY: email_sent=true for ${registration.registration_id}`);
+    }
+
+  } catch (error) {
+    Logger.log(`❌ Fatal Email Error: ${error.toString()}`);
+    logEmailFailure(registration, error.toString());
+    throw new Error('Email delivery failed: ' + error.toString());
+  }
+}
+
+/**
+ * Generate email HTML template
+ */
+function generateEmailTemplate(reg) {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+    .ticket { background: white; padding: 20px; margin: 20px 0; border-left: 4px solid #667eea; }
+    .qr-section { text-align: center; margin: 20px 0; padding: 20px; background: white; }
+    .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #666; }
+    .btn { display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 10px 0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Welcome to Vimarsh 2026!</h1>
+      <p>Your registration is confirmed</p>
+    </div>
+    <div class="content">
+      <p>Dear ${reg.first_name} ${reg.last_name},</p>
+      
+      <p>Thank you for registering for <strong>Vimarsh 2026</strong>! We're excited to have you join us.</p>
+      
+      <div class="ticket">
+        <h3>Registration Details</h3>
+        <p><strong>Registration ID:</strong> ${reg.registration_id}</p>
+        <p><strong>Name:</strong> ${reg.first_name} ${reg.last_name}</p>
+        <p><strong>Email:</strong> ${reg.email}</p>
+        <p><strong>Mobile:</strong> ${reg.mobile}</p>
+        <p><strong>College:</strong> ${reg.college_name}</p>
+        <p><strong>Zone:</strong> ${reg.zone_name}</p>
+        <p><strong>Category:</strong> ${reg.payment_category}</p>
+        <p><strong>Amount Paid:</strong> ₹${reg.amount_paid}</p>
+      </div>
+              <!-- QR Code Section -->
+              <div style="text-align: center; margin: 30px 0; background-color: #f9f9f9; padding: 25px; border-radius: 15px;">
+                  <p style="margin-bottom: 15px; font-weight: bold; color: #333;">Your Event QR Code</p>
+                  <p style="font-size: 14px; color: #666; margin-bottom: 20px;">Show this QR code at the venue for check-in:</p>
+                  
+                  <div style="background: white; padding: 15px; display: inline-block; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 90%;">
+                      <img src="https://quickchart.io/qr?text=${encodeURIComponent(reg.qr_code_hash)}&size=350&margin=1&ecLevel=H" 
+                           alt="QR Code" 
+                           style="display: block; width: 100%; max-width: 280px; height: auto; margin: 0 auto;" />
+                  </div>
+                  
+                  <div style="margin-top: 25px; text-align: left; font-size: 14px; color: #555; background: #fff; padding: 15px; border-radius: 10px; border-left: 4px solid #8b0000;">
+                      <strong style="display: block; margin-bottom: 8px;">Important:</strong>
+                      <ul style="margin: 0; padding-left: 20px;">
+                          <li style="margin-bottom: 5px;">Save this email for your records</li>
+                          <li style="margin-bottom: 5px;">Bring a printed or digital copy of the QR code to the event</li>
+                          <li>Carry a valid ID proof</li>
+                      </ul>
+                  </div>
+              </div>See you at Vimarsh 2026!</p>
+      
+      <div class="footer">
+        <p>Youth United For Vision & Action | Vimarsh 2026</p>
+        <p>For queries, contact: support@yuva.ind.in</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+}
+
+/**
+ * Log email failure to Supabase
+ */
+function logEmailFailure(registration, errorMessage) {
+  const registrationId = registration.registration_id;
+  const email = registration.email;
+  const currentRetries = registration.email_retry_count || 0;
+
+  // 1. Log to failures table
+  supabaseInsert('vim26_email_failures', {
+    registration_id: registrationId,
+    email: email,
+    error_message: errorMessage,
+    attempts: 1,
+    resolved: false
+  });
+
+  // 2. Increment retry count in main table
+  supabaseUpdate('vim26_registrations', {
+    registration_id: `eq.${registrationId}`
+  }, {
+    email_retry_count: currentRetries + 1
+  });
+
+  Logger.log(`⚠️ Email failure logged for ${registrationId}. Retry count incremented to ${currentRetries + 1}.`);
+}
+
+// ============================================================================
+// SECTION 7: SCHEDULED TASKS (Time-based Triggers)
+// ============================================================================
+
+/**
+ * Retry failed emails (Run every 2 hours)
+ * Setup: Create time-driven trigger for this function
+ */
+function retryFailedEmails() {
+  try {
+    // Fetch unresolved email failures
+    const failures = supabaseQuery('vim26_email_failures', {
+      select: 'id,registration_id,email,attempts',
+      resolved: 'eq.false',
+      attempts: `lt.${CONFIG.EMAIL_RETRY_MAX}`
+    });
+    
+    if (!failures.data || failures.data.length === 0) {
+      Logger.log('No failed emails to retry');
+      return;
+    }
+    
+    Logger.log(`Retrying ${failures.data.length} failed emails`);
+    
+    failures.data.forEach(failure => {
+      try {
+        // Fetch registration details
+        const reg = supabaseQuery('vim26_registrations', {
+          select: '*',
+          registration_id: `eq.${failure.registration_id}`
+        });
+        
+        if (reg.data && reg.data.length > 0) {
+          sendConfirmationEmail(reg.data[0]);
+          
+          // Mark as resolved
+          supabaseUpdate('vim26_email_failures', {
+            id: `eq.${failure.id}`
+          }, {
+            resolved: true,
+            resolved_at: new Date().toISOString()
+          });
+          
+          Logger.log(`Successfully retried email for ${failure.registration_id}`);
+        }
+      } catch (error) {
+        // Increment attempt count
+        supabaseUpdate('vim26_email_failures', {
+          id: `eq.${failure.id}`
+        }, {
+          attempts: failure.attempts + 1,
+          last_attempt_at: new Date().toISOString()
+        });
+        
+        Logger.log(`Retry failed for ${failure.registration_id}: ${error.toString()}`);
+      }
+    });
+    
+  } catch (error) {
+    Logger.log('retryFailedEmails Error: ' + error.toString());
+  }
+}
+
+/**
+ * Daily Razorpay reconciliation audit (Run daily at 2 AM)
+ * Setup: Create time-driven trigger for this function
+ */
+function dailyRazorpayAudit() {
+  try {
+    Logger.log('Starting daily Razorpay audit...');
+    
+    const lookbackDate = new Date();
+    lookbackDate.setDate(lookbackDate.getDate() - CONFIG.AUDIT_LOOKBACK_DAYS);
+    
+    // Fetch all completed payments from Supabase
+    const dbPayments = supabaseQuery('vim26_registrations', {
+      select: 'razorpay_payment_id,razorpay_order_id,amount_paid,payment_status',
+      payment_status: 'eq.completed',
+      payment_verified_at: `gte.${lookbackDate.toISOString()}`
+    });
+    
+    if (!dbPayments.data) {
+      Logger.log('No payments to audit');
+      return;
+    }
+    
+    Logger.log(`Auditing ${dbPayments.data.length} payments`);
+    
+    // Fetch payments from Razorpay
+    const razorpayPayments = fetchRazorpayPayments(lookbackDate);
+    
+    // Create maps for comparison
+    const dbMap = new Map();
+    dbPayments.data.forEach(p => {
+      dbMap.set(p.razorpay_payment_id, p);
+    });
+    
+    const razorpayMap = new Map();
+    razorpayPayments.forEach(p => {
+      razorpayMap.set(p.id, p);
+    });
+    
+    // Find discrepancies
+    let discrepancies = [];
+    
+    // Check for payments in Razorpay but not in DB
+    razorpayPayments.forEach(rp => {
+      if (rp.status === 'captured' && !dbMap.has(rp.id)) {
+        discrepancies.push({
+          discrepancy_type: 'missing_in_db',
+          razorpay_payment_id: rp.id,
+          razorpay_amount: rp.amount,
+          razorpay_status: rp.status
+        });
+      }
+    });
+    
+    // Check for payments in DB but not in Razorpay
+    dbPayments.data.forEach(dbp => {
+      if (!razorpayMap.has(dbp.razorpay_payment_id)) {
+        discrepancies.push({
+          discrepancy_type: 'missing_in_razorpay',
+          razorpay_payment_id: dbp.razorpay_payment_id,
+          db_amount: dbp.amount_paid,
+          db_status: dbp.payment_status
+        });
+      }
+    });
+    
+    // Check for amount mismatches
+    dbPayments.data.forEach(dbp => {
+      const rp = razorpayMap.get(dbp.razorpay_payment_id);
+      // rp.amount is in Paise, dbp.amount_paid is in Rupees
+      if (rp && rp.amount !== (dbp.amount_paid * 100)) {
+        discrepancies.push({
+          discrepancy_type: 'amount_mismatch',
+          razorpay_payment_id: dbp.razorpay_payment_id,
+          db_amount: dbp.amount_paid,
+          razorpay_amount: rp.amount,
+          db_status: dbp.payment_status,
+          razorpay_status: rp.status
+        });
+      }
+    });
+    
+    // Log discrepancies to Supabase
+    if (discrepancies.length > 0) {
+      Logger.log(`Found ${discrepancies.length} discrepancies`);
+      
+      discrepancies.forEach(disc => {
+        supabaseInsert('vim26_audit_discrepancies', disc);
+      });
+      
+      // Send alert email to admin
+      sendAuditAlertEmail(discrepancies);
+    } else {
+      Logger.log('No discrepancies found - audit clean');
+    }
+    
+  } catch (error) {
+    Logger.log('dailyRazorpayAudit Error: ' + error.toString());
+  }
+}
+
+/**
+ * Fetch payments from Razorpay for audit
+ */
+function fetchRazorpayPayments(fromDate) {
+  const url = 'https://api.razorpay.com/v1/payments';
+  const fromTimestamp = Math.floor(fromDate.getTime() / 1000);
+  
+  const options = {
+    method: 'get',
+    headers: {
+      'Authorization': 'Basic ' + Utilities.base64Encode(
+        CONFIG.RAZORPAY_KEY_ID + ':' + CONFIG.RAZORPAY_KEY_SECRET
+      )
+    },
+    muteHttpExceptions: true
+  };
+  
+  let allPayments = [];
+  let skip = 0;
+  const count = 100;
+  
+  // Paginate through all payments
+  while (true) {
+    const pagedUrl = `${url}?count=${count}&skip=${skip}&from=${fromTimestamp}`;
+    const response = UrlFetchApp.fetch(pagedUrl, options);
+    const data = JSON.parse(response.getContentText());
+    
+    if (!data.items || data.items.length === 0) {
+      break;
+    }
+    
+    allPayments = allPayments.concat(data.items);
+    skip += count;
+    
+    // Safety limit
+    if (skip > 1000) {
+      break;
+    }
+  }
+  
+  return allPayments;
+}
+
+/**
+ * Send audit alert email to admin
+ */
+function sendAuditAlertEmail(discrepancies) {
+  const subject = `⚠️ Vimarsh 2026 Payment Audit Alert - ${discrepancies.length} Discrepancies`;
+  
+  let body = `<h2>Payment Audit Discrepancies Detected</h2>`;
+  body += `<p>Date: ${new Date().toISOString()}</p>`;
+  body += `<p>Total Discrepancies: ${discrepancies.length}</p>`;
+  body += `<h3>Details:</h3><ul>`;
+  
+  discrepancies.forEach(d => {
+    body += `<li><strong>${d.discrepancy_type}</strong>: Payment ${d.razorpay_payment_id || 'N/A'}</li>`;
+  });
+  
+  body += `</ul><p>Please review the VIM26_audit_discrepancies table in Supabase.</p>`;
+  
+  GmailApp.sendEmail(
+    'admin@yuva.ind.in', // Replace with actual admin email
+    subject,
+    '',
+    { htmlBody: body }
+  );
+}
+
+// ============================================================================
+// SECTION 8: SUPABASE HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Generic Supabase query
+ */
+function supabaseQuery(table, params) {
+  let url = `${CONFIG.SUPABASE_URL}/rest/v1/${table}?`;
+  
+  Object.keys(params).forEach(key => {
+    url += `${key}=${encodeURIComponent(params[key])}&`;
+  });
+  
+  const options = {
+    method: 'get',
+    headers: {
+      'apikey': CONFIG.SUPABASE_SERVICE_ROLE_KEY,
+      'Authorization': `Bearer ${CONFIG.SUPABASE_SERVICE_ROLE_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    muteHttpExceptions: true
+  };
+  
+  const response = UrlFetchApp.fetch(url, options);
+  const responseCode = response.getResponseCode();
+  const content = response.getContentText();
+  
+  if (responseCode >= 400) {
+    Logger.log(`Supabase Query Error [${responseCode}]: ${content} (URL: ${url})`);
+    try {
+      return { error: JSON.parse(content) };
+    } catch (e) {
+      return { error: content };
+    }
+  }
+  
+  return { data: JSON.parse(content) };
+}
+
+/**
+ * Insert into Supabase
+ */
+function supabaseInsert(table, data) {
+  const url = `${CONFIG.SUPABASE_URL}/rest/v1/${table}`;
+  
+  const options = {
+    method: 'post',
+    headers: {
+      'apikey': CONFIG.SUPABASE_SERVICE_ROLE_KEY,
+      'Authorization': `Bearer ${CONFIG.SUPABASE_SERVICE_ROLE_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation'
+    },
+    payload: JSON.stringify(data),
+    muteHttpExceptions: true
+  };
+  
+  const response = UrlFetchApp.fetch(url, options);
+  const responseCode = response.getResponseCode();
+  const content = response.getContentText();
+  
+  if (responseCode >= 400) {
+    Logger.log(`Supabase Insert Error [${responseCode}]: ${content}`);
+    try {
+      return { error: JSON.parse(content) };
+    } catch (e) {
+      return { error: content };
+    }
+  }
+  
+  return { data: JSON.parse(content) };
+}
+
+/**
+ * Update Supabase record
+ */
+function supabaseUpdate(table, filter, data) {
+  const queryParams = Object.keys(filter).map(key => `${key}=${encodeURIComponent(filter[key])}`).join('&');
+  const url = `${CONFIG.SUPABASE_URL}/rest/v1/${table}?${queryParams}`;
+  
+  const options = {
+    method: 'patch',
+    headers: {
+      'apikey': CONFIG.SUPABASE_SERVICE_ROLE_KEY,
+      'Authorization': `Bearer ${CONFIG.SUPABASE_SERVICE_ROLE_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation'
+    },
+    payload: JSON.stringify(data),
+    muteHttpExceptions: true
+  };
+  
+  Logger.log(`PATCH Request - URL: ${url}`);
+  Logger.log(`PATCH Request - Payload: ${JSON.stringify(data)}`);
+  
+  const response = UrlFetchApp.fetch(url, options);
+  const responseCode = response.getResponseCode();
+  const content = response.getContentText();
+  
+  Logger.log(`PATCH Response - Code: ${responseCode}`);
+  
+  if (responseCode >= 400) {
+    Logger.log(`Supabase Update Error [${responseCode}]: ${content}`);
+    try {
+      return { error: JSON.parse(content) };
+    } catch (e) {
+      return { error: content };
+    }
+  }
+  
+  const responseData = JSON.parse(content);
+  Logger.log(`PATCH Response - Data: ${JSON.stringify(responseData)}`);
+  return { data: responseData };
+}
+
+/**
+ * Call Supabase RPC function
+ */
+function supabaseRPC(functionName, params) {
+  const url = `${CONFIG.SUPABASE_URL}/rest/v1/rpc/${functionName}`;
+  
+  const options = {
+    method: 'post',
+    headers: {
+      'apikey': CONFIG.SUPABASE_SERVICE_ROLE_KEY,
+      'Authorization': `Bearer ${CONFIG.SUPABASE_SERVICE_ROLE_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    payload: JSON.stringify(params),
+    muteHttpExceptions: true
+  };
+  
+  const response = UrlFetchApp.fetch(url, options);
+  const responseCode = response.getResponseCode();
+  const content = response.getContentText();
+  
+  if (responseCode >= 400) {
+    try {
+      return { error: JSON.parse(content) };
+    } catch (e) {
+      return { error: content };
+    }
+  }
+  
+  // Attempt to parse JSON response
+  try {
+    return { data: JSON.parse(content) };
+  } catch (e) {
+    // Return plain text if not JSON (stripping quotes if any)
+    return { data: content.replace(/"/g, '') };
+  }
+}
+
+/**
+ * Supabase Auth API Helper
+ */
+function supabaseAuth(endpoint, method, data) {
+  const url = `${CONFIG.SUPABASE_URL}/auth/v1/${endpoint}`;
+  
+  const options = {
+    method: method,
+    headers: {
+      'apikey': CONFIG.SUPABASE_SERVICE_ROLE_KEY,
+      'Authorization': `Bearer ${CONFIG.SUPABASE_SERVICE_ROLE_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    payload: JSON.stringify(data),
+    muteHttpExceptions: true
+  };
+  
+  const response = UrlFetchApp.fetch(url, options);
+  const responseCode = response.getResponseCode();
+  const content = response.getContentText();
+  
+  if (responseCode >= 400) {
+    try {
+      return { error: JSON.parse(content) };
+    } catch (e) {
+      return { error: content };
+    }
+  }
+  
+  return { data: JSON.parse(content) };
+}
+
+/**
+ * Handle Admin Sign Up (Supabase Auth + Database Profile)
+ */
+function handleAdminSignUp(params) {
+  const { email, password, fullName, role } = params;
+  
+  if (!email || !password || !fullName || !role) {
+    return createResponse({ error: 'Missing required fields' }, 400);
+  }
+  
+  // 1. Create user in Supabase Auth using Admin API
+  const authResponse = supabaseAuth('admin/users', 'post', {
+    email: email,
+    password: password,
+    email_confirm: true,
+    user_metadata: { full_name: fullName }
+  });
+  
+  if (authResponse.error) {
+    if (authResponse.error.error_code === 'email_exists' || authResponse.error.code === 422) {
+      return createResponse({ error: 'Account already exists. Please go to Login tab to enable Admin access.' }, 409);
+    }
+    return createResponse({ error: 'Auth failed: ' + (authResponse.error.message || JSON.stringify(authResponse.error)) }, 500);
+  }
+  
+  const user = authResponse.data;
+  
+  // 2. Create profile in vim26_admin_users
+  const profileResponse = supabaseInsert('vim26_admin_users', {
+    id: user.id,
+    email: email,
+    full_name: fullName,
+    role: role,
+    active: true // New admins are active by default for now
+  });
+  
+  if (profileResponse.error) {
+    return createResponse({ error: 'Profile creation failed: ' + JSON.stringify(profileResponse.error) }, 500);
+  }
+  
+  return createResponse({ 
+    success: true, 
+    message: 'Admin registered successfully',
+    admin: { id: user.id, email: email, full_name: fullName, role: role }
+  });
+}
+
+/**
+ * Handle Admin Sign In (Supabase Auth)
+ */
+function handleAdminSignIn(params) {
+  const { email, password } = params;
+  
+  if (!email || !password) {
+    return createResponse({ error: 'Email and password required' }, 400);
+  }
+  
+  // 1. Authenticate with Supabase Auth
+  const authResponse = supabaseAuth('token?grant_type=password', 'post', {
+    email: email,
+    password: password
+  });
+  
+  if (authResponse.error) {
+    return createResponse({ error: 'Login failed: ' + (authResponse.error.error_description || authResponse.error.message || 'Invalid credentials') }, 401);
+  }
+  
+  const authData = authResponse.data;
+  const user = authData.user;
+  
+  // 2. Clear password from response (it shouldn't be there anyway, but just in case)
+  delete authData.user.password;
+  
+  // 3. Fetch role from vim26_admin_users
+  const profile = supabaseQuery('vim26_admin_users', {
+    select: 'role,active',
+    id: `eq.${user.id}`
+  });
+  
+  // IF NOT IN ADMIN TABLE: Enable "Intelligent Setup"
+  if (!profile.data || profile.data.length === 0) {
+    return createResponse({ 
+      success: true, 
+      needsProfile: true, // Signal to frontend to show role selection
+      admin: {
+        id: user.id,
+        email: user.email,
+        full_name: user.user_metadata.full_name || user.email.split('@')[0]
+      }
+    });
+  }
+  
+  if (!profile.data[0].active) {
+    return createResponse({ error: 'Your admin account is deactivated. Contact Tech Head.' }, 403);
+  }
+  
+  // 4. Create our custom session token for compatibility with existing system
+  const sessionExpiry = new Date();
+  sessionExpiry.setHours(sessionExpiry.getHours() + CONFIG.SESSION_DURATION_HOURS);
+  const sessionToken = createSignedToken(user.id, 'SESSION', sessionExpiry.toISOString());
+  
+  return createResponse({
+    success: true,
+    sessionToken: sessionToken,
+    expiresAt: sessionExpiry.toISOString(),
+    admin: {
+      id: user.id,
+      email: user.email,
+      full_name: user.user_metadata.full_name,
+      role: profile.data[0].role
+    }
+  });
+}
+
+/**
+ * Handle completing profile for existing users
+ */
+function handleCompleteAdminProfile(params) {
+  const { userId, email, fullName, role } = params;
+  
+  if (!userId || !role) return createResponse({ error: 'Missing data' }, 400);
+
+  const profileResponse = supabaseInsert('vim26_admin_users', {
+    id: userId,
+    email: email,
+    full_name: fullName,
+    role: role,
+    active: true
+  });
+
+  if (profileResponse.error) return createResponse({ error: 'Failed to save role: ' + JSON.stringify(profileResponse.error) }, 500);
+
+  const sessionExpiry = new Date();
+  sessionExpiry.setHours(sessionExpiry.getHours() + CONFIG.SESSION_DURATION_HOURS);
+  const sessionToken = createSignedToken(userId, 'SESSION', sessionExpiry.toISOString());
+
+  return createResponse({
+    success: true,
+    sessionToken: sessionToken,
+    admin: { id: userId, email, full_name: fullName, role }
+  });
+}
+
+// ============================================================================
+// SECTION 9: UTILITY FUNCTIONS
+// ============================================================================
+
+/**
+ * Create standardized JSON response
+ */
+function createResponse(data, statusCode = 200) {
+  const output = ContentService.createTextOutput(JSON.stringify(data));
+  output.setMimeType(ContentService.MimeType.JSON);
+  
+  // Add CORS headers
+  return output;
+}
+
+/**
+ * Verify Razorpay Webhook Signature
+ * Validates that the webhook request is genuinely from Razorpay
+ * @param {string} payload - Raw request body (JSON string)
+ * @param {string} signature - X-Razorpay-Signature header value
+ * @returns {boolean} - True if signature is valid
+ */
+function verifyRazorpayWebhookSignature(payload, signature) {
+  try {
+    if (!CONFIG.RAZORPAY_WEBHOOK_SECRET) {
+      Logger.log('WARNING: RAZORPAY_WEBHOOK_SECRET not configured. Skipping signature verification.');
+      return true; // Allow webhook if secret not configured (backward compatibility)
+    }
+    
+    if (!signature) {
+      Logger.log('Webhook signature missing');
+      return false;
+    }
+    
+    // Generate expected signature using HMAC SHA256
+    // Apps Script's computeHmacSha256Signature expects (data, key) as strings
+    const expectedSignature = Utilities.computeHmacSha256Signature(
+      payload,  // Pass string directly, not bytes
+      CONFIG.RAZORPAY_WEBHOOK_SECRET
+    );
+    
+    // Convert to hex string
+    const expectedSignatureHex = expectedSignature
+      .map(byte => {
+        const hex = (byte & 0xFF).toString(16);
+        return hex.length === 1 ? '0' + hex : hex;
+      })
+      .join('');
+    
+    // Compare signatures (constant-time comparison to prevent timing attacks)
+    const isValid = expectedSignatureHex === signature;
+    
+    if (!isValid) {
+      Logger.log('Webhook signature verification failed');
+      Logger.log('Expected: ' + expectedSignatureHex);
+      Logger.log('Received: ' + signature);
+    }
+    
+    return isValid;
+    
+  } catch (e) {
+    Logger.log('Webhook signature verification error: ' + e.toString());
+    return false;
+  }
+}
+
+/**
+ * Setup time-based triggers (Run once manually)
+ * Creates automated triggers for email retry and payment audits
+ */
+function setupTriggers() {
+  // Delete existing triggers to avoid duplicates
+  const triggers = ScriptApp.getProjectTriggers();
+  triggers.forEach(trigger => ScriptApp.deleteTrigger(trigger));
+  
+  // Email retry trigger - every 2 hours
+  ScriptApp.newTrigger('retryFailedEmails')
+    .timeBased()
+    .everyHours(2)
+    .create();
+  
+  // Razorpay audit triggers - 3 times daily (9 AM, 3 PM, 7 PM)
+  // Morning audit - 9 AM
+  ScriptApp.newTrigger('dailyRazorpayAudit')
+    .timeBased()
+    .atHour(9)
+    .everyDays(1)
+    .create();
+  
+  // Afternoon audit - 3 PM
+  ScriptApp.newTrigger('dailyRazorpayAudit')
+    .timeBased()
+    .atHour(15) // 3 PM in 24-hour format
+    .everyDays(1)
+    .create();
+  
+  // Evening audit - 7 PM
+  ScriptApp.newTrigger('dailyRazorpayAudit')
+    .timeBased()
+    .atHour(19) // 7 PM in 24-hour format
+    .everyDays(1)
+    .create();
+  
+  Logger.log('✅ Triggers setup complete!');
+  Logger.log('📧 Email retry: Every 2 hours');
+  Logger.log('🔍 Razorpay audit: 9 AM, 3 PM, 7 PM daily');
+}
+
+/**
+ * Manual audit trigger - Run this anytime from Apps Script
+ * This allows you to manually run the audit without waiting for scheduled time
+ */
+function runManualAudit() {
+  Logger.log('🚀 Starting manual Razorpay audit...');
+  dailyRazorpayAudit();
+  Logger.log('✅ Manual audit complete! Check logs above for results.');
+}
+
+/**
+ * Manual email retry trigger - Run this anytime from Apps Script
+ */
+function runManualEmailRetry() {
+  Logger.log('🚀 Starting manual email retry...');
+  retryFailedEmails();
+  Logger.log('✅ Manual email retry complete! Check logs above for results.');
+}
+
+/**
+ * View current triggers - Run this to see all active triggers
+ */
+function viewCurrentTriggers() {
+  const triggers = ScriptApp.getProjectTriggers();
+  
+  if (triggers.length === 0) {
+    Logger.log('⚠️ No triggers found. Run setupTriggers() first.');
+    return;
+  }
+  
+  Logger.log(`📋 Found ${triggers.length} active triggers:\n`);
+  
+  triggers.forEach((trigger, index) => {
+    const handlerFunction = trigger.getHandlerFunction();
+    const eventType = trigger.getEventType();
+    
+    Logger.log(`${index + 1}. Function: ${handlerFunction}`);
+    Logger.log(`   Event Type: ${eventType}`);
+    
+    if (eventType === ScriptApp.EventType.CLOCK) {
+      // For time-based triggers, show the schedule
+      Logger.log(`   Trigger ID: ${trigger.getUniqueId()}`);
+    }
+    Logger.log('');
+  });
+}
+
+
+

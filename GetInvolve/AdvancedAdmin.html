@@ -52,14 +52,14 @@
                 <a href="#" class="menu-item" onclick="showSection('messages')">
                     <i class="fas fa-envelope"></i> Zone Messages
                 </a>
+                <a href="#" class="menu-item" onclick="showSection('events-manager')">
+                    <i class="fas fa-calendar-alt"></i> Events
+                </a>
                 <a href="#" class="menu-item" onclick="alert('Coming Soon')">
                     <i class="fas fa-bullhorn"></i> Broadcasts
                 </a>
                 <a href="#" class="menu-item" onclick="alert('Coming Soon')">
                     <i class="fas fa-file-export"></i> Reports & Data
-                </a>
-                <a href="#" class="menu-item" onclick="alert('Coming Soon')">
-                    <i class="fas fa-calendar-alt"></i> Events
                 </a>
                 <a href="/GetInvolve/UnitRegistration.html" class="menu-item">
                     <i class="fas fa-arrow-left"></i> Unit Dashboard
@@ -125,7 +125,7 @@
                             <div class="card-icon icon-purple"><i class="fas fa-calendar-check"></i></div>
                             <h3>Event CMS</h3>
                             <p>Manage upcoming events and registrations.</p>
-                            <button class="btn-modern">Manage Events</button>
+                            <button class="btn-modern" onclick="showSection('events-manager')">Manage Events</button>
                         </div>
                     </div>
                 </div>
@@ -183,6 +183,70 @@
                     </div>
                 </div>
 
+                <!-- EVENTS MANAGEMENT VIEW -->
+                <div id="events-manager-view" style="display:none;">
+                    <div class="events-stats-grid">
+                        <div class="event-stat-card">
+                            <div class="stat-value" id="total-events">0</div>
+                            <div class="stat-label">Total Events</div>
+                            <i class="fas fa-calendar"></i>
+                        </div>
+                        <div class="event-stat-card">
+                            <div class="stat-value" id="upcoming-events">0</div>
+                            <div class="stat-label">Upcoming Events</div>
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="event-stat-card">
+                            <div class="stat-value" id="past-events">0</div>
+                            <div class="stat-label">Past Events</div>
+                            <i class="fas fa-history"></i>
+                        </div>
+                    </div>
+
+                    <!-- Events Table -->
+                    <div class="table-card" style="margin-top: 30px;">
+                        <div class="table-header">
+                            <div class="table-title">All Events</div>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <select id="event-status-filter" class="form-control" style="width: 150px;">
+                                    <option value="all">All Status</option>
+                                    <option value="upcoming">Upcoming</option>
+                                    <option value="ongoing">Ongoing</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="cancelled">Cancelled</option>
+                                </select>
+                                <button class="btn primary" onclick="openNewEventModal()">
+                                    <i class="fas fa-plus"></i> New Event
+                                </button>
+                                <button class="btn secondary" onclick="loadEvents()">
+                                    <i class="fas fa-sync"></i> Refresh
+                                </button>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="modern-table" id="events-table">
+                                <thead>
+                                    <tr>
+                                        <th>Event Title</th>
+                                        <th>Date & Time</th>
+                                        <th>Location</th>
+                                        <th>Status</th>
+                                        <th>Mode</th>
+                                        <th>Capacity</th>
+                                        <th>Display On</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td colspan="7" style="text-align:center; padding:30px;">Loading events...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
             </div>
         </main>
     </div>
@@ -220,6 +284,119 @@
                 <button class="btn primary" onclick="sendReply()">
                     <i class="fas fa-paper-plane"></i> Send Reply
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- EVENT MANAGEMENT MODAL -->
+    <div id="event-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="width: 700px; max-width: 90%; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h3 id="event-modal-title">Create New Event</h3>
+                <button class="modal-close" onclick="closeEventModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="event-id">
+                <div class="form-group">
+                    <label>Event Title *</label>
+                    <input type="text" id="event-title" class="form-control" placeholder="Enter event title">
+                </div>
+                <div class="form-row">
+                    <div class="form-group" style="flex: 1;">
+                        <label>Start Date & Time *</label>
+                        <input type="datetime-local" id="event-start" class="form-control">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>End Date & Time *</label>
+                        <input type="datetime-local" id="event-end" class="form-control">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Location *</label>
+                    <input type="text" id="event-location" class="form-control" placeholder="Event location">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="event-description" class="form-control" rows="4" placeholder="Event description"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group" style="flex: 1;">
+                        <label>Mode *</label>
+                        <select id="event-mode" class="form-control">
+                            <option value="">Select mode</option>
+                            <option value="online">Online</option>
+                            <option value="offline">Offline</option>
+                            <option value="hybrid">Hybrid</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>Capacity</label>
+                        <input type="number" id="event-capacity" class="form-control" placeholder="0 (unlimited)">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Banner Image URL</label>
+                    <input type="url" id="event-banner" class="form-control" placeholder="https://...">
+                </div>
+                <div class="form-row">
+                    <div class="form-group" style="flex: 1;">
+                        <label>Status *</label>
+                        <select id="event-status" class="form-control">
+                            <option value="scheduled">Scheduled</option>
+                            <option value="ongoing">Ongoing</option>
+                            <option value="completed">Completed</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>Category</label>
+                        <select id="event-category" class="form-control">
+                            <option value="">Select category</option>
+                            <option value="workshop">Workshop</option>
+                            <option value="seminar">Seminar</option>
+                            <option value="conference">Conference</option>
+                            <option value="training">Training</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="event-display-upcoming"> Display on Upcoming Page
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="event-display-home"> Display on Home Page
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="event-display-past"> Display on Past Page
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn secondary" onclick="closeEventModal()">Cancel</button>
+                <button class="btn primary" onclick="saveEvent()">
+                    <i class="fas fa-save"></i> Save Event
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- REGISTRATION DETAILS MODAL -->
+    <div id="registration-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="width: 600px; max-width: 90%;">
+            <div class="modal-header">
+                <h3>Registration Details</h3>
+                <button class="modal-close" onclick="closeRegistrationModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body" id="registration-details">
+                <p style="text-align:center;">Loading details...</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn secondary" onclick="closeRegistrationModal()">Close</button>
             </div>
         </div>
     </div>

@@ -1171,108 +1171,141 @@ form button.btn-primary:disabled {
 
 /* ===== GALLERY SECTION (from Gallery.html) ===== */
 .gallery {
-  padding: 50px 5%;
+  background: linear-gradient(135deg, #fffaf5 0%, #f5e9da 50%, #fffaf5 100%);
+  min-height: 100vh;
+  width: 100%;
+  max-width: 100%;
+  padding: 80px 5% 50px;
   text-align: center;
+  position: relative;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+.gallery::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 200px;
+  background: linear-gradient(135deg, rgba(139, 0, 0, 0.05) 0%, rgba(139, 0, 0, 0.02) 100%);
+  z-index: 0;
+}
+
+.gallery > * {
+  position: relative;
+  z-index: 1;
 }
 
 .gallery h2 {
-  font-size: 2.8rem;
-  font-weight: 700;
-  margin-bottom: 20px;
-  color: #8b0000;
+  font-size: 3.5rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #8b0000 0%, #b08d57 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 15px;
+  letter-spacing: -1px;
+  text-shadow: 0 2px 10px rgba(139, 0, 0, 0.1);
 }
 
-.gallery p {
-  margin-bottom: 40px;
-  color: #555;
+.gallery > p {
+  font-size: 1.2rem;
+  color: #666;
+  margin-bottom: 50px;
+  font-weight: 400;
+  letter-spacing: 0.5px;
 }
 
 /* ===== FILTER BUTTONS ===== */
 .filter-buttons {
-  margin-bottom: 40px;
+  margin-bottom: 50px;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 10px;
+  gap: 15px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(10px);
+  border-radius: 50px;
+  box-shadow: 0 8px 32px rgba(139, 0, 0, 0.1);
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
-.filter-btn,
-.back-btn {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 30px;
-  background: #f5e9da;
-  margin: 5px;
+.filter-btn {
+  padding: 12px 28px;
+  border: 2px solid #8b0000;
+  border-radius: 50px;
+  background: white;
+  color: #8b0000;
   font-weight: 600;
+  font-size: 0.95rem;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  position: relative;
+  overflow: hidden;
   text-decoration: none;
-  /* for <a> */
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
 
-/* Filter button active state */
-.filter-btn.active,
-.filter-btn:hover {
+.filter-btn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
   background: #8b0000;
-  color: #fff;
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+  z-index: -1;
 }
 
-/* Back button special styling */
-.back-btn {
-  background: #d9edf7;
-  /* light blue */
-  color: #003366;
-  /* navy text */
-  align-items: center;
-  justify-content: center;
-}
-
-.back-btn:hover {
-  background: #8b0000;
-  /* matches hover accent */
-  color: #fff;
-}
-
-
-/* ===== GALLERY GRID ===== */
-.gallery {
-  background: #fffaf5;
-}
-
-.gallery-grid {
+.filter-btn:hover::before,
+.filter--grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 30px;
+  padding: 20px 0;
+}
+
+.gallery-item {
+  position: relative;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  background: white;
+  aspect-ratio: 1;
+}
+
+.gallery-item:hover {
+  transform: translateY(-10px) scale(1.02);
+  box-shadow: 0 20px 50px rgba(139, 0, 0, 0.25);
 }
 
 .gallery-item img {
-  opacity: 0;
-  transform: scale(1.03);
-  transition: opacity 0.6s ease, transform 0.6s ease;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: transform 0.6s ease;
+  opacity: 0;
 }
 
 .gallery-item img.loaded {
   opacity: 1;
-  transform: scale(1);
 }
 
-
-
-
-.gallery-item {
-  position: relative;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
-  cursor: pointer;
-  transition: transform 0.3s, opacity 0.3s;
-  background: #eee;
+.gallery-item:hover img {
+  transform: scale(1.1);
 }
 
 .gallery-item.hide {
@@ -1280,10 +1313,6 @@ form button.btn-primary:disabled {
   transform: scale(0.9);
   pointer-events: none;
   display: none;
-}
-
-.gallery-item:hover {
-  transform: scale(1.03);
 }
 
 
@@ -1313,6 +1342,7 @@ form button.btn-primary:disabled {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(10px);
   z-index: 2000;
   align-items: center;
   justify-content: center;
@@ -1321,9 +1351,9 @@ form button.btn-primary:disabled {
 
 #lightbox img {
   max-width: 90%;
-  max-height: 80%;
-  border-radius: 12px;
-  box-shadow: 0 0 30px rgba(0, 0, 0, 0.6);
+  max-height: 85%;
+  border-radius: 15px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   transition: transform 0.3s ease;
 }
 
@@ -1369,6 +1399,116 @@ form button.btn-primary:disabled {
 
 .lightbox-arrow.right {
   right: 30px;
+}
+
+/* ===== GALLERY LOADING STATES ===== */
+.gallery-loading,
+.gallery-empty,
+.gallery-error,
+.no-images {
+  text-align: center;
+  padding: 80px 20px;
+  color: #8b0000;
+  min-height: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 20px;
+  margin: 40px auto;
+  max-width: 600px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+}
+
+.spinner {
+  border: 5px solid rgba(139, 0, 0, 0.1);
+  border-top: 5px solid #8b0000;
+  border-radius: 50%;
+  width: 60px;
+  height: 60px;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 25px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.gallery-loading p,
+.gallery-empty p,
+.no-images p {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: #666;
+}
+
+.gallery-error button {
+  margin-top: 25px;
+  padding: 12px 35px;
+  background: #8b0000;
+  color: white;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 6px 20px rgba(139, 0, 0, 0.3);
+}
+
+.gallery-error button:hover {
+  background: #6d0000;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(139, 0, 0, 0.4);
+}
+
+/* ===== GALLERY RESPONSIVE STYLES ===== */
+@media (max-width: 768px) {
+  .gallery h2 {
+    font-size: 2.5rem !important;
+  }
+
+  .gallery > p {
+    font-size: 1rem !important;
+  }
+
+  .filter-buttons {
+    gap: 10px !important;
+    padding: 15px;
+  }
+
+  .filter-btn,
+  .back-btn {
+    padding: 10px 20px !important;
+    font-size: 0.9rem !important;
+  }
+
+  .gallery-grid {
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)) !important;
+    gap: 20px !important;
+  }
+
+  .scroll-buttons button {
+    width: 50px;
+    height: 50px;
+  }
+}
+
+@media (max-width: 480px) {
+  .gallery {
+    padding: 60px 3% 40px !important;
+  }
+
+  .gallery h2 {
+    font-size: 2rem !important;
+  }
+
+  .gallery-grid {
+    grid-template-columns: 1fr !important;
+    gap: 15px !important;
+  }
 }
 
 
@@ -1661,24 +1801,28 @@ form button.btn-primary:disabled {
 }
 
 .scroll-buttons button {
-  background: var(--accent);
+  background: #8b0000;
   color: #fff;
   border: none;
-  padding: 10px 18px;
-  border-radius: 8px;
+  padding: 0;
+  border-radius: 50%;
+  width: 60px;
+  height: 60px;
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 25px rgba(139, 0, 0, 0.3);
   transition: all 0.25s ease;
 }
 
 .scroll-buttons button:hover {
-  transform: translateY(-2px);
-  background: var(--accent-dark);
+  transform: translateY(-3px);
+  background: #6d0000;
+  box-shadow: 0 12px 35px rgba(139, 0, 0, 0.4);
 }
 
 .scroll-buttons i {
@@ -2023,4 +2167,338 @@ a {
 /* Spinner inside button */
 form button.btn-primary .fa-spinner {
   margin-left: 8px;
+}
+
+/* ===== TICKET SYSTEM PREMIUM STYLES ===== */
+
+/* Download Ticket Button (Green) */
+.btn-download-ticket {
+  background: #28a745;
+  color: white !important;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+  text-decoration: none;
+}
+
+.btn-download-ticket:hover {
+  background: #218838;
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(40, 167, 69, 0.4);
+}
+
+.btn-download-ticket:active {
+  transform: translateY(-1px);
+}
+
+.btn-download-ticket i {
+  font-size: 1.1rem;
+}
+
+/* Modal Styling */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 2000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(5px);
+  animation: modalOverlayFade 0.3s ease;
+}
+
+.modal-content {
+  background: white;
+  margin: 10% auto;
+  padding: 40px;
+  border-radius: 24px;
+  width: 90%;
+  max-width: 500px;
+  text-align: center;
+  position: relative;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  animation: modalSlideUp 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+/* Specific Header Icon */
+.modal-content>i:first-of-type {
+  font-size: 80px;
+  margin-bottom: 25px;
+  color: #28a745 !important;
+  display: inline-block;
+}
+
+.modal-content.error>i:first-of-type {
+  color: #dc3545 !important;
+}
+
+#ticketRetrievalModal .modal-content>i:first-of-type {
+  color: #28a745 !important;
+  font-size: 60px;
+}
+
+/* Button with Icon - Fix for giant magnifying glass */
+#retrieveTicketBtn {
+  width: 100%;
+  margin-top: 30px;
+  background: #8b0000;
+  height: 65px;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50px;
+  border: 4px solid #000;
+  box-shadow: 0 6px 0 #000;
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: none;
+}
+
+#retrieveTicketBtn:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 #000;
+}
+
+#retrieveTicketBtn i {
+  font-size: 32px !important;
+  margin-bottom: 0 !important;
+  margin-right: 15px;
+  color: #28a745 !important;
+}
+
+.btn-secondary-cancel {
+  background: #5d5d5d;
+  color: white;
+  padding: 12px 30px;
+  border-radius: 30px;
+  border: 3px solid #000;
+  margin-top: 20px;
+  cursor: pointer;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.btn-secondary-cancel:hover {
+  background: #444;
+}
+
+.modal-content h2 {
+  color: #1a1a1a;
+  margin-bottom: 15px;
+  font-size: 2.2rem;
+  font-weight: 800;
+}
+
+.modal-content p {
+  color: #666;
+  margin-bottom: 30px;
+  line-height: 1.6;
+}
+
+/* Success Message Container Update */
+.success-message {
+  background: #e8f5e9;
+  border: 2px solid #28a745;
+  border-radius: 16px;
+  padding: 25px;
+  margin-bottom: 30px;
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  color: #1b5e20;
+  animation: successMessageSlide 0.5s ease;
+}
+
+.success-message i {
+  font-size: 2.5rem;
+  color: #28a745 !important;
+  margin-top: 5px;
+}
+
+.success-message strong {
+  font-size: 1.2rem;
+  display: block;
+  margin-bottom: 5px;
+}
+
+/* Retrieval Modal Specifics */
+#retrievalInput,
+#retrievalMethod {
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #ddd;
+  border-radius: 10px;
+  margin-top: 5px;
+}
+
+#retrievalInput:focus,
+#retrievalMethod:focus {
+  border-color: #8b0000 !important;
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(139, 0, 0, 0.1);
+}
+
+#retrieveTicketBtn {
+  width: 100%;
+  margin-top: 20px;
+  background: #8b0000;
+}
+
+#retrieveTicketBtn:hover {
+  background: #700000;
+}
+
+/* Modal Button Styling */
+.modal-content .btn-download-modal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px 32px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 50px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin: 10px;
+  box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+  text-transform: none;
+  letter-spacing: 0.5px;
+}
+
+.modal-content .btn-download-modal:hover {
+  background: #218838;
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+}
+
+.modal-content .btn-download-modal:active {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(40, 167, 69, 0.3);
+}
+
+.modal-content .btn-download-modal i {
+  font-size: 1.2rem;
+  color: white;
+  margin: 0;
+}
+
+.modal-content .btn-close-modal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 28px;
+  background: #8b0000;
+  color: white;
+  border: none;
+  border-radius: 50px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin: 10px;
+  box-shadow: 0 4px 15px rgba(139, 0, 0, 0.3);
+}
+
+.modal-content .btn-close-modal:hover {
+  background: #700000;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(139, 0, 0, 0.4);
+}
+
+.modal-content .btn-close-modal:active {
+  transform: translateY(-1px);
+}
+
+.modal-content .modal-buttons {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* Animations */
+@keyframes modalOverlayFade {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalSlideUp {
+  from {
+    transform: translateY(50px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes successMessageSlide {
+  from {
+    transform: translateX(-30px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Mobile Adjustments */
+@media (max-width: 480px) {
+  .modal-content {
+    margin: 20% auto;
+    padding: 30px 20px;
+  }
+
+  .success-message {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .success-message i {
+    margin-bottom: 10px;
+  }
+
+  .modal-content .btn-download-modal,
+  .modal-content .btn-close-modal {
+    width: 100%;
+    padding: 14px 20px;
+    font-size: 1rem;
+  }
+
+  .modal-content .btn-download-modal i {
+    font-size: 1.1rem;
+  }
+
+  .modal-content h2 {
+    font-size: 1.8rem;
+  }
 }

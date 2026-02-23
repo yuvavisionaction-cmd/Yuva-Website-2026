@@ -1,10 +1,16 @@
-// ===== DONATE PAGE JAVASCRIPT - MODERN FLASHY 2025 =====
+// ===== DONATE PAGE JAVASCRIPT - GOOGLE APPS SCRIPT + SUPABASE VERSION =====
 
 class DonationManager {
     constructor() {
-        this.razorpayKeyId = 'rzp_test_RCnv6goa4rkg0Q'; // Replace with your actual Razorpay Key ID
-        this.razorpayKeySecret = 'qRw549IUqi47RQjbTf1d0clN'; // Replace with your actual Razorpay Key Secret
-        this.gasWebAppUrl = 'https://script.google.com/macros/s/AKfycbxy8OLvvUcAJOpVhkKAYfGJA55qsv8b_0pTD6QTG9VskVhtTELjCeuUll0jO3U8WbK1gg/exec'; // Your deployed GAS URL
+        // Google Apps Script Backend URL
+        // IMPORTANT: Replace with your deployed Google Apps Script URL
+        this.backendUrl = 'https://script.google.com/macros/s/AKfycbxiVt3pDychzTgTO-_Y-iW6IY1C6R1Jlq6A60LQZJofzQXDDSGn3GUTSBhGt1GDZ4wKZA/exec';
+        // Example: 'https://script.google.com/macros/s/AKfycby.../exec'
+
+        // Razorpay Configuration (Public Key Only - Secret is in backend)
+        this.razorpayKeyId = 'rzp_live_RCnlaKffG5VeY0';
+
+        // State
         this.isRecurring = false;
         this.selectedAmount = null;
         this.customAmount = null;
@@ -19,13 +25,12 @@ class DonationManager {
         this.loadRazorpayScript();
         this.bindEvents();
         this.setupFormValidation();
-        this.testBackendConnection();
         this.initializeFlashSystem();
+        this.testBackendConnection();
     }
 
     // ===== FLASH NOTIFICATION SYSTEM =====
     initializeFlashSystem() {
-        // Create flash container if it doesn't exist
         if (!document.getElementById('flash-container')) {
             const flashContainer = document.createElement('div');
             flashContainer.id = 'flash-container';
@@ -42,8 +47,8 @@ class DonationManager {
         notification.className = `flash-notification ${type}`;
 
         const icons = {
-            success: 'fas fa-check',
-            error: 'fas fa-times',
+            success: 'fas fa-check-circle',
+            error: 'fas fa-times-circle',
             warning: 'fas fa-exclamation-triangle',
             info: 'fas fa-info-circle'
         };
@@ -63,12 +68,10 @@ class DonationManager {
 
         container.appendChild(notification);
 
-        // Trigger animation
         setTimeout(() => {
             notification.classList.add('show');
         }, 100);
 
-        // Auto remove
         if (duration > 0) {
             setTimeout(() => {
                 this.removeFlashNotification(notification);
@@ -89,7 +92,6 @@ class DonationManager {
         }
     }
 
-    // ===== ENHANCED ERROR HANDLING =====
     showError(title, message) {
         this.showFlashNotification('error', title, message, 8000);
     }
@@ -106,7 +108,57 @@ class DonationManager {
         this.showFlashNotification('info', title, message, 4000);
     }
 
-    // Load Razorpay script dynamically
+    // ===== BACKEND COMMUNICATION =====
+    async makeBackendRequest(endpoint, data = {}) {
+        try {
+            if (!this.backendUrl || this.backendUrl.includes('YOUR_GOOGLE_APPS_SCRIPT')) {
+                throw new Error('Backend URL not configured. Please update the backendUrl in script-supabase.js');
+            }
+
+            const url = `${this.backendUrl}?path=${endpoint}`;
+
+            const options = {
+                method: 'POST',
+                mode: 'cors',
+                cache: 'no-cache',
+                headers: {
+                    'Content-Type': 'text/plain;charset=utf-8'
+                },
+                body: JSON.stringify(data)
+            };
+
+            const response = await fetch(url, options);
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error('Backend request error:', error);
+            throw error;
+        }
+    }
+
+    async testBackendConnection() {
+        try {
+            this.showInfo('Connecting...', 'Testing backend connection...');
+
+            const response = await this.makeBackendRequest('test');
+
+            if (response.success) {
+                this.showSuccess('Connection Successful', 'Backend is ready to process donations');
+            } else {
+                this.showWarning('Connection Issue', 'Backend connection issue detected. Please refresh the page.');
+            }
+        } catch (error) {
+            this.showError('Connection Failed', 'Unable to connect to backend. Please check configuration.');
+            console.error('Backend connection error:', error);
+        }
+    }
+
+    // ===== RAZORPAY INITIALIZATION =====
     loadRazorpayScript() {
         if (window.Razorpay) {
             this.initializeRazorpay();
@@ -124,27 +176,20 @@ class DonationManager {
         this.showInfo('Payment System Ready', 'Payment gateway loaded successfully');
     }
 
+    // ===== EVENT BINDINGS =====
     bindEvents() {
         // Donation type selection
         document.querySelectorAll('input[name="donationType"]').forEach(radio => {
             radio.addEventListener('change', (e) => {
-                // Check if the user clicked the "recurring" option
                 if (e.target.value === 'recurring') {
-                    // 1. Show a friendly warning message.
                     this.showWarning(
                         'Feature in Development',
                         'Recurring donations are coming soon! Please select "One-time Donation" for now.'
                     );
-
-                    // 2. Automatically switch the selection back to "One-time".
                     document.getElementById('oneTime').checked = true;
-
-                    // 3. Stop the function here to prevent any UI changes.
                     return;
                 }
-
-                // This code below will now only run for the "one-time" selection
-                this.isRecurring = false; // It will always be a one-time donation
+                this.isRecurring = false;
                 this.updateDonationType();
                 this.animateFormSection();
             });
@@ -195,26 +240,24 @@ class DonationManager {
             });
         });
 
-        // ===== NEW EVENT BINDINGS =====
-
         // 80G Tax Exemption Checkbox
         const wants80G = document.getElementById('wants80G');
         if (wants80G) {
             wants80G.addEventListener('change', () => {
                 const taxFields = document.getElementById('tax-exemption-fields');
                 const aadhaarInput = document.getElementById('aadhaarNumber');
-                const panInput = document.getElementById('panNumber'); // ADDED THIS
+                const panInput = document.getElementById('panNumber');
 
                 if (wants80G.checked) {
                     taxFields.style.display = 'block';
                     aadhaarInput.setAttribute('required', 'true');
-                    panInput.setAttribute('required', 'true'); // ADDED THIS
+                    panInput.setAttribute('required', 'true');
                 } else {
                     taxFields.style.display = 'none';
                     aadhaarInput.removeAttribute('required');
-                    panInput.removeAttribute('required'); // ADDED THIS
+                    panInput.removeAttribute('required');
                     this.clearFieldError(aadhaarInput);
-                    this.clearFieldError(panInput); // ADDED THIS
+                    this.clearFieldError(panInput);
                 }
             });
         }
@@ -224,17 +267,12 @@ class DonationManager {
         const donateButton = document.getElementById('donateButton');
         if (agreeToTerms && donateButton) {
             agreeToTerms.addEventListener('change', () => {
-                if (agreeToTerms.checked) {
-                    donateButton.disabled = false;
-                } else {
-                    donateButton.disabled = true;
-                }
+                donateButton.disabled = !agreeToTerms.checked;
             });
         }
     }
 
     setupFormValidation() {
-        // ===== UPDATED VALIDATION RULES =====
         this.validationRules = {
             firstName: {
                 required: true,
@@ -264,12 +302,12 @@ class DonationManager {
                 message: 'Please enter your full address (min 10 characters)'
             },
             aadhaarNumber: {
-                required: false, // This will be set to true dynamically if 80G is checked
+                required: false,
                 pattern: /^\d{12}$/,
                 message: 'Aadhaar must be 12 digits'
             },
             panNumber: {
-                required: true, // CHANGED: This is now required (but will be checked dynamically)
+                required: false,
                 pattern: /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/i,
                 message: 'PAN must be in the format ABCDE1234F'
             }
@@ -299,13 +337,10 @@ class DonationManager {
             recurringElements.forEach(el => el.style.display = 'block');
             oneTimeElements.forEach(el => el.style.display = 'none');
             this.updateDonateButton('Start Monthly Donation');
-            this.showInfo('Monthly Donation', 'You\'re setting up a recurring monthly donation');
         } else {
             recurringElements.forEach(el => el.style.display = 'none');
             oneTimeElements.forEach(el => el.style.display = 'block');
-            // UPDATED button text to match HTML
             this.updateDonateButton('Continue to Payment');
-            this.showInfo('One-time Donation', 'You\'re making a one-time contribution');
         }
     }
 
@@ -343,76 +378,13 @@ class DonationManager {
         }
     }
 
-    getGasUrl() {
-        if (!this.gasWebAppUrl || this.gasWebAppUrl.includes('YOUR_SCRIPT_ID_HERE')) {
-            this.showError('Configuration Error', 'Backend configuration missing. Please contact support.');
-            throw new Error('GAS Web App URL not configured');
-        }
-        return this.gasWebAppUrl;
-    }
-
-    async makeRequest(method, endpoint, data = null) {
-        const url = `${this.getGasUrl()}?path=${endpoint}`;
-
-        const options = {
-            method: method,
-            mode: 'cors',
-            cache: 'no-cache',
-            credentials: 'omit',
-            headers: {
-                'Content-Type': 'text/plain;charset=utf-8',
-                'Accept': 'application/json'
-            }
-        };
-
-        if (data && method === 'POST') {
-            if (typeof data === 'object') {
-                options.body = JSON.stringify(data);
-            } else {
-                options.body = data;
-            }
-        }
-
-        try {
-            const response = await fetch(url, options);
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            const result = await response.json();
-            return result;
-
-        } catch (error) {
-            throw error;
-        }
-    }
-
-    async testBackendConnection() {
-        try {
-            this.showInfo('Connecting...', 'Testing backend connection...');
-
-            const response = await this.makeRequest('POST', 'test');
-
-            if (response.success) {
-                this.showSuccess('Connection Successful', 'Backend is ready to process donations');
-            } else {
-                this.showWarning('Connection Issue', 'Backend connection issue detected. Please refresh the page.');
-            }
-
-        } catch (error) {
-            this.showError('Connection Failed', 'Unable to connect to backend. Please check your internet connection.');
-        }
-    }
-
+    // ===== FORM VALIDATION =====
     validateField(field) {
         const fieldName = field.name;
         const rules = this.validationRules[fieldName];
 
         if (!rules) return true;
 
-        // ===== DYNAMIC VALIDATION ADDED =====
-        // Dynamically check 'required' status for Aadhaar
         if (fieldName === 'aadhaarNumber' || fieldName === 'panNumber') {
             rules.required = document.getElementById('wants80G').checked;
         }
@@ -434,7 +406,6 @@ class DonationManager {
             errorMessage = `Minimum ${rules.minLength} characters required`;
         }
 
-        // Special check for PAN: it's optional, but if filled, it must be valid
         if (fieldName === 'panNumber' && value && !rules.pattern.test(value.toUpperCase())) {
             isValid = false;
             errorMessage = rules.message;
@@ -465,7 +436,6 @@ class DonationManager {
     }
 
     validateForm() {
-        // ===== UPDATED FIELDS TO VALIDATE =====
         const requiredFields = ['firstName', 'surname', 'donorEmail', 'donorPhone', 'donorAddress'];
         let isValid = true;
 
@@ -478,7 +448,6 @@ class DonationManager {
             }
         });
 
-        // ===== ADDED: Conditional validation for 80G fields =====
         const wants80G = document.getElementById('wants80G').checked;
         if (wants80G) {
             const aadhaarField = document.querySelector('[name="aadhaarNumber"]');
@@ -488,7 +457,6 @@ class DonationManager {
 
             const panField = document.querySelector('[name="panNumber"]');
             if (panField && panField.value.trim() && !this.validateField(panField)) {
-                // Validate PAN only if it's filled out
                 isValid = false;
             }
         }
@@ -499,15 +467,12 @@ class DonationManager {
             isValid = false;
         }
 
-        // ===== ADDED: Check for agreement =====
         const agreeToTerms = document.getElementById('agreeToTerms').checked;
         if (!agreeToTerms) {
             this.showError('Agreement Required', 'You must agree that donations are non-refundable');
             isValid = false;
         }
 
-        // This button state is now handled by the checkbox, but we keep the validation feedback
-        // this.updateDonateButtonState(isValid); 
         return isValid;
     }
 
@@ -522,7 +487,6 @@ class DonationManager {
     }
 
     clearFlashMessages() {
-        // Clear flash messages when user starts typing
         const flashContainer = document.getElementById('flash-container');
         if (flashContainer) {
             const notifications = flashContainer.querySelectorAll('.flash-notification');
@@ -534,18 +498,7 @@ class DonationManager {
         }
     }
 
-    updateDonateButtonState(isValid) {
-        // This is now primarily controlled by the 'agreeToTerms' checkbox
-        // but we respect the 'disabled' state from validation.
-        const donateButton = document.getElementById('donateButton');
-        const agreeToTerms = document.getElementById('agreeToTerms').checked;
-        if (donateButton) {
-            donateButton.disabled = !isValid || !agreeToTerms;
-        }
-    }
-
     collectDonorInfo() {
-        // ===== UPDATED to collect all new fields =====
         this.donorInfo = {
             firstName: document.querySelector('[name="firstName"]')?.value.trim(),
             surname: document.querySelector('[name="surname"]')?.value.trim(),
@@ -553,13 +506,15 @@ class DonationManager {
             phone: document.querySelector('[name="donorPhone"]')?.value.trim(),
             address: document.querySelector('[name="donorAddress"]')?.value.trim(),
             amount: this.getFinalAmount(),
-            isRecurring: this.isRecurring,
+            donationType: this.isRecurring ? 'recurring' : 'one-time',
             wants80G: document.getElementById('wants80G').checked,
             aadhaar: document.querySelector('[name="aadhaarNumber"]')?.value.trim(),
-            pan: document.querySelector('[name="panNumber"]')?.value.trim().toUpperCase()
+            pan: document.querySelector('[name="panNumber"]')?.value.trim().toUpperCase(),
+            userAgent: navigator.userAgent
         };
     }
 
+    // ===== DONATION PROCESSING =====
     async processDonation() {
         if (!this.validateForm()) {
             this.showError('Form Validation', 'Please fill all required fields correctly');
@@ -574,8 +529,6 @@ class DonationManager {
         this.showInfo('Processing...', 'Preparing your donation...');
 
         try {
-            this.getGasUrl();
-
             if (this.isRecurring) {
                 await this.processRecurringDonation();
             } else {
@@ -591,16 +544,26 @@ class DonationManager {
     async processOneTimeDonation() {
         this.showInfo('Creating Order', 'Setting up your payment...');
 
-        const orderId = await this.createOrder();
+        // Create Razorpay order via backend
+        const orderResponse = await this.makeBackendRequest('create-order', {
+            amount: this.donorInfo.amount,
+            currency: 'INR',
+            receipt: `receipt_${Date.now()}`
+        });
 
-        // ===== UPDATED PREFILL with new name structure =====
+        if (!orderResponse.success) {
+            throw new Error(orderResponse.error || 'Failed to create order');
+        }
+
+        const orderId = orderResponse.order.id;
+
         const options = {
             key: this.razorpayKeyId,
             amount: this.donorInfo.amount * 100,
             currency: 'INR',
-            name: 'YUVA Delhi',
-            description: 'Donation to YUVA Delhi',
-            image: '/Images/YUVA logo.png',
+            name: 'YUVA - Youth United For Vision & Action',
+            description: 'Donation to YUVA',
+            // image: '/Images/YUVA logo.png', // Removed to avoid CORS issues
             order_id: orderId,
             prefill: {
                 name: `${this.donorInfo.firstName} ${this.donorInfo.surname}`,
@@ -616,6 +579,7 @@ class DonationManager {
             modal: {
                 ondismiss: () => {
                     this.showWarning('Payment Cancelled', 'Payment was cancelled by user');
+                    this.setLoading(false);
                 }
             }
         };
@@ -624,173 +588,109 @@ class DonationManager {
         razorpay.open();
     }
 
-    async processRecurringDonation() {
-        this.showInfo('Setting Up Subscription', 'Creating your monthly donation...');
-
-        try {
-            const subscription = await this.createSubscription();
-
-            // ===== UPDATED PREFILL with new name structure =====
-            const options = {
-                key: this.razorpayKeyId,
-                subscription_id: subscription.id,
-                name: 'YUVA Delhi',
-                description: 'Monthly Donation to YUVA Delhi',
-                image: '/Images/YUVA logo.png',
-                prefill: {
-                    name: `${this.donorInfo.firstName} ${this.donorInfo.surname}`,
-                    email: this.donorInfo.email,
-                    contact: this.donorInfo.phone
-                },
-                theme: {
-                    color: '#555879'
-                },
-                handler: (response) => {
-                    this.handleSubscriptionSuccess(response);
-                },
-                modal: {
-                    ondismiss: () => {
-                        this.showWarning('Subscription Cancelled', 'Subscription was cancelled by user');
-                    }
-                }
-            };
-
-            const razorpay = new Razorpay(options);
-            razorpay.open();
-        } catch (error) {
-            this.showError('Subscription Error', 'Failed to create subscription');
-        }
-    }
-
-    async createOrder() {
-        try {
-            const data = {
-                amount: this.donorInfo.amount,
-                currency: 'INR',
-                receipt: `receipt_${Date.now()}`
-            };
-
-            const result = await this.makeRequest('POST', 'create-order', data);
-
-            if (!result.success) {
-                throw new Error(result.error || 'Failed to create order');
-            }
-
-            return result.order.id;
-        } catch (error) {
-            throw error;
-        }
-    }
-
-    async createSubscription() {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                resolve({
-                    id: 'sub_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
-                });
-            }, 1000);
-        });
-    }
-
     async handlePaymentSuccess(response) {
-        this.showSuccess('Payment Successful!', 'Your payment has been processed successfully');
+        // Step 1: Payment Success
+        this.showSuccess('Payment Successful!', 'Your payment has been processed successfully. Verifying payment signature...');
 
         try {
-            const data = {
+            // Step 2: Verify payment signature via backend
+            const verifyResponse = await this.makeBackendRequest('verify-payment', {
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature
-            };
-
-            const result = await this.makeRequest('POST', 'verify-payment', data);
-
-            if (result.success) {
-                this.showSuccess('Thank You!', 'Your donation has been processed successfully. We appreciate your support!');
-
-                // ===== UPDATED: This now sends all new donor info =====
-                await this.sendDonationData({
-                    ...this.donorInfo,
-                    paymentId: response.razorpay_payment_id,
-                    orderId: response.razorpay_order_id,
-                    signature: response.razorpay_signature
-                });
-
-                this.resetForm(); // Reset form AFTER sending data
-            } else {
-                await this.sendNotificationToBackend('verification-failed', {
-                    // ===== UPDATED: Send new name structure =====
-                    firstName: this.donorInfo.firstName,
-                    surname: this.donorInfo.surname,
-                    email: this.donorInfo.email,
-                    amount: this.donorInfo.amount,
-                    isRecurring: this.isRecurring
-                });
-                this.showError('Verification Failed', 'Payment verification failed. We have been notified and will resolve this within 24-48 hours.');
-            }
-        } catch (error) {
-            await this.sendNotificationToBackend('verification-failed', {
-                // ===== UPDATED: Send new name structure =====
-                firstName: this.donorInfo.firstName,
-                surname: this.donorInfo.surname,
-                email: this.donorInfo.email,
-                amount: this.donorInfo.amount,
-                isRecurring: this.isRecurring
             });
-            this.showError('Verification Failed', 'Payment verification failed. We have been notified and will resolve this within 24-48 hours.');
+
+            if (!verifyResponse.success) {
+                throw new Error('Payment verification failed');
+            }
+
+            // Step 3: Verification Success
+            this.showSuccess('Payment Verified!', 'Payment signature verified successfully. Saving your donation details to our database...');
+
+            // Step 4: Save donation to Supabase via backend
+            const saveResponse = await this.makeBackendRequest('save-donation', {
+                ...this.donorInfo,
+                paymentId: response.razorpay_payment_id,
+                orderId: response.razorpay_order_id,
+                signature: response.razorpay_signature
+            });
+
+            if (!saveResponse.success) {
+                throw new Error('Failed to save donation');
+            }
+
+            // Step 5: Final Success - Clear all previous notifications first
+            const flashContainer = document.getElementById('flash-container');
+            if (flashContainer) {
+                flashContainer.innerHTML = '';
+            }
+
+            // Show final success message with longer duration
+            this.showFlashNotification(
+                'success',
+                '🎉 Donation Successful!',
+                `Thank you for your generous donation of ₹${this.donorInfo.amount.toLocaleString('en-IN')}! Your contribution has been recorded successfully. You will receive a confirmation email with your donation receipt shortly.`,
+                12000 // Show for 12 seconds
+            );
+
+            // Reset form after a delay
+            setTimeout(() => {
+                this.resetForm();
+            }, 1000);
+
+        } catch (error) {
+            console.error('Error processing payment:', error);
+
+            // Clear previous notifications
+            const flashContainer = document.getElementById('flash-container');
+            if (flashContainer) {
+                flashContainer.innerHTML = '';
+            }
+
+            this.showFlashNotification(
+                'error',
+                'Processing Error',
+                'Your payment was successful, but we encountered an error saving your donation details. Please don\'t worry - we have your payment ID (' + response.razorpay_payment_id + ') and will contact you shortly to confirm your donation.',
+                15000 // Show for 15 seconds
+            );
         }
     }
 
-    async handleSubscriptionSuccess(response) {
-        this.showSuccess('Subscription Active!', 'Thank you for setting up monthly donations! Your subscription has been activated.');
-
-        // ===== UPDATED: Send all new donor info =====
-        await this.sendDonationData({
-            ...this.donorInfo,
-            subscriptionId: response.razorpay_subscription_id,
-            paymentId: response.razorpay_payment_id
-        });
-
-        this.resetForm();
-    }
-
-    async sendDonationData(data) {
-        try {
-            // This 'data' object now contains all new fields from collectDonorInfo
-            const result = await this.makeRequest('POST', 'save-donation', data);
-
-            if (!result.success) {
-                throw new Error(result.error || 'Failed to save donation data');
-            }
-
-            this.showSuccess('Data Saved', 'Your donation information has been recorded');
-            return true;
-        } catch (error) {
-            this.showError('Data Save Failed', `Failed to save donation data: ${error.message}`);
-
-            await this.sendNotificationToBackend('payment-failed', {
-                // ===== UPDATED: Send new name structure =====
-                firstName: data.firstName,
-                surname: data.surname,
-                email: data.email,
-                amount: data.amount,
-                isRecurring: data.isRecurring,
-                errorReason: `Data saving failed: ${error.message}`
-            });
-            return false;
-        }
+    async handlePaymentError(error) {
+        console.error('Payment error:', error);
+        this.showError('Payment Failed', error.message || 'An error occurred during payment processing');
+        this.setLoading(false);
     }
 
     setLoading(loading) {
         const donateButton = document.getElementById('donateButton');
         if (donateButton) {
+            const buttonText = donateButton.querySelector('.button-text');
+            const buttonIcon = donateButton.querySelector('.button-icon');
+
             if (loading) {
                 donateButton.classList.add('loading');
-                donateButton.disabled = true; // Disable when loading
+                donateButton.disabled = true;
+
+                // Change button text and add spinner
+                if (buttonText) {
+                    buttonText.textContent = 'Processing...';
+                }
+                if (buttonIcon) {
+                    buttonIcon.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                }
             } else {
-                // ===== UPDATED: Re-enable *only* if the terms are still checked =====
                 const agreeToTerms = document.getElementById('agreeToTerms').checked;
                 donateButton.classList.remove('loading');
                 donateButton.disabled = !agreeToTerms;
+
+                // Reset button text and icon
+                if (buttonText) {
+                    buttonText.textContent = 'Continue to Payment';
+                }
+                if (buttonIcon) {
+                    buttonIcon.innerHTML = '<i class="fas fa-arrow-right"></i>';
+                }
             }
         }
     }
@@ -799,110 +699,18 @@ class DonationManager {
         document.getElementById('donateForm')?.reset();
         this.selectedAmount = null;
         this.customAmount = null;
-        this.isRecurring = false;
-        this.paymentAttempts = 0;
+        this.donorInfo = {};
         this.updateAmountDisplay();
-        this.updateDonationType();
 
-        this.clearErrors();
-
-        // ===== ADDED: Reset new fields to their default state =====
-        document.getElementById('tax-exemption-fields').style.display = 'none';
-        document.getElementById('donateButton').disabled = true;
-
-        // Animate form reset
-        setTimeout(() => {
-            this.animateFormSection();
-        }, 100);
-    }
-
-    async handlePaymentError(error) {
-        let errorMessage = 'Payment processing failed. Please try again.';
-        let errorReason = 'Unknown error';
-
-        if (error.message) {
-            errorReason = error.message;
-            if (error.message.includes('insufficient')) {
-                errorMessage = 'Payment failed due to insufficient funds. Please check your account balance.';
-            } else if (error.message.includes('expired')) {
-                errorMessage = 'Payment failed due to expired card. Please use a different payment method.';
-            } else if (error.message.includes('declined')) {
-                errorMessage = 'Payment was declined by your bank. Please contact your bank or try a different card.';
-            } else if (error.message.includes('network')) {
-                errorMessage = 'Network error occurred. Please check your internet connection and try again.';
-            }
-        }
-
-        await this.sendNotificationToBackend('payment-failed', {
-            // ===== UPDATED: Send new name structure =====
-            firstName: this.donorInfo.firstName,
-            surname: this.donorInfo.surname,
-            email: this.donorInfo.email,
-            amount: this.donorInfo.amount,
-            isRecurring: this.isRecurring,
-            errorReason: errorReason
-        });
-
-        this.showError('Payment Failed', errorMessage);
-
-        if (this.paymentAttempts >= this.maxRetries) {
-            this.paymentAttempts = 0;
-            this.showError('Max Retries Reached', 'Maximum retry attempts reached. Please contact support if the issue persists.');
-        }
-    }
-
-    async sendNotificationToBackend(endpoint, data) {
-        try {
-            const result = await this.makeRequest('POST', endpoint, data);
-            return result.success;
-        } catch (error) {
-            return false;
+        // Reset tax exemption fields visibility
+        const taxFields = document.getElementById('tax-exemption-fields');
+        if (taxFields) {
+            taxFields.style.display = 'none';
         }
     }
 }
 
-// Initialize when DOM is loaded
+// ===== INITIALIZE ON PAGE LOAD =====
 document.addEventListener('DOMContentLoaded', () => {
-    new DonationManager();
+    window.donationManager = new DonationManager();
 });
-
-// Utility functions for enhanced UX
-class DonationUtils {
-    static formatCurrency(amount) {
-        return new Intl.NumberFormat('en-IN', {
-            style: 'currency',
-            currency: 'INR',
-            minimumFractionDigits: 0
-        }).format(amount);
-    }
-
-    static animateValue(element, start, end, duration) {
-        const startTimestamp = performance.now();
-        const step = (timestamp) => {
-            const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-            const current = Math.floor(progress * (end - start) + start);
-            element.textContent = this.formatCurrency(current);
-            if (progress < 1) {
-                requestAnimationFrame(step);
-            }
-        };
-        requestAnimationFrame(step);
-    }
-
-    static debounce(func, wait) {
-        let timeout;
-        return function executedFunction(...args) {
-            const later = () => {
-                clearTimeout(timeout);
-                func(...args);
-            };
-            clearTimeout(timeout);
-            timeout = setTimeout(later, wait);
-        };
-    }
-}
-
-// Export for potential use in other modules
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { DonationManager, DonationUtils };
-}

@@ -157,8 +157,28 @@
 
             <!-- Success Message -->
             <div class="success-message" id="successMessage" style="display: none;">
-                <i class="fas fa-check-circle"></i> Registration successful! Check your email for confirmation and QR
-                code.
+                <i class="fas fa-check-circle"></i>
+                <div>
+                    <strong>Registration Successful!</strong>
+                    <p style="margin: 10px 0;">Check your email for confirmation and QR code.</p>
+                    <button class="btn-download-ticket" id="downloadTicketBtn" onclick="downloadCurrentTicket()"
+                        style="margin-top: 10px;">
+                        <i class="fas fa-download"></i> Download Ticket (PDF)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Ticket Regeneration Link -->
+            <div
+                style="text-align: center; margin: 20px 0; padding: 15px; background: #f0f8ff; border-radius: 10px; border: 1px solid #8b0000;">
+                <p style="margin-bottom: 10px; color: #333;">
+                    <i class="fas fa-ticket-alt" style="color: #8b0000;"></i>
+                    <strong>Already Registered?</strong> Retrieve your ticket
+                </p>
+                <button class="btn-secondary" onclick="openTicketRetrievalModal()"
+                    style="padding: 10px 20px; background: #8b0000; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">
+                    <i class="fas fa-search"></i> Retrieve Your Ticket
+                </button>
             </div>
 
             <!-- Registration Fee Display -->
@@ -217,572 +237,26 @@
                     <div class="form-group">
                         <label for="college">College <span>*</span></label>
                         <div>
-
                             <select id="college" name="college" required>
-                                <option value="">--Select a College--</option>
-                                <option value="Other">Other</option>
-                                <option value="5 Year Intergrated Law, DU">5 Year Intergrated Law, DU</option>
-                                <option value="Acharya-narendra-dev-college">Acharya Narendra Dev College</option>
-                                <option value="Aditi-mahavidyalaya">Aditi Mahavidyalaya</option>
-                                <option value="Ahilyabai-college-of-nursing">Ahilyabai College Of Nursing</option>
-                                <option value="All-india-institute-of-medical-science-aiims">All India Institute Of
-                                    Medical
-                                    Science-AIIMS</option>
-                                <option value="All-yavar-jung-institute-of-hearing-handicapped">All Yavar Jung Institute
-                                    Of
-                                    Hearing Handicapped</option>
-                                <option value="Amar-jyoti-institute-of-physiotherapy-karkardooma">Amar Jyoti Institute
-                                    Of
-                                    Physiotherapy Karkardooma</option>
-                                <option
-                                    value="Ambedkar-institute-of-advanced-communication-technologies-and-research-geeta-colony">
-                                    Ambedkar Institute Of Advanced Communication Technologies And Research Geeta Colony
-                                </option>
-                                <option value="ambedkar-university">Ambedkar University</option>
-                                <option value="Ambedkar-institute-of-technology">Ambedkar Institute Of Technology
-                                </option>
-
-                                <option value="Ambedkar-institute-of-technology-shakarpur">Ambedkar Institute Of
-                                    Technology
-                                    Shakarpur</option>
-                                <option value="Amity-institute-of-biotechnology">Amity Institute Of Biotechnology
-                                </option>
-                                <option value="Amity-law-school">Amity Law School</option>
-                                <option value="Amity-school-of-engg.-&-technology">Amity School Of Engg. & Technology
-                                </option>
-                                <option value="Amity-school-of-physiotherapy">Amity School Of Physiotherapy</option>
-                                <option value="Amity-university">Amity University</option>
-                                <option value="Ansal-institute-of-technology">Ansal Institute Of Technology</option>
-                                <option value="Apeejay-school-of-management">Apeejay School Of Management</option>
-                                <option value="Army-college-of-medical-science-delhi-cantt">Army College Of Medical
-                                    Science
-                                    Delhi Cantt</option>
-                                <option value="Army-institute-of-education">Army Institute Of Education</option>
-                                <option value="Army-institute-of-management-&-technology">Army Institute Of Management &
-                                    Technology</option>
-                                <option value="Aryabhatt-institute-of-technology-shakti-nagar">Aryabhatt Institute Of
-                                    Technology Shakti Nagar</option>
-                                <option value="Arybhatta-college">Arybhatta College</option>
-                                <option value="Ashoka-university">Ashoka University</option>
-                                <option value="Asia-pacific-institute-of-management">Asia Pacific Institute Of
-                                    Management
-                                </option>
-                                <option value="Atma-ram-sanatan-dharma-college">Atma Ram Sanatan Dharma College</option>
-                                <option value="Ayurvedic-and-unani-tibbia-college">Ayurvedic And Unani Tibbia College
-                                </option>
-                                <option value="B-k-institute-of-education-technology-narela">B K Institute Of Education
-                                    Technology Narela</option>
-                                <option value="Bakson-homeopathic-medical-college">Bakson Homeopathic Medical College
-                                </option>
-                                <option value="Banarsidas-chandiwala-institute-of-hotel-management-kalkaji">Banarsidas
-                                    Chandiwala Institute Of Hotel Management Kalkaji</option>
-                                <option
-                                    value="Banarsidas-chandiwala-institute-of-professional-studies-sector-11-dwarka">
-                                    Banarsidas Chandiwala Institute Of Professional Studies Sector 11 Dwarka</option>
-                                <option value="Beri-institute-of-technology">Beri Institute Of Technology</option>
-                                <option value="Bhagini-nivedita-college">Bhagini Nivedita College</option>
-                                <option value="Bhagwan-mahabir-jain-girls-college-of-education">Bhagwan Mahabir Jain
-                                    Girls
-                                    College Of Education</option>
-                                <option value="Bhagwan-parshuram-institute-of-technology-sector-17">Bhagwan Parshuram
-                                    Institute Of Technology Sector 17</option>
-                                <option value="Bhai-parmananad-institute-of-business-studies">Bhai Parmananad Institute
-                                    Of
-                                    Business Studies</option>
-                                <option value="Bhai-parmanand-institute-of-business-studies-shakarpur">Bhai Parmanand
-                                    Institute Of Business Studies Shakarpur</option>
-                                <option
-                                    value="Bharati-vidyapeeth-university-institute-of-management-&-research-(bvimr)">
-                                    Bharati Vidyapeeth University Institute Of Management & Research (Bvimr)</option>
-                                <option value="Bharti-college">Bharti College</option>
-                                <option value="Bharti-vidyapeeth’s-institute-of-computer-applications-and-management">
-                                    Bharti
-                                    Vidyapeeth’S Institute Of Computer Applications And Management</option>
-                                <option value="Bhartiya-vidyapeeth-college-of-engineering-paschim-vihar">Bhartiya
-                                    Vidyapeeth
-                                    College Of Engineering Paschim Vihar</option>
-                                <option value="Bhaskaracharya-college-of-applied-sciences">Bhaskaracharya College Of
-                                    Applied
-                                    Sciences</option>
-                                <option value="Bhimrao-ambedkar-college">Bhimrao Ambedkar College</option>
-                                <option value="Bls-institute-of-management">Bls Institute Of Management</option>
-                                <option value="C-dec-(electronics-research-&-development-centre-of-india)">C-Dec
-                                    (Electronics Research & Development Centre Of India)</option>
-                                <option value="Campus-law-center">Campus Law Center</option>
-                                <option value="Capital-business-school">Capital Business School</option>
-                                <option value="Ces-college-of-educational-research-&-training">Ces College Of
-                                    Educational
-                                    Research & Training</option>
-                                <option value="Chandra-prabhu-jain-college-of-higher-studies-narela">Chandra Prabhu Jain
-                                    College Of Higher Studies Narela</option>
-                                <option value="Chaudhary-brahm-prakash-ayurved-charak-sansthan">Chaudhary Brahm Prakash
-                                    Ayurved Charak Sansthan</option>
-                                <option
-                                    value="Chaudhary-brahm-prakash-government-engineering-college-jaffarpur-integrated-institute-of-technology-sector-9">
-                                    Chaudhary Brahm Prakash Government Engineering College Jaffarpur Integrated
-                                    Institute Of
-                                    Technology Sector 9</option>
-                                <option value="College-of-arts">College Of Arts</option>
-                                <option value="College-of-medical-lab-technology-hindu-rao-hospital">College Of Medical
-                                    Lab
-                                    Technology Hindu Rao Hospital</option>
-                                <option value="College-of-nursing-dr-ram-manohar-lohia-hospital">College Of Nursing Dr
-                                    Ram
-                                    Manohar Lohia Hospital</option>
-                                <option value="College-of-nursing-vardhman-mahavir-medical-college-safdarjung">College
-                                    Of
-                                    Nursing Vardhman Mahavir Medical College Safdarjung</option>
-                                <option value="College-of-pharmacy">College Of Pharmacy</option>
-                                <option value="College-of-vocational-studies">College Of Vocational Studies</option>
-                                <option value="Comm-it-career-academy-sheikh-sarai">Comm It Career Academy Sheikh Sarai
-                                </option>
-                                <option value="Comm-it-career-academy">Comm-It Career Academy</option>
-                                <option value="Daulat-ram-college">Daulat Ram College</option>
-                                <option value="Deen-dayal-upadhyay-college">Deen Dayal Upadhyay College</option>
-                                <option value="Delhi--institute-of-rural-development-gt-karnal-road-nangli-poona">Delhi
-                                    Institute Of Rural Development Gt Karnal Road Nangli Poona</option>
-                                <option value="Delhi-college-of-advanced-studies">Delhi College Of Advanced Studies
-                                </option>
-                                <option value="Delhi-college-of-arts-and-commerce">Delhi College Of Arts And Commerce
-                                </option>
-                                <option value="Delhi-institute-of-advanced-studies">Delhi Institute Of Advanced Studies
-                                </option>
-                                <option
-                                    value="Delhi-institute-of-pharmaceutical-science-and-research-pushp-vihar-durgabai-deshmukh-college-of-special-education">
-                                    Delhi Institute Of Pharmaceutical Science And Research Pushp Vihar Durgabai Deshmukh
-                                    College Of Special Education</option>
-                                <option value="Delhi-institute-of-pharmaceutical-sciences-and-research">Delhi Institute
-                                    Of
-                                    Pharmaceutical Sciences And Research</option>
-                                <option value="Delhi-institute-of-rural-development">Delhi Institute Of Rural
-                                    Development
-                                </option>
-                                <option value="Delhi-institute-of-tool-engineering-okhla">Delhi Institute Of Tool
-                                    Engineering Okhla</option>
-                                <option value="Delhi-school-of-economics">Delhi School Of Economics</option>
-                                <option value="Delhi-school-of-journalism">Delhi School Of Journalism</option>
-                                <option value="Delhi-school-of-professional-studies-&-research">Delhi School Of
-                                    Professional
-                                    Studies & Research</option>
-                                <option value="Delhi-school-of-professional-studies-and-research-sector-25">Delhi School
-                                    Of
-                                    Professional Studies And Research Sector 25</option>
-                                <option value="Delhi-teachers’-training-college">Delhi Teachers’ Training College
-                                </option>
-                                <option value="Delhi-technical-university-dtu">Delhi Technical University-Dtu</option>
-                                <option value="Delhi-technological-university">Delhi Technological University</option>
-                                <option value="Deshbandhu-college">Deshbandhu College</option>
-                                <option
-                                    value="Dr-br-sur-h0meopethic-medical-college-and-research-centre-moti-bagh-vardhman-mahavir-medical-college-safdarjung">
-                                    Dr Br Sur H0Meopethic Medical College And Research Centre Moti Bagh Vardhman Mahavir
-                                    Medical College Safdarjung</option>
-                                <option
-                                    value="Dr-ram-manohar-lohia-hospital-pg-institute-of-medical-education-and-research">
-                                    Dr
-                                    Ram Manohar Lohia Hospital Pg Institute Of Medical Education And Research</option>
-                                <option value="Du-ncweb">Du Ncweb</option>
-                                <option value="Du-sol">Du Sol</option>
-                                <option value="Dyal-singh-college">Dyal Singh College</option>
-                                <option value="Dyal-singh-college-evening">Dyal Singh College Evening</option>
-                                <option value="Eastern-institute-for-integrated-learning-in-management-(eiilm)">Eastern
-                                    Institute For Integrated Learning In Management (Eiilm)</option>
-                                <option value="Empi-business-school">Empi Business School</option>
-                                <option value="Esic-dental-college-and-hospital-sector-15">Esic Dental College And
-                                    Hospital
-                                    Sector 15</option>
-                                <option value="Esic-institute-of-rehabilitation-sciences-vasant-kunj">Esic Institute Of
-                                    Rehabilitation Sciences Vasant Kunj</option>
-                                <option value="Excel-institute-of-management-&-technology">Excel Institute Of Management
-                                    &
-                                    Technology</option>
-                                <option value="Faculty-of-management-studies">Faculty Of Management Studies</option>
-                                <option value="Fairfield-institute-of-management-and-technology">Fairfield Institute Of
-                                    Management And Technology</option>
-                                <option value="Fairfield-institute-of-management-and-technology-kapashera">Fairfield
-                                    Institute Of Management AGd Technology Kapashera</option>
-                                <option value="Fore-school-of-management">Fore School Of Management</option>
-                                <option value="Gandharv-Mahavidyalay">Gandharv Mahavidyalay</option>
-                                <option value="Gargi-college">Gargi College</option>
-                                <option value="Gautam-buddha-university">Gautam Buddha University</option>
-                                <option value="Gb-pant-government-engineering-college-okhla">Gb Pant Government
-                                    Engineering
-                                    College Okhla</option>
-                                <option value="Gd-goenka-university">Gd Goenka University</option>
-                                <option value="Gitarattan-institute-of-advanced-studies-and-training-sector-7">
-                                    Gitarattan
-                                    Institute Of Advanced Studies And Training Sector 7</option>
-                                <option value="Gitarattan-international-business-school-madhuban-chowk">Gitarattan
-                                    International Business School Madhuban Chowk</option>
-                                <option value="Guru-gobind-singh-indraprastha-university">Guru Gobind Singh Indraprastha
-                                    University</option>
-                                <option value="Guru-nanak-college-of-education-punjabi-bagh">Guru Nanak College Of
-                                    Education
-                                    Punjabi Bagh</option>
-                                <option value="Guru-nanak-dev-institute-of-technology-sector-15">Guru Nanak Dev
-                                    Institute Of
-                                    Technology Sector 15</option>
-                                <option value="Guru-nanak-institute-of-management">Guru Nanak Institute Of Management
-                                </option>
-                                <option value="Guru-premsukh-memorial-college-of-engg.">Guru Premsukh Memorial College
-                                    Of
-                                    Engg.</option>
-                                <option value="Guru-ram-das-college-of-education-west-jyoti-nagar-shahdara">Guru Ram Das
-                                    College Of Education West Jyoti Nagar Shahdara</option>
-                                <option value="Guru-tegh-bahadur-institute-of-technology-rajouri-garden">Guru Tegh
-                                    Bahadur
-                                    Institute Of Technology Rajouri Garden</option>
-                                <option value="Hansraj-college">Hansraj College</option>
-                                <option value="Hindu-college">Hindu College</option>
-                                <option value="Hmr-institute-of-technology-and-management-hamidpur">Hmr Institute Of
-                                    Technology And Management Hamidpur</option>
-                                <option value="Icfai-university">Icfai University</option>
-                                <option value="Ideal-institute-of-management-and-technology-vivek-vihar">Ideal Institute
-                                    Of
-                                    Management And Technology Vivek Vihar</option>
-                                <option value="Ignou-distance">Ignou-Distance</option>
-                                <option value="Iilm-institute-for-higher-education">Iilm Institute For Higher Education
-                                </option>
-                                <option value="Indian-agricultural-research-institute-iari">Indian Agricultural Research
-                                    Institute-Iari</option>
-                                <option value="Indian-institute-of-finance-(iif)">Indian Institute Of Finance (Iif)
-                                </option>
-                                <option value="Indian-institute-of-foreign-trade-iift">Indian Institute Of Foreign
-                                    Trade-Iift</option>
-                                <option value="Indian-institute-of-mass-communication-iimc">Indian Institute Of Mass
-                                    Communication-Iimc</option>
-                                <option value="Indian-institute-of-technology-iit">Indian Institute Of Technology-Iit
-                                </option>
-                                <option value="Indian-law-institute">Indian Law Institute</option>
-                                <option value="Indian-red-cross-society">Indian Red Cross Society</option>
-                                <option value="Indian-statistical-institute">Indian Statistical Institute</option>
-                                <option value="Indira-gandhi-institute-of-physical-education-&-sports-sciences">Indira
-                                    Gandhi Institute Of Physical Education & Sports Sciences</option>
-                                <option value="Indira-gandhi-national-open-university-ignou">Indira Gandhi National Open
-                                    University-Ignou</option>
-                                <option value="Indira Gandhi Delhi Technical University-for-Women">Indira Gandhi Delhi
-                                    Technical University for Women</option>
-                                <option value="Indraprastha-college-for-women">Indraprastha College For Women</option>
-                                <option value="Indraprastha-institute-of-information-technology-delhi-(iiit-delhi)">
-                                    Indraprastha Institute Of Information Technology Delhi (Iiit-Delhi)</option>
-                                <option value="Institute-of-applied-manpower-research">Institute Of Applied Manpower
-                                    Research</option>
-                                <option value="Institute-of-higher-education-vikaspuri">Institute Of Higher Education
-                                    Vikaspuri</option>
-                                <option value="Institute-of-home-economics">Institute Of Home Economics</option>
-                                <option value="Institute-of-information-technology-and-management-janakpuri">Institute
-                                    Of
-                                    Information Technology And Management Janakpuri</option>
-                                <option value="Institute-of-liver-and-biliary-sciences-ilbs">Institute Of Liver And
-                                    Biliary
-                                    Sciences-Ilbs</option>
-                                <option value="Institute-of-physically-handicapped">Institute Of Physically Handicapped
-                                </option>
-                                <option value="Institute-of-rehabilitation-medicine-&-allied-sciences">Institute Of
-                                    Rehabilitation Medicine & Allied Sciences</option>
-                                <option value="Institute-of-research-and-advanced-studies-alaknanda">Institute Of
-                                    Research
-                                    And Advanced Studies Alaknanda</option>
-                                <option value="Institute-of-rural-development-holambi-khurd">Institute Of Rural
-                                    Development
-                                    Holambi Khurd</option>
-                                <option value="Institute-of-technology-najafgarh">Institute Of Technology Najafgarh
-                                </option>
-                                <option value="Institute-of-vocational-studies-sheikh-sarai">Institute Of Vocational
-                                    Studies
-                                    Sheikh Sarai</option>
-                                <option value="International-management-institute(imi)">International Management
-                                    Institute(Imi)</option>
-                                <option value="Isic-institute-of-rehabilitation-science">Isic Institute Of
-                                    Rehabilitation
-                                    Science</option>
-                                <option value="Jagan-institute-of-management-studies-sector-5">Jagan Institute Of
-                                    Management
-                                    Studies Sector 5</option>
-                                <option value="Jagannath-international-management-school-kalkaji">Jagannath
-                                    International
-                                    Management School Kalkaji</option>
-                                <option value="Jagannath-international-management-school-vasant-kunj">Jagannath
-                                    International Management School Vasant Kunj</option>
-                                <option value="Jamia-hamdard">Jamia Hamdard</option>
-                                <option value="Jamia-millia-islamia">Jamia Millia Islamia</option>
-                                <option value="Janki-devi-memorial-college">Janki Devi Memorial College</option>
-                                <option value="Jawaharlal-nehru-university">Jawaharlal Nehru University</option>
-                                <option value="Jaypee-institute-of-information-technology-(jiit)---deemed-university">
-                                    Jaypee
-                                    Institute Of Information Technology (Jiit) - Deemed University</option>
-                                <option value="Jesus-and-mary-college">Jesus And Mary College</option>
-                                <option value="Kalindi-college">Kalindi College</option>
-                                <option value="Kalka-institute-for-research-&-advanced-studies">Kalka Institute For
-                                    Research
-                                    & Advanced Studies</option>
-                                <option value="Kamla-nehru-college">Kamla Nehru College</option>
-                                <option value="Kasturba-gandhi-institute-of-technology-pitampura">Kasturba Gandhi
-                                    Institute
-                                    Of Technology Pitampura</option>
-                                <option value="Kasturi-ram-college-of-higher-education-narela">Kasturi Ram College Of
-                                    Higher
-                                    Education Narela</option>
-                                <option value="Keshav-mahavidyalaya">Keshav Mahavidyalaya</option>
-                                <option value="Kirori-mal-college">Kirori Mal College</option>
-                                <option value="Lady-hardinge-medical-college">Lady Hardinge Medical College</option>
-                                <option value="Lady-irwin-college">Lady Irwin College</option>
-                                <option value="Lady-shri-ram-college">Lady Shri Ram College</option>
-                                <option value="Lakshmibai-college">Lakshmibai College</option>
-                                <option value="Lal-bahadur-shastri-institute-of-management-sector-11-dwarka">Lal Bahadur
-                                    Shastri Institute Of Management Sector 11 Dwarka</option>
-                                <option value="Lalita-devi-institute-of-management-and-science">Lalita Devi Institute Of
-                                    Management And Science</option>
-                                <option value="Law-center-1">Law Center 1</option>
-                                <option value="Law-center-2">Law Center 2</option>
-                                <option value="Laxmi-bai-batra-college-of-nursing-mehrauli">Laxmi Bai Batra College Of
-                                    Nursing Mehrauli</option>
-                                <option value="Lingaya's-vidyapeeth">Lingaya'S Vidyapeeth</option>
-                                <option
-                                    value="Lok-nayak-jayaprakash-narayan-national-institute-of-criminology-and-forensic-science-sector-3">
-                                    Lok Nayak Jayaprakash Narayan National Institute Of Criminology And Forensic Science
-                                    Sector 3</option>
-                                <option
-                                    value="Madhubala-institute-of-communication-and-electronic-media-new-delhi-institute-of-management-tughlakabad">
-                                    Madhubala Institute Of Communication And Electronic Media New Delhi Institute Of
-                                    Management Tughlakabad</option>
-                                <option value="Maharaja-agrasen-college">Maharaja Agrasen College</option>
-                                <option value="Maharaja-agrasen-institute-of-management-studies">Maharaja Agrasen
-                                    Institute
-                                    Of Management Studies</option>
-                                <option value="Maharaja-agrasen-institute-of-management-studies">Maharaja Agrasen
-                                    Institute
-                                    Of Management Studies</option>
-                                <option value="Maharaja-surajmal-institute-janakpuri">Maharaja Surajmal Institute
-                                    Janakpuri
-                                </option>
-                                <option value="Maharaja-surajmal-institute-of-pharmacy">Maharaja Surajmal Institute Of
-                                    Pharmacy</option>
-                                <option value="Maharaja-surajmal-institute-of-technology">Maharaja Surajmal Institute Of
-                                    Technology</option>
-                                <option value="Maharshi-valmiki-college-of-education">Maharshi Valmiki College Of
-                                    Education
-                                </option>
-                                <option value="Maharshi-vedic-university">Maharshi Vedic University</option>
-                                <option value="Maitri-college">Maitri College</option>
-                                <option value="Management-education-and-research-institute-janakpuri">Management
-                                    Education
-                                    And Research Institute Janakpuri</option>
-                                <option value="Mata-sundari-college">Mata Sundari College</option>
-                                <option value="Maulana-maulana-azad-medical-college">Maulana Maulana Azad Medical
-                                    College
-                                </option>
-                                <option value="Mbs-school-of-planning-and-architecture-sector-9">Mbs School Of Planning
-                                    And
-                                    Architecture Sector 9</option>
-                                <option value="Mera-by-integrated-institute-of-technology-maharani-bagh">Mera By
-                                    Integrated
-                                    Institute Of Technology Maharani Bagh</option>
-                                <option value="Miranda-house">Miranda House</option>
-                                <option value="Morarji-desai-national-institute-of-yoga">Morarji Desai National
-                                    Institute Of
-                                    Yoga</option>
-                                <option value="Mother-teresa-institute-of-management">Mother Teresa Institute Of
-                                    Management
-                                </option>
-                                <option value="Motilal-nehru-college">Motilal Nehru College</option>
-                                <option value="Motilal-nehru-college-evening">Motilal Nehru College Evening</option>
-                                <option value="National-centre-for-disease-control-ncdc">National Centre For Disease
-                                    Control-Ncdc</option>
-                                <option value="National-institute-of-communicable-diseases-(nicd)">National Institute Of
-                                    Communicable Diseases (Nicd)</option>
-                                <option value="National-institute-of-fashion-technology-nift">National Institute Of
-                                    Fashion
-                                    Technology-Nift</option>
-                                <option value="National-institute-of-labour-economics-narela">National Institute Of
-                                    Labour
-                                    Economics Narela</option>
-                                <option value="National-institute-of-mentally-handicapped">National Institute Of
-                                    Mentally
-                                    Handicapped</option>
-                                <option value="National-law-university-nlu">National Law University-Nlu</option>
-                                <option
-                                    value="National-museum-institute-of-the-history-of-the-art-conservation-and-museology">
-                                    National Museum Institute Of The History Of The Art Conservation And Museology
-                                </option>
-                                <option value="National-power-training-institute-badarpur">National Power Training
-                                    Institute
-                                    Badarpur</option>
-                                <option value="National-school-of-drama-nsd">National School Of Drama-Nsd</option>
-                                <option value="Ndmc-medical-college-at-hindu-rao-hospital">Ndmc Medical College At Hindu
-                                    Rao
-                                    Hospital</option>
-                                <option value="Nehru-homeopathic-college">Nehru Homeopathic College</option>
-                                <option value="Netaji-subhas-institute-of-technology-nsut">Netaji Subhas Institute Of
-                                    Technology-Nsut</option>
-                                <option value="New-delhi-institute-for-information-technology">New Delhi Institute For
-                                    Information Technology</option>
-                                <option value="New-delhi-institute-of-management">New Delhi Institute Of Management
-                                </option>
-                                <option value="Niilm-centre-for-management-studies">Niilm Centre For Management Studies
-                                </option>
-                                <option value="Northcap-university">Northcap University</option>
-                                <option value="Northern-india-engineering-college">Northern India Engineering College
-                                </option>
-                                <option value="Nrai-school-of-mass-communication">Nrai School Of Mass Communication
-                                </option>
-                                <option value="P.g.d.a.v.-college">P.G.D.A.V. College</option>
-                                <option value="P.g.d.a.v.-college-(evening)">P.G.D.A.V. College (Evening)</option>
-                                <option value="Pandit-deen-dayal-institute-of-physically-handicapped">Pandit Deen Dayal
-                                    Institute Of Physically Handicapped</option>
-                                <option value="Pradeep-memorial-comprehensive-college-of-education-kirari-extension">
-                                    Pradeep
-                                    Memorial Comprehensive College Of Education Kirari Extension</option>
-                                <option value="Pusa-institute-of-technology">Pusa Institute Of Technology</option>
-                                <option value="R.c.-institute-of-technology">R.C. Institute Of Technology</option>
-                                <option value="Rai-business-school-(rbs)">Rai Business School (Rbs)</option>
-                                <option value="Rajdhani-college">Rajdhani College</option>
-                                <option value="Rajiv-gandhi-cancer-institute-and-research-centre-sector-5">Rajiv Gandhi
-                                    Cancer Institute And Research Centre Sector 5</option>
-                                <option value="Rajkumari-amrit-kaur-college-of-nursing">Rajkumari Amrit Kaur College Of
-                                    Nursing</option>
-                                <option value="Ram-lal-anand-college">Ram Lal Anand College</option>
-                                <option value="Ramanujan-college">Ramanujan College</option>
-                                <option value="Ramjas-college">Ramjas College</option>
-                                <option value="Rishihood-university">Rishihood University</option>
-                                <option value="Rukmini-devi-institute-of-advanced-studies">Rukmini Devi Institute Of
-                                    Advanced Studies</option>
-                                <option value="Rukmini-devi-institute-of-advanced-studies-madhuban-chowk">Rukmini Devi
-                                    Institute Of Advanced Studies Madhuban Chowk</option>
-                                <option value="Saint-lawrence-college-of-higher-education-geeta-colony">Saint Lawrence
-                                    College Of Higher Education Geeta Colony</option>
-                                <option value="Saint-stephen's-college">Saint Stephen'S College</option>
-                                <option value="Sant-haridas-college-of-higher-education-najafgarh">Sant Haridas College
-                                    Of
-                                    Higher Education Najafgarh</option>
-                                <option value="Satyawati-college">Satyawati College</option>
-                                <option value="Satyawati-college-evening">Satyawati College Evening</option>
-                                <option value="School-of-computer-science-(delhi-kannada-education-society)">School Of
-                                    Computer Science (Delhi Kannada Education Society)</option>
-                                <option value="School-of-correspondence-courses-&-cont.-edu.">School Of Correspondence
-                                    Courses & Cont. Edu.</option>
-                                <option value="School-of-planning-and-architecture">School Of Planning And Architecture
-                                </option>
-                                <option value="School-of-rehabilitation-science">School Of Rehabilitation Science
-                                </option>
-                                <option value="Sent-stephen-college-of-nursing-tees-hazari">Sent Stephen College Of
-                                    Nursing
-                                    Tees Hazari</option>
-                                <option value="Shaheed-bhagat-singh-college">Shaheed Bhagat Singh College</option>
-                                <option value="Shaheed-bhagat-singh-college-evening">Shaheed Bhagat Singh College
-                                    Evening
-                                </option>
-                                <option value="Shaheed-rajguru-college-of-applied-science-for-women">Shaheed Rajguru
-                                    College
-                                    Of Applied Science For Women</option>
-                                <option value="Shaheed-sukhdev-college-of-business-studies">Shaheed Sukhdev College Of
-                                    Business Studies</option>
-                                <option value="Sharda-university">Sharda University</option>
-                                <option value="Sherubtse-college">Sherubtse College</option>
-                                <option value="Shivaji-college">Shivaji College</option>
-                                <option value="Shri-guru-nanak-dev-khalsa-college">Shri Guru Nanak Dev Khalsa College
-                                </option>
-                                <option value="Shri-guru-teg-bahadur-khalsa-college">Shri Guru Teg Bahadur Khalsa
-                                    College
-                                </option>
-                                <option value="Shri-lal-bahadur-shastri-rashtriya-sanskrit-vidyapeeth">Shri Lal Bahadur
-                                    Shastri Rashtriya Sanskrit Vidyapeeth</option>
-                                <option value="Shri-ram-college-of-commerce">Shri Ram College Of Commerce</option>
-                                <option value="Shri-ram-institute-of-teacher-education-sector">Shri Ram Institute Of
-                                    Teacher
-                                    Education Sector</option>
-                                <option value="Shyam-lal-college">Shyam Lal College</option>
-                                <option value="Shyam-lal-college-evening">Shyam Lal College Evening</option>
-                                <option value="Shyama-prasad-mukherjee-college">Shyama Prasad Mukherjee College</option>
-                                <option value="Sirifort-college-of-computer-technology-&-management">Sirifort College Of
-                                    Computer Technology & Management</option>
-                                <option value="South Asian University">South Asian University</option>
-                                <option value="Special-art-school-madhuban-chowk">Special Art School Madhuban Chowk
-                                </option>
-                                <option value="Sri-aurobindo-college">Sri Aurobindo College</option>
-                                <option value="Sri-aurobindo-college-evening">Sri Aurobindo College Evening</option>
-                                <option value="Sri-guru-gobind-singh-college-of-commerce">Sri Guru Gobind Singh College
-                                    Of
-                                    Commerce</option>
-                                <option
-                                    value="Sri-guru-tegh-bahadur-institute-of-management-and-information-technology">Sri
-                                    Guru Tegh Bahadur Institute Of Management And Information Technology</option>
-                                <option value="Sri-venkateswara-college">Sri Venkateswara College</option>
-                                <option value="St.-joan’s-college-of-vocational-studies">St. Joan’S College Of
-                                    Vocational
-                                    Studies</option>
-                                <option value="St.-lawrence-pharmacy-college">St. Lawrence Pharmacy College</option>
-                                <option value="St.-stephens-college">St. Stephens College</option>
-                                <option value="State-council-of-educational-research-and-training-defence-colony">State
-                                    Council Of Educational Research And Training Defence Colony</option>
-                                <option value="Subhash-chandra-bose-institute-of-business-management-shahdara">Subhash
-                                    Chandra Bose Institute Of Business Management Shahdara</option>
-                                <option value="Sumit-institute-of-education-and-research-palam">Sumit Institute Of
-                                    Education
-                                    And Research Palam</option>
-                                <option value="Sushant-school-of-art-and-architecture">Sushant School Of Art And
-                                    Architecture</option>
-                                <option value="Swami-shraddhanand-college">Swami Shraddhanand College</option>
-                                <option value="Syndicate-bank-staff-training-college-rajouri-garden">Syndicate Bank
-                                    Staff
-                                    Training College Rajouri Garden</option>
-                                <option value="Tarun-bharat-college-of-education-najafgarh">Tarun Bharat College Of
-                                    Education Najafgarh</option>
-                                <option value="Teacher-training-institute-for-special-education-okhla">Teacher Training
-                                    Institute For Special Education Okhla</option>
-                                <option value="Tecnia-institute-of-advanced-studies-madhuban-chowk">Tecnia Institute Of
-                                    Advanced Studies Madhuban Chowk</option>
-                                <option value="Tejasvini-institute-of-professional-studies-bhorgarh-alipur">Tejasvini
-                                    Institute Of Professional Studies Bhorgarh Alipur</option>
-                                <option value="Teri-university">Teri University</option>
-                                <option value="The-indian-institute-of-planning-and-management-iipm">The Indian
-                                    Institute Of
-                                    Planning And Management-Iipm</option>
-                                <option value="The-lakshmibai-college">The Lakshmibai College</option>
-                                <option value="Times-college-of-professional-studies">Times College Of Professional
-                                    Studies
-                                </option>
-                                <option value="Titiksha-institute-of-education">Titiksha Institute Of Education</option>
-                                <option value="Trinity-institute-of-professional-studies-sector-9">Trinity Institute Of
-                                    Professional Studies Sector 9</option>
-                                <option value="Trinity-institute-of-professional-studies-sector-9-dwarka">Trinity
-                                    Institute
-                                    Of Professional Studies Sector 9 Dwarka</option>
-                                <option value="Tvb-school-of-habitat-studies">Tvb School Of Habitat Studies</option>
-                                <option value="Unitedworld-school-of-business">Unitedworld School Of Business</option>
-                                <option value="University-college-of-medical-sciences">University College Of Medical
-                                    Sciences</option>
-                                <option value="University-of-delhi">University Of Delhi</option>
-                                <option value="University-of-media-arts">University Of Media Arts</option>
-                                <option value="University-school-of-management-studies-(usms)">University School Of
-                                    Management Studies (Usms)</option>
-                                <option value="University-school-of-mass-communication-(usmc)">University School Of Mass
-                                    Communication (Usmc)</option>
-                                <option value="Vallabhbhai-patel-chest-institute">Vallabhbhai Patel Chest Institute
-                                </option>
-                                <option value="Vardhman-mahavir-medical-college">Vardhman Mahavir Medical College
-                                </option>
-                                <option value="Vastu-kala-academy">Vastu Kala Academy</option>
-                                <option value="Vd-institute-of-technology-sultanpuri">Vd Institute Of Technology
-                                    Sultanpuri
-                                </option>
-                                <option value="Vips-pitampura">Vips Pitampura</option>
-                                <option value="Vivekananda-college">Vivekananda College</option>
-                                <option value="Vivekananda-institute-of-professional-studies-pitampura">Vivekananda
-                                    Institute Of Professional Studies Pitampura</option>
-                                <option value="Walk-in-school-of-business-management">Walk In School Of Business
-                                    Management
-                                </option>
-                                <option value="Williams-institute-of-management-&-technology">Williams Institute Of
-                                    Management & Technology</option>
-                                <option value="World-university-of-design">World University Of Design</option>
-                                <option value="Zakhir-husain-college-(evening)">Zakhir Husain College (Evening)</option>
-                                <option value="Zakir-husain-college-(evening)">Zakir Husain College (Evening)</option>
-                                <option value="Zakir-hussain-college">Zakir Hussain College</option>
-
+                                <option value="">Loading colleges...</option>
                             </select>
                         </div>
                         <div class="error-message" id="collegeError"></div>
                     </div>
+
+                    <!-- Zone Field (Auto-filled, Read-only) -->
+                    <div class="form-group">
+                        <label for="zone">Zone <span>*</span></label>
+                        <input type="text" id="zone" name="zone" readonly required
+                            placeholder="Zone will be auto-filled"
+                            style="background-color: #f5f5f5; cursor: not-allowed; color: #666;" />
+                        <div class="error-message" id="zoneError"></div>
+                    </div>
+
+                    <!-- Hidden fields for IDs -->
+                    <input type="hidden" id="collegeId" name="collegeId" />
+                    <input type="hidden" id="collegeName" name="collegeName" />
+                    <input type="hidden" id="zoneId" name="zoneId" />
                 </div>
 
                 <div class="form-row">
@@ -909,7 +383,48 @@
             <h2>Registration Successful!</h2>
             <p>Your registration has been completed successfully. Please check your email for the confirmation and QR
                 code.</p>
-            <button class="btn-primary" onclick="closeModal()">Close</button>
+            <div class="modal-buttons">
+                <button class="btn-download-modal" onclick="downloadCurrentTicket()">
+                    <i class="fas fa-download"></i> Download Ticket (PDF)
+                </button>
+                <button class="btn-close-modal" onclick="closeModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ticket Retrieval Modal -->
+    <div id="ticketRetrievalModal" class="modal">
+        <div class="modal-content">
+            <i class="fas fa-ticket-alt"></i>
+            <h2>Retrieve Your Ticket</h2>
+            <p>Enter your Registration ID or Email to download your ticket</p>
+
+            <div style="margin: 20px 0; text-align: left;">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Search By:</label>
+                    <select id="retrievalMethod"
+                        style="width: 100%; padding: 12px; border-radius: 12px; border: 2px solid #ccc; font-family: inherit;">
+                        <option value="email">Email Address</option>
+                        <option value="registrationId">Registration ID</option>
+                    </select>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;" id="retrievalInputLabel">Email
+                        Address:</label>
+                    <input type="text" id="retrievalInput" placeholder="Enter your email"
+                        style="width: 100%; padding: 12px; border-radius: 12px; border: 2px solid #ccc; font-family: inherit;" />
+                </div>
+
+                <div id="retrievalError" style="color: #d32f2f; margin: 10px 0; display: none; font-weight: 600;"></div>
+                <div id="retrievalSuccess" style="color: #28a745; margin: 10px 0; display: none; font-weight: 600;">
+                </div>
+            </div>
+
+            <button class="btn-primary" onclick="retrieveAndDownloadTicket()" id="retrieveTicketBtn">
+                <i class="fas fa-search"></i> <span>Find & Download Ticket</span>
+            </button>
+            <button class="btn-secondary-cancel" onclick="closeTicketRetrievalModal()">Cancel</button>
         </div>
     </div>
 
@@ -926,22 +441,248 @@
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
 
+    <!-- PDF Generation Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <!-- Ticket Generator -->
+    <script src="ticket-generator.js"></script>
+
     <script>
-        // ✅ Initialize the searchable college dropdown
-        const collegeElement = document.getElementById('college');
-        const collegeChoices = new Choices(collegeElement, {
-            searchEnabled: true,
-            shouldSort: false, // Keep your original order
-            itemSelectText: 'Press to select',
-            placeholder: true,
-            placeholderValue: 'Type to search for your college',
-        });
-        // Configuration - Replace with your actual values
+        // ============================================================================
+        // CONFIGURATION
+        // ============================================================================
         const CONFIG = {
-            APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxzBKvHPeT8CvWVhVQOoQGhbdtAm5XpKwHbmz0-kCu3aNJydWbIDZktyQZI5tnW1iZY/exec', // Replace with your Apps Script Web App URL
-            RAZORPAY_KEY_ID: 'rzp_live_RCnlaKffG5VeY0', // Replace with your Razorpay Key ID
-            REGISTRATION_AMOUNT: 30000 // Amount in paise (₹300 = 30000 paise) - default student amount
+            // Apps Script & Razorpay
+            // IMPORTANT: This URL must end with /exec
+            APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxGn90pe_oHXLvnLExZPKAVMUH1GNQZBAOi2IgNm3TcrABRP_-61ssszRZnK5m7Nm7C/exec',
+            RAZORPAY_KEY_ID: 'rzp_test_RCnv6goa4rkg0Q',
+            REGISTRATION_AMOUNT: 30000, // ₹300 in paise
+
+            // Supabase Configuration - UPDATE THESE
+            SUPABASE_URL: 'https://jgsrsjwmywiirtibofth.supabase.co', // TODO: Update with your Supabase URL
+            SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impnc3JzandteXdpaXJ0aWJvZnRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwNzY2NDgsImV4cCI6MjA3NDY1MjY0OH0.qN_GZIIOm6J1-qSY7r-HX8RLMoH7udc_0Jn7izqk8J8' // TODO: Update with your anon key
         };
+
+        // ============================================================================
+        // GLOBAL VARIABLES
+        // ============================================================================
+        let collegesData = []; // Will store all colleges from Supabase
+        let collegeChoices = null; // Choices.js instance
+
+        // LOAD COLLEGES FROM SUPABASE
+        // ============================================================================
+        async function loadCollegesFromSupabase() {
+            try {
+                console.log('🔄 Loading colleges from Supabase...');
+
+                // Query colleges with zone information (joining zones table)
+                const response = await fetch(
+                    `${CONFIG.SUPABASE_URL}/rest/v1/colleges?select=id,college_name,college_code,zone_id,zones(id,zone_name,zone_code)&order=college_name.asc`,
+                    {
+                        headers: {
+                            'apikey': CONFIG.SUPABASE_ANON_KEY,
+                            'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}`
+                        }
+                    }
+                );
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const rawData = await response.json();
+
+                // Transform data to include zone_name at top level
+                collegesData = rawData.map(college => ({
+                    id: college.id,
+                    name: college.college_name,
+                    slug: college.college_code,
+                    zone_id: college.zone_id,
+                    zone_name: college.zones?.zone_name || 'Unknown Zone'
+                }));
+
+                console.log(`✅ Loaded ${collegesData.length} colleges from Supabase`);
+
+                // Populate the dropdown
+                populateCollegeDropdown();
+
+            } catch (error) {
+                console.error('❌ Error loading colleges:', error);
+                // Fallback: Show error message
+                showCollegeFallback();
+            }
+        }
+
+        // ============================================================================
+        // POPULATE COLLEGE DROPDOWN
+        // ============================================================================
+        function populateCollegeDropdown() {
+            const collegeSelect = document.getElementById('college');
+
+            // Clear existing options
+            collegeSelect.innerHTML = '';
+
+            // Add default option
+            const defaultOption = document.createElement('option');
+            defaultOption.value = '';
+            defaultOption.textContent = '--Select a College--';
+            collegeSelect.appendChild(defaultOption);
+
+            // Add "Other" option
+            const otherOption = document.createElement('option');
+            otherOption.value = 'other';
+            otherOption.textContent = 'Other';
+            otherOption.setAttribute('data-college-id', '999');
+            otherOption.setAttribute('data-zone-id', '8');
+            otherOption.setAttribute('data-zone-name', 'Other Institutions');
+            collegeSelect.appendChild(otherOption);
+
+            // Add colleges from Supabase (already sorted alphabetically by SQL query)
+            collegesData.forEach(college => {
+                const option = document.createElement('option');
+                option.value = college.slug || college.name.toLowerCase().replace(/\s+/g, '-');
+                option.textContent = college.name;
+                option.setAttribute('data-college-id', college.id);
+                option.setAttribute('data-college-name', college.name);
+                option.setAttribute('data-zone-id', college.zone_id);
+                option.setAttribute('data-zone-name', college.zone_name);
+                collegeSelect.appendChild(option);
+            });
+
+            console.log(`✅ Populated ${collegesData.length + 1} colleges in dropdown`);
+
+            // Initialize Choices.js for searchable dropdown
+            initializeChoicesJS();
+        }
+
+        // ============================================================================
+        // INITIALIZE CHOICES.JS (Searchable Dropdown)
+        // ============================================================================
+        function initializeChoicesJS() {
+            const collegeElement = document.getElementById('college');
+
+            collegeChoices = new Choices(collegeElement, {
+                searchEnabled: true,
+                shouldSort: false, // Already sorted by SQL
+                itemSelectText: 'Press to select',
+                placeholder: true,
+                placeholderValue: 'Type to search for your college',
+                searchPlaceholderValue: 'Search colleges...',
+                noResultsText: 'No colleges found',
+                noChoicesText: 'No colleges available'
+            });
+
+            console.log('✅ Choices.js initialized');
+        }
+
+        // ============================================================================
+        // COLLEGE SELECTION → AUTO-FILL ZONE
+        // ============================================================================
+        document.addEventListener('DOMContentLoaded', function () {
+            // Load colleges from Supabase on page load
+            loadCollegesFromSupabase();
+
+            // Listen for college selection changes
+            const collegeSelect = document.getElementById('college');
+            collegeSelect.addEventListener('change', function () {
+                const selectedOption = this.options[this.selectedIndex];
+
+                // Get zone field and hidden fields
+                const zoneInput = document.getElementById('zone');
+                const collegeIdInput = document.getElementById('collegeId');
+                const collegeNameInput = document.getElementById('collegeName');
+                const zoneIdInput = document.getElementById('zoneId');
+
+                // Clear zone if no college selected
+                if (!this.value) {
+                    zoneInput.value = '';
+                    collegeIdInput.value = '';
+                    collegeNameInput.value = '';
+                    zoneIdInput.value = '';
+                    hideError('zoneError');
+                    return;
+                }
+
+                // Get data from selected option
+                const collegeId = selectedOption.getAttribute('data-college-id');
+                const collegeName = selectedOption.getAttribute('data-college-name') || selectedOption.textContent;
+                const zoneId = selectedOption.getAttribute('data-zone-id');
+                const zoneName = selectedOption.getAttribute('data-zone-name');
+
+                // Auto-fill zone and hidden fields
+                if (zoneId && zoneName) {
+                    zoneInput.value = zoneName;
+                    collegeIdInput.value = collegeId;
+                    collegeNameInput.value = collegeName;
+                    zoneIdInput.value = zoneId;
+
+                    // Re-validate both college and zone fields to clear errors
+                    validateForm(false, 'college');
+                    validateForm(false, 'zone');
+
+                    console.log('✅ Zone auto-filled:', {
+                        college: collegeName,
+                        collegeId: collegeId,
+                        zone: zoneName,
+                        zoneId: zoneId
+                    });
+                } else {
+                    console.warn('⚠️ Zone data not found for:', collegeName);
+                    zoneInput.value = 'Zone not available';
+                    collegeIdInput.value = collegeId || '';
+                    collegeNameInput.value = collegeName;
+                    zoneIdInput.value = '';
+
+                    // Re-validate to show error if zone is missing
+                    validateForm(false, 'college');
+                    validateForm(false, 'zone');
+                }
+            });
+
+            // Setup individual field validation triggers
+            const formFields = [
+                { id: 'firstName', errorId: 'firstNameError' },
+                { id: 'age', errorId: 'ageError' },
+                { id: 'bloodGroup', errorId: 'bloodGroupError' },
+                { id: 'college', errorId: 'collegeError' },
+                { id: 'email', errorId: 'emailError' },
+                { id: 'mobile', errorId: 'mobileError' },
+                { id: 'state', errorId: 'stateError' },
+                { id: 'previousVimarsh', errorId: 'previousVimarshError' },
+                { id: 'howYouKnow', errorId: 'howYouKnowError' },
+                { id: 'paymentCategory', errorId: 'paymentCategoryError' }
+            ];
+
+            formFields.forEach(field => {
+                const element = document.getElementById(field.id);
+                if (element) {
+                    const eventType = (element.tagName === 'SELECT' || element.type === 'select-one') ? 'change' : 'input';
+                    element.addEventListener(eventType, () => {
+                        // Re-validate just this field
+                        validateForm(false, field.id);
+                    });
+                }
+            });
+
+            // Initial validation on load to show required fields
+            setTimeout(() => {
+                validateForm(false);
+            }, 1000); // Wait for potential async loads (like colleges)
+        });
+
+        // ============================================================================
+        // FALLBACK IF SUPABASE FAILS
+        // ============================================================================
+        function showCollegeFallback() {
+            const collegeSelect = document.getElementById('college');
+            collegeSelect.innerHTML = `
+                <option value="">Unable to load colleges</option>
+                <option value="other">Other</option>
+            `;
+
+            alert('Unable to load colleges from database. Please refresh the page or contact support.');
+        }
 
 
         // Handle payment category selection and fee display
@@ -973,123 +714,141 @@
         const form = document.querySelector("form");
         const submitBtn = document.getElementById("submitBtn");
 
-        // Run validation on every input change
-        form.addEventListener("input", () => {
-            submitBtn.disabled = !validateForm();
-        });
+        // Initialize submit button state
+        submitBtn.disabled = false; // Keep enabled to allow user to see validation on click
 
-        // Initialize submit button state on load (handles autofill cases)
-        submitBtn.disabled = !validateForm();
+        function validateForm(isSubmit = false, specificFieldId = null) {
+            let overallValid = true;
 
-        function validateForm() {
-            let isValid = true;
+            const validations = [
+                {
+                    id: 'firstName',
+                    errorId: 'firstNameError',
+                    check: () => {
+                        const val = document.getElementById('firstName').value.trim();
+                        if (!val) return 'First name is required';
+                        if (!/^[A-Z][a-zA-Z\s]*$/.test(val)) return 'First name must start with a capital letter and contain only letters';
+                        return null;
+                    }
+                },
+                {
+                    id: 'age',
+                    errorId: 'ageError',
+                    check: () => document.getElementById('age').value ? null : 'Please select your age group'
+                },
+                {
+                    id: 'bloodGroup',
+                    errorId: 'bloodGroupError',
+                    check: () => document.getElementById('bloodGroup').value ? null : 'Please select your blood group'
+                },
+                {
+                    id: 'college',
+                    errorId: 'collegeError',
+                    check: () => document.getElementById('college').value ? null : 'Please select your college'
+                },
+                {
+                    id: 'zone',
+                    errorId: 'zoneError',
+                    check: () => document.getElementById('zone').value ? null : 'Zone is required (auto-filled)'
+                },
+                {
+                    id: 'email',
+                    errorId: 'emailError',
+                    check: () => {
+                        const val = document.getElementById('email').value.trim();
+                        if (!val) return 'Email is required';
+                        if (!/^[a-z][a-z0-9._%+-]*@[a-z0-9.-]+\.[a-z]{2,}$/.test(val)) return 'Email must start with a lowercase letter and be valid';
+                        return null;
+                    }
+                },
+                {
+                    id: 'mobile',
+                    errorId: 'mobileError',
+                    check: () => {
+                        const val = document.getElementById('mobile').value.trim();
+                        if (!val) return 'Mobile number is required';
+                        if (!/^[0-9]{10}$/.test(val)) return 'Please enter a valid 10-digit number';
+                        return null;
+                    }
+                },
+                {
+                    id: 'state',
+                    errorId: 'stateError',
+                    check: () => document.getElementById('state').value ? null : 'Please select your state'
+                },
+                {
+                    id: 'previousVimarsh',
+                    errorId: 'previousVimarshError',
+                    check: () => document.getElementById('previousVimarsh').value ? null : 'Please select an option'
+                },
+                {
+                    id: 'howYouKnow',
+                    errorId: 'howYouKnowError',
+                    check: () => document.getElementById('howYouKnow').value ? null : 'Please select how you got to know about Vimarsh'
+                },
+                {
+                    id: 'paymentCategory',
+                    errorId: 'paymentCategoryError',
+                    check: () => document.getElementById('paymentCategory').value ? null : 'Please select your registration category'
+                }
+            ];
 
-            // Reset all error messages
-            document.querySelectorAll('.error-message').forEach(msg => msg.style.display = 'none');
+            validations.forEach(v => {
+                // If specificFieldId is provided, only validate that one
+                if (specificFieldId && v.id !== specificFieldId) return;
 
-            // Validate First Name
-            const firstName = document.getElementById('firstName').value.trim();
-            if (!firstName) {
-                showError('firstNameError', 'First name is required');
-                isValid = false;
-            } else if (!/^[A-Z][a-zA-Z\s]*$/.test(firstName)) {
-                showError('firstNameError', 'First name must start with a capital letter and contain only letters');
-                isValid = false;
-            }
+                const errorMsg = v.check();
+                if (errorMsg) {
+                    showError(v.errorId, errorMsg);
+                    overallValid = false;
+                } else {
+                    hideError(v.errorId);
+                }
+            });
 
-            // Validate Last Name (FIELD IS NOW OPTIONAL)
-            // Validate Last Name (FIELD IS NOW OPTIONAL - NO VALIDATION)
-            // const lastName = document.getElementById('lastName').value.trim();
-
-            // Validate Age
-            const age = document.getElementById('age').value;
-            if (!age) {
-                showError('ageError', 'Please select your age group');
-                isValid = false;
-            }
-
-            // Validate Blood Group
-            const bloodGroup = document.getElementById('bloodGroup').value;
-            if (!bloodGroup) {
-                showError('bloodGroupError', 'Please select your blood group');
-                isValid = false;
-            }
-
-            // Validate College
-            const college = document.getElementById('college').value;
-            if (!college) {
-                showError('collegeError', 'Please select your college');
-                isValid = false;
-            }
-
-            // Validate Email
-            const email = document.getElementById('email').value.trim();
-            const emailRegex = /^[a-z][a-z0-9._%+-]*@[a-z0-9.-]+\.[a-z]{2,}$/;
-            if (!email) {
-                showError('emailError', 'Email is required');
-                isValid = false;
-            } else if (!emailRegex.test(email)) {
-                showError('emailError', 'Email must start with a lowercase letter and be valid');
-                isValid = false;
-            }
-
-            // Validate Mobile Number
-            const mobile = document.getElementById('mobile').value.trim();
-            if (!mobile) {
-                showError('mobileError', 'Mobile number is required');
-                isValid = false;
-            } else if (!/^[0-9]{10}$/.test(mobile)) {
-                showError('mobileError', 'Please enter a valid 10-digit number');
-                isValid = false;
-            }
-
-            // Validate State
-            const state = document.getElementById('state').value;
-            if (!state) {
-                showError('stateError', 'Please select your state');
-                isValid = false;
-            }
-
-            // Validate Previous Vimarsh Participation
-            const previousVimarsh = document.getElementById('previousVimarsh').value;
-            if (!previousVimarsh) {
-                showError('previousVimarshError', 'Please select an option');
-                isValid = false;
-            }
-
-            // Validate How You Know About Vimarsh
-            const howYouKnow = document.getElementById('howYouKnow').value;
-            if (!howYouKnow) {
-                showError('howYouKnowError', 'Please select how you got to know about Vimarsh');
-                isValid = false;
-            }
-
-            // Validate Payment Category
-            const paymentCategory = document.getElementById('paymentCategory').value;
-            if (!paymentCategory) {
-                showError('paymentCategoryError', 'Please select your registration category');
-                isValid = false;
-            }
-
-            return isValid;
+            return overallValid;
         }
 
+        // Show error with smooth fade-in animation
         function showError(elementId, message) {
             const errorElement = document.getElementById(elementId);
+            if (!errorElement) return;
+
             errorElement.textContent = message;
+            errorElement.style.opacity = '0';
             errorElement.style.display = 'block';
+
+            // Fade in animation
+            setTimeout(() => {
+                errorElement.style.transition = 'opacity 0.1s ease-in-out';
+                errorElement.style.opacity = '1';
+            }, 10);
+        }
+
+        // Hide error with smooth fade-out animation
+        function hideError(elementId) {
+            const errorElement = document.getElementById(elementId);
+            if (!errorElement || errorElement.style.display === 'none') return;
+
+            errorElement.style.transition = 'opacity 0.1s ease-in-out';
+            errorElement.style.opacity = '0';
+
+            // Hide after animation completes
+            setTimeout(() => {
+                errorElement.style.display = 'none';
+            }, 100);
         }
 
         // Check if email is already registered
         async function checkEmailRegistration(email) {
             try {
-                const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+                const response = await fetch(`${CONFIG.APPS_SCRIPT_URL}?origin=${encodeURIComponent(window.location.origin)}`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'Content-Type': 'text/plain;charset=utf-8',
                     },
-                    body: new URLSearchParams({
-                        action: 'checkEmail',
+                    body: JSON.stringify({
+                        action: 'checkStatus',
                         email: email
                     })
                 });
@@ -1099,7 +858,15 @@
                 }
 
                 const result = await response.json();
-                return result.data || { alreadyRegistered: false, paymentStatus: null };
+                // New backend returns { found: true, registrations: [...] }
+                // Check if any registration with this email is already completed
+                const alreadyRegistered = result.found && result.registrations &&
+                    result.registrations.some(r => r.payment_status === 'completed');
+
+                return {
+                    alreadyRegistered: alreadyRegistered,
+                    paymentStatus: alreadyRegistered ? 'Completed' : null
+                };
             } catch (error) {
                 console.error('Error checking email registration:', error);
                 return { alreadyRegistered: false, paymentStatus: null };
@@ -1115,7 +882,16 @@
                 lastName: document.getElementById('lastName').value.trim(),
                 age: document.getElementById('age').value,
                 bloodGroup: document.getElementById('bloodGroup').value,
+
+                // College information (with IDs)
                 college: document.getElementById('college').value,
+                collegeId: document.getElementById('collegeId').value,
+                collegeName: document.getElementById('collegeName').value,
+
+                // Zone information (auto-filled)
+                zone: document.getElementById('zone').value,
+                zoneId: document.getElementById('zoneId').value,
+
                 email: document.getElementById('email').value.trim(),
                 mobile: document.getElementById('mobile').value.trim(),
                 state: document.getElementById('state').value,
@@ -1134,14 +910,14 @@
         }
 
         // Initialize Razorpay payment
-        function initializePayment(orderId, formData) {
+        function initializePayment(orderData, formData) {
             const options = {
-                key: CONFIG.RAZORPAY_KEY_ID,
-                amount: CONFIG.REGISTRATION_AMOUNT,
-                currency: 'INR',
+                key: orderData.keyId || CONFIG.RAZORPAY_KEY_ID,
+                amount: orderData.amount,
+                currency: orderData.currency || 'INR',
                 name: 'Vimarsh 2025',
                 description: 'Vimarsh 2025 Registration Fee',
-                order_id: orderId,
+                order_id: orderData.orderId,
                 prefill: {
                     name: `${formData.firstName} ${formData.lastName}`,
                     email: formData.email,
@@ -1177,36 +953,211 @@
             try {
                 toggleLoading(true);
 
-                // Send payment confirmation to Apps Script
-                const confirmBody = new URLSearchParams();
-                confirmBody.append('action', 'confirmPayment');
-                Object.entries(formData).forEach(([k, v]) => confirmBody.append(k, v));
-                confirmBody.append('paymentId', paymentResponse.razorpay_payment_id);
-                confirmBody.append('orderId', paymentResponse.razorpay_order_id);
-                confirmBody.append('signature', paymentResponse.razorpay_signature);
+                // Send payment confirmation (verifyPayment) to Apps Script
+                const confirmData = {
+                    action: 'verifyPayment',
+                    razorpayOrderId: paymentResponse.razorpay_order_id,
+                    razorpayPaymentId: paymentResponse.razorpay_payment_id,
+                    razorpaySignature: paymentResponse.razorpay_signature
+                };
 
-                const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+                const response = await fetch(`${CONFIG.APPS_SCRIPT_URL}?origin=${encodeURIComponent(window.location.origin)}`, {
                     method: 'POST',
-                    body: confirmBody
+                    headers: {
+                        'Content-Type': 'text/plain;charset=utf-8'
+                    },
+                    body: JSON.stringify(confirmData)
                 });
 
-                // Show success message
-                toggleLoading(false);
-                document.getElementById('successMessage').style.display = 'block';
-                document.getElementById('registrationForm').reset();
+                if (!response.ok) {
+                    throw new Error(`Confirmation failed: ${response.status}`);
+                }
 
-                // Show success modal
-                document.getElementById('successModal').style.display = 'block';
+                const result = await response.json();
 
-                // Scroll to top
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                if (result.success) {
+                    // Store registration data globally for ticket download
+                    window.currentRegistrationData = {
+                        registration_id: result.registrationId,
+                        qr_code_hash: result.qrHash,
+                        first_name: formData.firstName,
+                        last_name: formData.lastName,
+                        email: formData.email,
+                        mobile: formData.mobile,
+                        college_name: formData.collegeName,
+                        zone_name: formData.zone,
+                        payment_category: formData.paymentCategory,
+                        amount_paid: CONFIG.REGISTRATION_AMOUNT / 100
+                    };
+
+                    // Show success message
+                    toggleLoading(false);
+                    document.getElementById('successMessage').style.display = 'block';
+                    document.getElementById('registrationForm').reset();
+
+                    // Show success modal
+                    document.getElementById('successModal').style.display = 'block';
+
+                    // Scroll to top
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                } else {
+                    throw new Error(result.message || result.error || 'Payment verification failed on server.');
+                }
 
             } catch (error) {
                 console.error('Error confirming payment:', error);
                 toggleLoading(false);
-                showErrorModal('Payment succeeded, but we could not confirm your registration automatically. You should receive the confirmation email shortly. If not, please contact support.', 'Confirmation Pending');
+
+                const errorMessage = error.message.includes('Payment verification failed')
+                    ? error.message
+                    : `Payment succeeded, but we could not confirm your registration automatically. Reason: ${error.message}`;
+
+                showErrorModal(errorMessage, 'Confirmation Pending');
             }
         }
+
+        // ============================================================================
+        // TICKET DOWNLOAD & REGENERATION FUNCTIONS
+        // ============================================================================
+
+        // Global variable to store current registration data
+        window.currentRegistrationData = null;
+
+        /**
+         * Download ticket for current registration (after successful payment)
+         */
+        async function downloadCurrentTicket() {
+            if (!window.currentRegistrationData) {
+                alert('No registration data available. Please complete registration first.');
+                return;
+            }
+
+            try {
+                await generateAndDownloadTicket(window.currentRegistrationData);
+            } catch (error) {
+                console.error('Error downloading ticket:', error);
+                alert('Failed to download ticket. Please try again or contact support.');
+            }
+        }
+
+        /**
+         * Open ticket retrieval modal
+         */
+        function openTicketRetrievalModal() {
+            document.getElementById('ticketRetrievalModal').style.display = 'block';
+            document.getElementById('retrievalInput').value = '';
+            document.getElementById('retrievalError').style.display = 'none';
+            document.getElementById('retrievalSuccess').style.display = 'none';
+        }
+
+        /**
+         * Close ticket retrieval modal
+         */
+        function closeTicketRetrievalModal() {
+            document.getElementById('ticketRetrievalModal').style.display = 'none';
+        }
+
+        /**
+         * Update retrieval input label based on selected method
+         */
+        document.addEventListener('DOMContentLoaded', function () {
+            const methodSelect = document.getElementById('retrievalMethod');
+            const inputLabel = document.getElementById('retrievalInputLabel');
+            const input = document.getElementById('retrievalInput');
+
+            if (methodSelect) {
+                methodSelect.addEventListener('change', function () {
+                    if (this.value === 'email') {
+                        inputLabel.textContent = 'Email Address:';
+                        input.placeholder = 'Enter your email';
+                        input.type = 'email';
+                    } else {
+                        inputLabel.textContent = 'Registration ID:';
+                        input.placeholder = 'Enter your registration ID (e.g., VIM2026-NORTH-DU-00001)';
+                        input.type = 'text';
+                    }
+                });
+            }
+        });
+
+        /**
+         * Retrieve and download ticket using email or registration ID
+         */
+        async function retrieveAndDownloadTicket() {
+            const method = document.getElementById('retrievalMethod').value;
+            const input = document.getElementById('retrievalInput').value.trim();
+            const errorDiv = document.getElementById('retrievalError');
+            const successDiv = document.getElementById('retrievalSuccess');
+            const retrieveBtn = document.getElementById('retrieveTicketBtn');
+
+            // Reset messages
+            errorDiv.style.display = 'none';
+            successDiv.style.display = 'none';
+
+            // Validate input
+            if (!input) {
+                errorDiv.textContent = 'Please enter your ' + (method === 'email' ? 'email address' : 'registration ID');
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            // Client-side Email Validation
+            if (method === 'email') {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(input)) {
+                    errorDiv.textContent = 'Please enter a valid email address (missing @ or .)';
+                    errorDiv.style.display = 'block';
+                    return;
+                }
+            } else if (method === 'registrationId') {
+                // Basic check for VIM prefix to help user
+                if (!input.toUpperCase().startsWith('VIM')) {
+                    errorDiv.textContent = 'Registration ID usually starts with VIM (e.g., VIM2026-...)';
+                    errorDiv.style.display = 'block';
+                    // We'll still allow it to process just in case, or we can prompt.
+                    // For now, let's just make it a warning if it's very short.
+                }
+            }
+
+            // Disable button and show loading
+            retrieveBtn.disabled = true;
+            retrieveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Searching...</span>';
+
+            try {
+                // Fetch registration data
+                const registrationData = await fetchRegistrationForTicket(input, method);
+
+                // Check if registration has completed payment
+                if (registrationData.payment_status !== 'completed') {
+                    throw new Error(`Your payment is currently "${registrationData.payment_status}". Please complete payment to download your ticket.`);
+                }
+
+                // Show success message
+                successDiv.textContent = 'Registration found! Generating ticket...';
+                successDiv.style.display = 'block';
+
+                // Generate and download ticket
+                await generateAndDownloadTicket(registrationData);
+
+                // Update success message
+                successDiv.textContent = 'Ticket downloaded successfully!';
+
+                // Close modal after 2 seconds
+                setTimeout(() => {
+                    closeTicketRetrievalModal();
+                }, 2000);
+
+            } catch (error) {
+                console.error('Error retrieving ticket:', error);
+                errorDiv.textContent = error.message || 'Failed to retrieve registration. Please check your details and try again.';
+                errorDiv.style.display = 'block';
+            } finally {
+                // Re-enable button
+                retrieveBtn.disabled = false;
+                retrieveBtn.innerHTML = '<i class="fas fa-search"></i> Find & Download Ticket';
+            }
+        }
+
 
         // Close modal
         function closeModal() {
@@ -1237,8 +1188,8 @@
                 return;
             }
 
-            // Check configuration
-            if (CONFIG.APPS_SCRIPT_URL === 'YOUR_APPS_SCRIPT_WEB_APP_URL' || CONFIG.RAZORPAY_KEY_ID === 'YOUR_RAZORPAY_KEY_ID') {
+            // Check configuration (Skip literal check if already filled)
+            if (CONFIG.APPS_SCRIPT_URL.includes('YOUR_APPS_SCRIPT')) {
                 showErrorModal('System configuration pending. Please contact the administrator.');
                 return;
             }
@@ -1250,45 +1201,64 @@
 
                 // Check if email is already registered with successful payment
                 const emailCheck = await checkEmailRegistration(formData.email);
-                if (emailCheck.alreadyRegistered && emailCheck.paymentStatus === 'Completed') {
+                if (emailCheck.alreadyRegistered) {
                     toggleLoading(false);
                     showErrorModal('This email is already registered with a successful payment. Please use a different email address.');
                     return;
                 }
 
-                // Create order via Apps Script
-                const createBody = new URLSearchParams();
-                createBody.append('action', 'createOrder');
-                Object.entries(formData).forEach(([k, v]) => createBody.append(k, v));
+                // Create order via Apps Script (using JSON)
+                const createData = {
+                    action: 'createOrder',
+                    firstName: formData.firstName,
+                    lastName: formData.lastName,
+                    email: formData.email,
+                    mobile: formData.mobile,
+                    ageGroup: formData.age, // Backend expects ageGroup
+                    bloodGroup: formData.bloodGroup,
+                    collegeId: formData.collegeId,
+                    collegeName: formData.collegeName,
+                    zoneId: formData.zoneId,
+                    zoneName: formData.zone, // Backend expects zoneName
+                    state: formData.state,
+                    paymentCategory: formData.paymentCategory,
+                    previousVimarsh: formData.previousVimarsh,
+                    howYouKnow: formData.howYouKnow
+                };
 
-                const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+                const response = await fetch(`${CONFIG.APPS_SCRIPT_URL}?origin=${encodeURIComponent(window.location.origin)}`, {
                     method: 'POST',
-                    body: createBody
+                    headers: {
+                        'Content-Type': 'text/plain;charset=utf-8'
+                    },
+                    body: JSON.stringify(createData)
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Server error: ${response.status}`);
+                    const errorText = await response.text();
+                    let errorData;
+                    try { errorData = JSON.parse(errorText); } catch (e) { }
+                    throw new Error(errorData?.message || errorData?.error || `Server error: ${response.status}`);
                 }
 
-                let result;
-                try {
-                    result = await response.json();
-                } catch (e) {
-                    throw new Error('Invalid server response.');
-                }
+                const result = await response.json();
 
-                if (result.success && result.data && result.data.orderId) {
+                if (result.success && result.orderId) {
                     // Initialize Razorpay payment
                     toggleLoading(false);
-                    initializePayment(result.data.orderId, formData);
+                    initializePayment(result, formData);
                 } else {
-                    throw new Error(result.message || 'Failed to create order');
+                    throw new Error(result.message || result.error || 'Failed to create order');
                 }
 
             } catch (error) {
                 console.error('Error:', error);
                 toggleLoading(false);
-                showErrorModal('An error occurred while processing your registration. Please try again later.');
+                if (error.message.includes('duplicate_registration')) {
+                    showErrorModal('This email is already registered. Please check your email for the ticket or use a different email.');
+                } else {
+                    showErrorModal(error.message || 'An error occurred while processing your registration. Please try again later.');
+                }
             }
         });
 

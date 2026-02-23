@@ -164,6 +164,7 @@ window.showSection = function (sectionId) {
         'dashboard': 'Dashboard Overview',
         'user-manager': 'User Management',
         'messages': 'Zone Messages',
+        'events-manager': 'Event Management',
     };
     const pageTitle = document.getElementById('page-title');
     if (pageTitle) pageTitle.textContent = titleMap[sectionId] || 'Dashboard';
@@ -172,7 +173,9 @@ window.showSection = function (sectionId) {
     document.getElementById('dashboard-view').classList.add('hidden');
     document.getElementById('user-manager-view').classList.add('hidden');
     const messagesView = document.getElementById('messages-view');
+    const eventsView = document.getElementById('events-manager-view');
     if (messagesView) messagesView.style.display = 'none';
+    if (eventsView) eventsView.style.display = 'none';
 
     if (sectionId === 'dashboard') {
         document.getElementById('dashboard-view').classList.remove('hidden');
@@ -182,6 +185,9 @@ window.showSection = function (sectionId) {
     } else if (sectionId === 'messages') {
         if (messagesView) messagesView.style.display = 'block';
         loadMessages();
+    } else if (sectionId === 'events-manager') {
+        if (eventsView) eventsView.style.display = 'block';
+        loadEvents();
     }
 };
 
@@ -587,11 +593,16 @@ window.refreshCurrentView = function () {
     } else if (messagesView && messagesView.style.display !== 'none') {
         loadMessages().finally(stopRefreshAnimation);
     } else {
-        // Main Dashboard (Static for now, but simulating refresh)
-        setTimeout(() => {
-            Toast.show('success', 'Dashboard Updated', 'Dashboard Refreshed Successfully');
-            stopRefreshAnimation();
-        }, 800);
+        const eventsView = document.getElementById('events-manager-view');
+        if (eventsView && eventsView.style.display !== 'none') {
+            loadEvents().finally(stopRefreshAnimation);
+        } else {
+            // Main Dashboard (Static for now, but simulating refresh)
+            setTimeout(() => {
+                Toast.show('success', 'Dashboard Updated', 'Dashboard Refreshed Successfully');
+                stopRefreshAnimation();
+            }, 800);
+        }
     }
 };
 
@@ -699,33 +710,325 @@ window.refreshCurrentView = function () {
     }
 })();
 
-// ===== REFRESH BUTTON ANIMATION =====
-document.addEventListener('DOMContentLoaded', function () {
-    // Add click handler for all refresh buttons
-    document.addEventListener('click', function (e) {
-        const refreshBtn = e.target.closest('.btn');
-        if (!refreshBtn) return;
+// ===== EVENT MANAGEMENT SECTION =====
 
-        const icon = refreshBtn.querySelector('.fa-sync');
-        if (icon && refreshBtn.textContent.includes('Refresh')) {
-            // Add spinning animation
-            refreshBtn.classList.add('refreshing');
-
-            // Remove after 2 seconds (or when loadMessages completes)
-            setTimeout(() => {
-                refreshBtn.classList.remove('refreshing');
-            }, 2000);
+// Load events from database
+async function loadEvents() {
+    try {
+        const statusFilter = document.getElementById('event-status-filter').value;
+        
+        // Use published_events view which already has mode and capacity
+        let query = supabaseClient.from('published_events').select('*');
+        
+        // Apply status filter
+        if (statusFilter !== 'all') {
+            query = query.eq('status', statusFilter);
         }
-    });
+        
+        const { data: events, error } = await query.order('start_at', { ascending: false });
+        
+        if (error) throw error;
+        
+        displayEventTable(events || []);
+        updateEventStats(events || []);
+        
+        Toast.show('success', 'Events Loaded', `Loaded ${events?.length || 0} events`);
+    } catch (error) {
+        console.error('Error loading events:', error);
+        Toast.show('error', 'Load Failed', error.message);
+    }
+}
 
-    // Also handle the header refresh button
-    const headerRefreshBtn = document.querySelector('.header-actions .btn.secondary');
-    if (headerRefreshBtn) {
-        headerRefreshBtn.addEventListener('click', function () {
-            this.classList.add('refreshing');
-            setTimeout(() => {
-                this.classList.remove('refreshing');
-            }, 2000);
-        });
+// Display events in table
+function displayEventTable(events) {
+    const tbody = document.querySelector('#events-table tbody');
+    
+    if (!events || events.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px;"><i class="fas fa-calendar-times"></i> No events found</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = events.map(event => {
+        const startDate = new Date(event.start_at);
+        const endDate = new Date(event.end_at);
+        const status = getEventStatus(event.start_at, event.end_at, event.status);
+        const mode = event.mode ? event.mode.charAt(0).toUpperCase() + event.mode.slice(1) : '-';
+        const capacity = event.capacity || '∞';
+        
+        // Display settings text
+        const displaySettings = [
+            event.display_on_home ? 'Home' : null,
+            event.display_on_upcoming ? 'Upcoming' : null,
+            event.display_on_past ? 'Past' : null
+        ].filter(Boolean).join(', ') || 'None';
+        
+        return `
+            <tr>
+                <td><strong>${escapeHtml(event.title)}</strong></td>
+                <td>${formatDateTime(startDate)}<br><small>${formatDateTime(endDate)}</small></td>
+                <td>${escapeHtml(event.location || 'N/A')}</td>
+                <td><span class="status-badge ${status}">${status}</span></td>
+                <td><span style="background:#f0f0f0; padding:4px 8px; border-radius:4px; font-weight:600;">${mode}</span></td>
+                <td><span style="font-weight:600; font-size:15px;">${capacity}</span></td>
+                <td><small style="color:#666;">${displaySettings}</small></td>
+                <td>
+                    <div class="action-buttons">
+                        <button class="btn-action edit" onclick="editEvent(${event.id})"><i class="fas fa-edit"></i> Edit</button>
+                        <button class="btn-action delete" onclick="deleteEvent(${event.id})"><i class="fas fa-trash"></i> Delete</button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// Get event status
+function getEventStatus(startAt, endAt, status) {
+    const now = new Date();
+    const start = new Date(startAt);
+    const end = new Date(endAt);
+    
+    if (status === 'cancelled') return 'cancelled';
+    if (status === 'completed' || end < now) return 'completed';
+    if (start <= now && now <= end) return 'ongoing';
+    return 'upcoming';
+}
+
+// Update event statistics
+function updateEventStats(events) {
+    const now = new Date();
+    const upcoming = events.filter(e => new Date(e.start_at) > now).length;
+    const past = events.filter(e => new Date(e.end_at) < now).length;
+    
+    document.getElementById('total-events').textContent = events.length;
+    document.getElementById('upcoming-events').textContent = upcoming;
+    document.getElementById('past-events').textContent = past;
+}
+
+// Open new event modal
+function openNewEventModal() {
+    document.getElementById('event-id').value = '';
+    document.getElementById('event-modal-title').textContent = 'Create New Event';
+    
+    // Clear form
+    document.getElementById('event-title').value = '';
+    document.getElementById('event-start').value = '';
+    document.getElementById('event-end').value = '';
+    document.getElementById('event-location').value = '';
+    document.getElementById('event-description').value = '';
+    document.getElementById('event-mode').value = '';
+    document.getElementById('event-capacity').value = '';
+    document.getElementById('event-banner').value = '';
+    document.getElementById('event-status').value = 'scheduled';
+    document.getElementById('event-category').value = '';
+    document.getElementById('event-display-upcoming').checked = true;
+    document.getElementById('event-display-past').checked = false;
+    
+    document.getElementById('event-modal').classList.remove('hidden');
+}
+
+// Edit event
+async function editEvent(eventId) {
+    try {
+        const { data: event, error } = await supabaseClient
+            .from('published_events')
+            .select('*')
+            .eq('id', eventId)
+            .single();
+        
+        if (error) throw error;
+        
+        document.getElementById('event-id').value = event.id;
+        document.getElementById('event-modal-title').textContent = 'Edit Event';
+        document.getElementById('event-title').value = event.title;
+        document.getElementById('event-start').value = event.start_at.substring(0, 16);
+        document.getElementById('event-end').value = event.end_at.substring(0, 16);
+        document.getElementById('event-location').value = event.location || '';
+        document.getElementById('event-description').value = event.description || '';
+        document.getElementById('event-mode').value = event.mode || '';
+        document.getElementById('event-capacity').value = event.capacity || '';
+        document.getElementById('event-banner').value = event.banner_url || '';
+        document.getElementById('event-status').value = event.status || 'scheduled';
+        document.getElementById('event-category').value = event.category_id || '';
+        document.getElementById('event-display-upcoming').checked = event.display_on_upcoming || false;
+        document.getElementById('event-display-home').checked = event.display_on_home || false;
+        document.getElementById('event-display-past').checked = event.display_on_past || false;
+        
+        document.getElementById('event-modal').classList.remove('hidden');
+    } catch (error) {
+        console.error('Error loading event:', error);
+        Toast.show('error', 'Load Failed', error.message);
+    }
+}
+
+// Save event
+async function saveEvent() {
+    try {
+        const eventId = document.getElementById('event-id').value;
+        const eventData = {
+            title: document.getElementById('event-title').value,
+            start_at: document.getElementById('event-start').value,
+            end_at: document.getElementById('event-end').value,
+            location: document.getElementById('event-location').value,
+            description: document.getElementById('event-description').value,
+            banner_url: document.getElementById('event-banner').value,
+            status: document.getElementById('event-status').value,
+            updated_at: new Date().toISOString()
+        };
+        
+        const publicationData = {
+            mode: document.getElementById('event-mode').value,
+            capacity: parseInt(document.getElementById('event-capacity').value) || null,
+            display_on_upcoming: document.getElementById('event-display-upcoming').checked,
+            display_on_home: document.getElementById('event-display-home').checked,
+            display_on_past: document.getElementById('event-display-past').checked,
+            updated_at: new Date().toISOString()
+        };
+        
+        // Validation
+        if (!eventData.title || !eventData.start_at || !eventData.end_at || !eventData.location) {
+            Toast.show('error', 'Validation Error', 'Please fill in all required fields');
+            return;
+        }
+        
+        let result;
+        if (eventId) {
+            // Update existing event
+            result = await supabaseClient
+                .from('events')
+                .update(eventData)
+                .eq('id', eventId);
+            
+            if (result.error) throw result.error;
+            
+            // Update event publication
+            const pubResult = await supabaseClient
+                .from('event_publications')
+                .update(publicationData)
+                .eq('event_id', eventId);
+            
+            if (pubResult.error) throw pubResult.error;
+        } else {
+            // Create new event
+            const createResult = await supabaseClient
+                .from('events')
+                .insert([{
+                    ...eventData,
+                    created_at: new Date().toISOString()
+                }])
+                .select('id')
+                .single();
+            
+            if (createResult.error) throw createResult.error;
+            
+            const newEventId = createResult.data.id;
+            
+            // Create event publication
+            const pubResult = await supabaseClient
+                .from('event_publications')
+                .insert([{
+                    event_id: newEventId,
+                    ...publicationData,
+                    created_at: new Date().toISOString()
+                }]);
+            
+            if (pubResult.error) throw pubResult.error;
+        }
+        
+        Toast.show('success', 'Success', eventId ? 'Event updated successfully' : 'Event created successfully');
+        closeEventModal();
+        loadEvents();
+    } catch (error) {
+        console.error('Error saving event:', error);
+        Toast.show('error', 'Save Failed', error.message);
+    }
+}
+
+// Delete event
+async function deleteEvent(eventId) {
+    if (!confirm('Are you sure you want to delete this event?')) return;
+    
+    try {
+        const { error } = await supabaseClient
+            .from('events')
+            .delete()
+            .eq('id', eventId);
+        
+        if (error) throw error;
+        
+        Toast.show('success', 'Deleted', 'Event deleted successfully');
+        loadEvents();
+    } catch (error) {
+        console.error('Error deleting event:', error);
+        Toast.show('error', 'Delete Failed', error.message);
+    }
+}
+
+// Close modals
+function closeEventModal() {
+    document.getElementById('event-modal').classList.add('hidden');
+}
+
+function closeRegistrationModal() {
+    document.getElementById('registration-modal').classList.add('hidden');
+}
+
+// Helper functions
+function formatDateTime(date) {
+    if (!(date instanceof Date)) date = new Date(date);
+    return date.toLocaleDateString('en-IN', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+function formatDate(date) {
+    if (!(date instanceof Date)) date = new Date(date);
+    return date.toLocaleDateString('en-IN', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+    });
+}
+
+function escapeHtml(unsafe) {
+    if (!unsafe) return '';
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+// Initialize event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    const eventStatusFilter = document.getElementById('event-status-filter');
+    if (eventStatusFilter) {
+        eventStatusFilter.addEventListener('change', loadEvents);
+    }
+    
+    const registrationSearch = document.getElementById('registration-search');
+    if (registrationSearch) {
+        registrationSearch.addEventListener('keyup', debounce(function() {
+            loadRegistrations();
+        }, 500));
     }
 });
+
+// Debounce helper
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
