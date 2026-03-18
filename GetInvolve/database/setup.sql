@@ -97,6 +97,7 @@ CREATE TABLE IF NOT EXISTS registrations (
     zone_id INTEGER REFERENCES zones(id),
     applying_for VARCHAR(30) NOT NULL,
     unit_name VARCHAR(100) NOT NULL,
+    academic_session VARCHAR(20),
     unit_description TEXT,
     documents JSONB,
     status VARCHAR(20) DEFAULT 'pending',
@@ -373,6 +374,7 @@ CREATE OR REPLACE FUNCTION update_registration_fields(
   p_zone_id int,
   p_applying_for text,
   p_unit_name text,
+  p_academic_session text,
   p_status text
 )
 RETURNS void AS $$
@@ -385,13 +387,14 @@ BEGIN
     zone_id = COALESCE(p_zone_id, zone_id),
     applying_for = COALESCE(NULLIF(TRIM(p_applying_for), ''), applying_for),
     unit_name = COALESCE(NULLIF(TRIM(p_unit_name), ''), unit_name),
+    academic_session = COALESCE(NULLIF(TRIM(p_academic_session), ''), academic_session),
     status = COALESCE(NULLIF(TRIM(p_status), ''), status),
     updated_at = NOW()
   WHERE id = p_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path=public;
 
-GRANT EXECUTE ON FUNCTION update_registration_fields(int, text, text, text, int, int, text, text, text) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION update_registration_fields(int, text, text, text, int, int, text, text, text, text) TO anon, authenticated;
 
 -- Safely delete a college (blocked if any registrations exist)
 CREATE OR REPLACE FUNCTION delete_college(p_id int)
@@ -416,13 +419,14 @@ CREATE OR REPLACE FUNCTION create_registration(
   p_zone_id int,
   p_applying_for text,
   p_unit_name text,
+  p_academic_session text DEFAULT NULL,
   p_status text DEFAULT 'pending'
 )
 RETURNS TABLE (id int) AS $$
 DECLARE new_id int;
 BEGIN
-  INSERT INTO registrations(applicant_name,email,phone,college_id,zone_id,applying_for,unit_name,status)
-  VALUES (p_applicant_name,p_email,p_phone,p_college_id,p_zone_id,p_applying_for,p_unit_name,COALESCE(p_status,'pending'))
+  INSERT INTO registrations(applicant_name,email,phone,college_id,zone_id,applying_for,unit_name,academic_session,status)
+  VALUES (p_applicant_name,p_email,p_phone,p_college_id,p_zone_id,p_applying_for,p_unit_name,p_academic_session,COALESCE(p_status,'pending'))
   RETURNING registrations.id INTO new_id;
   RETURN QUERY SELECT new_id;
 END;
@@ -666,13 +670,14 @@ CREATE OR REPLACE FUNCTION create_registration(
   p_zone_id int,
   p_applying_for text,
   p_unit_name text,
+  p_academic_session text DEFAULT NULL,
   p_status text DEFAULT 'pending'
 )
 RETURNS TABLE (id int) AS $$
 DECLARE new_id int;
 BEGIN
-  INSERT INTO registrations(applicant_name,email,phone,college_id,zone_id,applying_for,unit_name,status)
-  VALUES (p_applicant_name,p_email,p_phone,p_college_id,p_zone_id,p_applying_for,p_unit_name,COALESCE(p_status,'pending'))
+  INSERT INTO registrations(applicant_name,email,phone,college_id,zone_id,applying_for,unit_name,academic_session,status)
+  VALUES (p_applicant_name,p_email,p_phone,p_college_id,p_zone_id,p_applying_for,p_unit_name,p_academic_session,COALESCE(p_status,'pending'))
   RETURNING registrations.id INTO new_id;
   RETURN QUERY SELECT new_id;
 END;
@@ -2094,22 +2099,100 @@ DROP POLICY IF EXISTS "Mentors can insert messages" ON public.mentor_messages;
 DROP POLICY IF EXISTS "Mentors can view own messages" ON public.mentor_messages;
 -- Policy 1: Super admins can view all messages
 CREATE POLICY "Super admins can view all messages" ON public.mentor_messages FOR
-SELECT USING (auth.jwt()->>'role' = 'super_admin');
+SELECT USING (
+  EXISTS (
+    SELECT 1
+    FROM public.admin_users au
+    WHERE lower(au.email) = lower(auth.email())
+      AND au.role = 'super_admin'
+  )
+);
 -- Policy 2: Super admins can update message status
 CREATE POLICY "Super admins can update messages" ON public.mentor_messages FOR
-UPDATE USING (auth.jwt()->>'role' = 'super_admin');
+UPDATE USING (
+  EXISTS (
+    SELECT 1
+    FROM public.admin_users au
+    WHERE lower(au.email) = lower(auth.email())
+      AND au.role = 'super_admin'
+  )
+);
 -- Policy 3: Zone conveners can view messages from their zone
 CREATE POLICY "Zone conveners can view zone messages" ON public.mentor_messages FOR
-SELECT USING (auth.jwt()->>'role' = 'zone_convener');
+SELECT USING (
+  EXISTS (
+    SELECT 1
+    FROM public.admin_users au
+    WHERE lower(au.email) = lower(auth.email())
+      AND au.role = 'zone_convener'
+      AND (
+        EXISTS (
+          SELECT 1
+          FROM public.zones z
+          WHERE (
+            (au.zone ~ '^[0-9]+$' AND z.id = au.zone::integer)
+            OR lower(trim(au.zone)) = lower(trim(z.zone_name))
+            OR lower(trim(au.zone)) = lower(trim(z.zone_code))
+          )
+          AND (
+            (mentor_messages.zone_id IS NOT NULL AND mentor_messages.zone_id = z.id)
+            OR (
+              mentor_messages.zone_name IS NOT NULL
+              AND lower(trim(mentor_messages.zone_name)) = lower(trim(z.zone_name))
+            )
+          )
+        )
+        OR (
+          mentor_messages.zone_name IS NOT NULL
+          AND lower(trim(mentor_messages.zone_name)) = lower(trim(au.zone))
+        )
+      )
+  )
+);
 -- Policy 4: Zone conveners can update messages from their zone
 CREATE POLICY "Zone conveners can update zone messages" ON public.mentor_messages FOR
-UPDATE USING (auth.jwt()->>'role' = 'zone_convener');
+UPDATE USING (
+  EXISTS (
+    SELECT 1
+    FROM public.admin_users au
+    WHERE lower(au.email) = lower(auth.email())
+      AND au.role = 'zone_convener'
+      AND (
+        EXISTS (
+          SELECT 1
+          FROM public.zones z
+          WHERE (
+            (au.zone ~ '^[0-9]+$' AND z.id = au.zone::integer)
+            OR lower(trim(au.zone)) = lower(trim(z.zone_name))
+            OR lower(trim(au.zone)) = lower(trim(z.zone_code))
+          )
+          AND (
+            (mentor_messages.zone_id IS NOT NULL AND mentor_messages.zone_id = z.id)
+            OR (
+              mentor_messages.zone_name IS NOT NULL
+              AND lower(trim(mentor_messages.zone_name)) = lower(trim(z.zone_name))
+            )
+          )
+        )
+        OR (
+          mentor_messages.zone_name IS NOT NULL
+          AND lower(trim(mentor_messages.zone_name)) = lower(trim(au.zone))
+        )
+      )
+  )
+);
 -- Policy 5: Mentors can insert their own messages
 CREATE POLICY "Mentors can insert messages" ON public.mentor_messages FOR
-INSERT WITH CHECK (true);
+INSERT WITH CHECK (
+  auth.email() IS NOT NULL
+  AND lower(sender_email) = lower(auth.email())
+);
 -- Policy 6: Mentors can view their own messages
 CREATE POLICY "Mentors can view own messages" ON public.mentor_messages FOR
-SELECT USING (auth.jwt()->>'role' = 'mentor');
+SELECT USING (
+  auth.email() IS NOT NULL
+  AND lower(sender_email) = lower(auth.email())
+);
 -- =====================================================
 -- GRANT PERMISSIONS
 -- =====================================================

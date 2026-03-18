@@ -4,7 +4,7 @@
 const SUPABASE_URL = 'https://jgsrsjwmywiirtibofth.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_5KtvO0cEHfnECBoyp2CQnw_RC3_x2me';
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxEtSYgDm3xUvJtBKL9MtJX30ybxUx5OOSVtyL8fSEWwUeEsA3ovtTtt0GJ0ANSmTZU/exec';
+const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz2uhTDSe7aaFZOkEoeXnM3DADG1ANjGob1sgx9U_ZKRehOvM8-OXHQhkkoYjK_PWTY/exec';
 
 // ===== FLASH NOTIFICATION SYSTEM =====
 class FlashNotification {
@@ -1332,7 +1332,8 @@ class AuthManager {
                                     college_id: college.id,
                                     college_name: college.college_name,
                                     zone_id: college.zone_id,
-                                    zone_name: college.zones ? college.zones.zone_name : ''
+                                    zone_name: college.zones ? college.zones.zone_name : '',
+                                    applying_for: 'mentor'
                                 });
                             }
                         };
@@ -1736,7 +1737,8 @@ class AuthManager {
                                 college_id: college.id,
                                 college_name: college.college_name,
                                 zone_id: college.zone_id,
-                                zone_name: college.zones ? college.zones.zone_name : ''
+                                zone_name: college.zones ? college.zones.zone_name : '',
+                                applying_for: 'mentor'
                             });
                         }
                     };
@@ -1791,6 +1793,7 @@ class AuthManager {
         const isSuperAdmin = role === 'super_admin';
         const isZoneConvener = role === 'zone_convener';
         const isMentor = role === 'mentor';
+        const hasFixedConvenerZone = isZoneConvener && !!(this.currentUser && this.currentUser.zone);
         const isAdmin = isSuperAdmin || isZoneConvener || isMentor;
 
         // Elements
@@ -1829,7 +1832,7 @@ class AuthManager {
             if (exportAllBtn) exportAllBtn.style.display = isSuperAdmin ? 'inline-flex' : 'none';
             if (generateReportBtn) generateReportBtn.style.display = isSuperAdmin ? 'inline-flex' : 'none';
             if (sheetConfigSection) sheetConfigSection.style.display = isSuperAdmin ? 'block' : 'none';
-            if (zoneSelectionCard) zoneSelectionCard.style.display = isMentor ? 'none' : 'block';
+            if (zoneSelectionCard) zoneSelectionCard.style.display = (isMentor || hasFixedConvenerZone) ? 'none' : 'block';
 
             // Advanced Admin Button (Super Admin Only)
             if (advancedAdminBtn) advancedAdminBtn.style.display = isSuperAdmin ? 'inline-flex' : 'none';
@@ -1853,13 +1856,10 @@ class AuthManager {
             const mentorMessagesSection = document.getElementById('mentor-messages-section');
             if (mentorMessagesSection && isZoneConvener) {
                 mentorMessagesSection.style.display = 'block';
-                // Load messages if we have the zone context
-                if (this.currentUser && this.currentUser.zone) {
-                    // We might need the zone ID here. If it's not in currentUser, 
-                    // we'll rely on the zone selection logic to trigger the load.
-                    // But if we have it (e.g. from login), we can try loading.
-                    // Assuming this.currentUser.zone might be the name, checking if we have an ID elsewhere.
-                    // For now, just showing the section is good. The actual load should happen when zone data is ready.
+                // Try loading immediately for fixed-zone conveners (zone can be id/code/name)
+                if (this.currentUser && this.currentUser.zone && typeof window.loadMentorMessages === 'function') {
+                    console.log('[MentorMessages] applyRolePermissions trigger load with user zone:', this.currentUser.zone);
+                    window.loadMentorMessages(this.currentUser.zone);
                 }
             } else if (mentorMessagesSection) {
                 mentorMessagesSection.style.display = 'none';
@@ -1911,10 +1911,16 @@ class ZoneManager {
         this.colleges = [];
         this._eventsBound = false;
         this._allowedZoneId = null;
+        this._allowedZoneRef = null;
     }
 
     async init(opts) {
-        this._allowedZoneId = (opts && opts.allowedZoneId) ? Number(opts.allowedZoneId) : null;
+        const rawAllowedZone = (opts && opts.allowedZoneId !== undefined && opts.allowedZoneId !== null)
+            ? String(opts.allowedZoneId).trim()
+            : '';
+        const parsedAllowedZoneId = Number(rawAllowedZone);
+        this._allowedZoneId = Number.isFinite(parsedAllowedZoneId) && parsedAllowedZoneId > 0 ? parsedAllowedZoneId : null;
+        this._allowedZoneRef = rawAllowedZone || null;
         await this.loadZones();
         this.bindEvents();
     }
@@ -1926,13 +1932,25 @@ class ZoneManager {
                 // If an allowed zone is specified (zone convener), restrict view to that zone only
                 if (this._allowedZoneId) {
                     this.zones = (response.zones || []).filter(z => Number(z.id) === Number(this._allowedZoneId));
+                } else if (this._allowedZoneRef) {
+                    const ref = String(this._allowedZoneRef).trim().toLowerCase();
+                    this.zones = (response.zones || []).filter(z => {
+                        const id = String(z.id || '').trim().toLowerCase();
+                        const code = String(z.zone_code || '').trim().toLowerCase();
+                        const name = String(z.zone_name || '').trim().toLowerCase();
+                        return ref === id || ref === code || ref === name;
+                    });
+                    // Fallback to all zones if mapping fails (prevents blank UI for legacy data)
+                    if (!this.zones.length) {
+                        this.zones = response.zones;
+                    }
                 } else {
                     this.zones = response.zones;
                 }
                 this.renderZoneButtons();
                 // If a zone convener sees only one zone, tailor the header copy and hide zone switcher UI
                 try {
-                    if (this._allowedZoneId && this.zones.length === 1) {
+                    if ((this._allowedZoneId || this._allowedZoneRef) && this.zones.length === 1) {
                         const zh = document.querySelector('.zone-header h3');
                         const zs = document.querySelector('.zone-header p');
                         const zb = document.querySelector('.zone-buttons');
@@ -1944,7 +1962,7 @@ class ZoneManager {
                     }
                 } catch (_) { }
                 // Auto-select the allowed zone for convenience
-                if (this._allowedZoneId && this.zones.length === 1) {
+                if ((this._allowedZoneId || this._allowedZoneRef) && this.zones.length === 1) {
                     await this.selectZone(this.zones[0]);
                 }
             } else {
@@ -2331,7 +2349,7 @@ class ZoneManager {
                     // Fetch fresh member data from database
                     const { data: members, error } = await supabaseClient
                         .from('registrations')
-                        .select('id, applicant_name, created_at, applying_for, college_id, email, phone, unit_name, status')
+                        .select('id, applicant_name, created_at, applying_for, college_id, email, phone, unit_name, academic_session, status')
                         .eq('college_id', currentCollegeId);
 
                     if (error) {
@@ -2935,7 +2953,7 @@ async function populateRegisterZones() {
             select.innerHTML = '<option value="">Select Zone</option>';
             res.zones.forEach(z => {
                 const opt = document.createElement('option');
-                opt.value = z.id;
+                opt.value = z.zone_name;   // Save zone NAME, not numeric ID
                 opt.textContent = z.zone_name;
                 select.appendChild(opt);
             });
@@ -3149,7 +3167,7 @@ async function loadCollegeMembers(collegeId, contextNames = {}) {
         }
         let { data, error } = await supabaseClient
             .from('registrations')
-            .select('id, applicant_name, created_at, applying_for, college_id, email, phone, unit_name, status')
+            .select('id, applicant_name, created_at, applying_for, college_id, email, phone, unit_name, academic_session, status, date_of_birth')
             .eq('college_id', collegeId);
         if (error) {
             flashNotification.showError('Load failed', error.message || 'Unable to fetch members');
@@ -3166,6 +3184,8 @@ async function loadCollegeMembers(collegeId, contextNames = {}) {
             email: r.email || '',
             phone: r.phone || '',
             unit_name: r.unit_name || '',
+            academic_session: r.academic_session || '',
+            date_of_birth: r.date_of_birth || '',
             status: r.status || 'pending',
             avatar_url: null
         }));
@@ -3211,7 +3231,7 @@ async function loadCollegeMembers(collegeId, contextNames = {}) {
             const currentUserRole = (authManager.currentUser && authManager.currentUser.role) || 'viewer';
             const canApprove = currentUserRole === 'super_admin' || currentUserRole === 'zone_convener';
 
-            card.innerHTML = `<div class=\"cd-member-avatar${hasPhoto ? '' : ' placeholder'}\">${avatar}</div><div class=\"cd-member-info\"><h4>${dispName}</h4><p>${m.email || '—'}<br>${m.post || 'member'}${m.unit_name ? ' · <span class=\\"cd-unit\\">' + m.unit_name + '</span>' : ''}</p></div><div class=\"cd-member-actions\"><button class=\"cd-action-btn cd-edit\" title=\"Edit\"><i class=\"fas fa-edit\"></i></button><button class=\"cd-action-btn cd-delete\" title=\"Delete\"><i class=\"fas fa-trash\"></i></button>${canApprove ? '<button class=\"cd-action-btn cd-approve\" title=\"Approve\"><i class=\"fas fa-check\"></i></button><button class=\"cd-action-btn cd-reject\" title=\"Reject\"><i class=\"fas fa-times\"></i></button>' : ''}</div>`;
+            card.innerHTML = `<div class="cd-member-avatar${hasPhoto ? '' : ' placeholder'}">${avatar}</div><div class="cd-member-info"><h4>${dispName}</h4><p>${m.email || '—'}<br>${m.post || 'member'}${m.unit_name ? ' · <span class="cd-unit">' + m.unit_name + '</span>' : ''}${m.academic_session ? '<br><span class="cd-session"><i class="fas fa-calendar-alt"></i> ' + m.academic_session + '</span>' : ''}</p></div><div class="cd-member-actions"><button class=\"cd-action-btn cd-edit\" title=\"Edit\"><i class=\"fas fa-edit\"></i></button><button class=\"cd-action-btn cd-delete\" title=\"Delete\"><i class=\"fas fa-trash\"></i></button><button class=\"cd-action-btn cd-certificate\" title=\"Certificate\"><i class=\"fas fa-certificate\"></i></button>${canApprove ? '<button class=\"cd-action-btn cd-approve\" title=\"Approve\"><i class=\"fas fa-check\"></i></button><button class=\"cd-action-btn cd-reject\" title=\"Reject\"><i class=\"fas fa-times\"></i></button>' : ''}</div>`;
 
             if (idx < featured.length) {
                 leadsWrap.appendChild(card);
@@ -3226,8 +3246,10 @@ async function loadCollegeMembers(collegeId, contextNames = {}) {
                     applicant_name: m.full_name,
                     email: m.email || '',
                     phone: m.phone || '',
+                    date_of_birth: m.date_of_birth || '',
                     applying_for: m.post || 'member',
                     unit_name: m.unit_name || '',
+                    academic_session: m.academic_session || '',
                     status: m.status || 'pending',
                     college_id: collegeId,
                     college_name: contextNames.collegeName || '',
@@ -3245,6 +3267,11 @@ async function loadCollegeMembers(collegeId, contextNames = {}) {
                 });
                 if (!ok) return;
                 await deleteMember(m.id, collegeId);
+            });
+
+            card.querySelector('.cd-certificate')?.addEventListener('click', () => {
+                // Certificate generation — functionality to be added
+                flashNotification.showInfo('Coming Soon', `Certificate feature for ${dispName} will be available soon.`);
             });
 
             // Attach listeners if the user has permission
@@ -3950,8 +3977,14 @@ function openMemberModal(prefill) {
     document.getElementById('member-name').value = prefill.applicant_name || '';
     document.getElementById('member-email').value = prefill.email || '';
     document.getElementById('member-phone').value = prefill.phone || '';
+    // Pre-fill date of birth (for edit mode)
+    const dobEl = document.getElementById('member-dob');
+    if (dobEl) dobEl.value = prefill.date_of_birth || '';
     document.getElementById('member-role').value = prefill.applying_for || 'member';
     document.getElementById('member-unit').value = prefill.unit_name || '';
+    // Pre-fill academic session (for edit mode)
+    const sessionEl = document.getElementById('member-academic-session');
+    if (sessionEl) sessionEl.value = prefill.academic_session || '';
     // Setup unit helpers (datalist + required toggle based on role)
     try { setupMemberUnitHelpers(); } catch (_) { }
 
@@ -4146,10 +4179,12 @@ document.getElementById('member-form')?.addEventListener('submit', async (e) => 
         applicant_name: document.getElementById('member-name').value.trim(),
         email: document.getElementById('member-email').value.trim(),
         phone: document.getElementById('member-phone').value.trim(),
+        date_of_birth: document.getElementById('member-dob')?.value || null,
         applying_for: document.getElementById('member-role').value,
         unit_name: document.getElementById('member-unit').value.trim(),
         college_id: parseInt(document.getElementById('member-college-id').value, 10) || null,
-        zone_id: parseInt(document.getElementById('member-zone-id').value, 10) || null
+        zone_id: parseInt(document.getElementById('member-zone-id').value, 10) || null,
+        academic_session: document.getElementById('member-academic-session')?.value.trim() || null
     };
 
     // === VALIDATION ===
@@ -4196,6 +4231,13 @@ document.getElementById('member-form')?.addEventListener('submit', async (e) => 
     if (!payload.applying_for) {
         flashNotification.showError('Validation Error', 'Please select a role');
         document.getElementById('member-role').focus();
+        return;
+    }
+
+    // 4a. Validate Academic Session (required for all roles)
+    if (!payload.academic_session) {
+        flashNotification.showError('Validation Error', 'Please select an Academic Session');
+        document.getElementById('member-academic-session')?.focus();
         return;
     }
 
@@ -4276,29 +4318,33 @@ document.getElementById('member-form')?.addEventListener('submit', async (e) => 
         flashNotification.showInfo('Saving', payload.id ? 'Updating member...' : 'Creating member...');
         setLoading(true, 'Saving');
         if (payload.id) {
-            // --- MODIFIED RPC CALL: status parameter removed ---
+            // --- MODIFIED RPC CALL: includes date_of_birth ---
             const { error } = await supa.rpc('update_registration_fields', {
                 p_id: parseInt(payload.id, 10),
                 p_applicant_name: payload.applicant_name,
                 p_email: payload.email,
                 p_phone: payload.phone,
+                p_date_of_birth: payload.date_of_birth || null,
                 p_college_id: payload.college_id,
                 p_zone_id: payload.zone_id,
                 p_applying_for: payload.applying_for,
                 p_unit_name: payload.unit_name,
+                p_academic_session: payload.academic_session || null,
                 p_status: null // Pass null to prevent status update from this modal
             });
             if (error) throw new Error(error.message || 'Update failed');
         } else {
-            // --- MODIFIED RPC CALL: status parameter removed ---
+            // --- MODIFIED RPC CALL: includes date_of_birth ---
             const { error } = await supa.rpc('create_registration', {
                 p_applicant_name: payload.applicant_name,
                 p_email: payload.email,
                 p_phone: payload.phone,
+                p_date_of_birth: payload.date_of_birth || null,
                 p_college_id: payload.college_id,
                 p_zone_id: payload.zone_id,
                 p_applying_for: payload.applying_for,
                 p_unit_name: payload.unit_name,
+                p_academic_session: payload.academic_session || null,
                 p_status: 'pending' // Always create as pending
             });
             if (error) throw new Error(error.message || 'Create failed');
@@ -5083,22 +5129,134 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Mentor Messages Management (for Zone Conveners)
+    function resolveMentorMessagesZoneId(preferredZoneId) {
+        const toValidNumber = (value) => {
+            const numberValue = Number(value);
+            return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : null;
+        };
+
+        const directZoneId = toValidNumber(preferredZoneId);
+        if (directZoneId) {
+            console.log('[MentorMessages] Resolved zone from direct id:', directZoneId);
+            return directZoneId;
+        }
+
+        const currentZoneId = toValidNumber(zoneManager?.currentZone?.id);
+        if (currentZoneId) {
+            console.log('[MentorMessages] Resolved zone from current selected zone:', currentZoneId);
+            return currentZoneId;
+        }
+
+        const userZoneRef = authManager?.currentUser?.zone;
+        const userZoneAsId = toValidNumber(userZoneRef);
+        if (userZoneAsId) {
+            console.log('[MentorMessages] Resolved zone from user.zone numeric value:', userZoneAsId);
+            return userZoneAsId;
+        }
+
+        if (!userZoneRef) {
+            console.warn('[MentorMessages] Could not resolve zone: user.zone is empty');
+            return null;
+        }
+
+        const normalizedRef = String(userZoneRef).trim().toLowerCase();
+        const zones = Array.isArray(zoneManager?.zones) ? zoneManager.zones : [];
+        const matchedZone = zones.find(z => {
+            const id = String(z.id || '').trim().toLowerCase();
+            const code = String(z.zone_code || '').trim().toLowerCase();
+            const name = String(z.zone_name || '').trim().toLowerCase();
+            return normalizedRef === id || normalizedRef === code || normalizedRef === name;
+        });
+
+        const matchedZoneId = toValidNumber(matchedZone?.id);
+        if (matchedZoneId) {
+            console.log('[MentorMessages] Resolved zone from user zone reference mapping:', {
+                userZoneRef,
+                matchedZoneId,
+                zoneCode: matchedZone?.zone_code,
+                zoneName: matchedZone?.zone_name
+            });
+            return matchedZoneId;
+        }
+
+        console.warn('[MentorMessages] Could not resolve zone from reference:', {
+            userZoneRef,
+            availableZones: (Array.isArray(zoneManager?.zones) ? zoneManager.zones : []).map(z => ({ id: z.id, zone_code: z.zone_code, zone_name: z.zone_name }))
+        });
+        return null;
+    }
+
     async function loadMentorMessages(zoneId) {
         const messagesList = document.getElementById('mentor-messages-list');
         const unreadBadge = document.getElementById('unread-messages-count');
+        const resolvedZoneId = resolveMentorMessagesZoneId(zoneId);
+        const currentUserZoneName = String(authManager?.currentUser?.zone || '').trim();
 
-        if (!messagesList || !zoneId) return;
+        console.log('[MentorMessages] loadMentorMessages called:', {
+            inputZoneId: zoneId,
+            resolvedZoneId,
+            currentZoneId: zoneManager?.currentZone?.id,
+            userRole: authManager?.currentUser?.role,
+            userZone: authManager?.currentUser?.zone
+        });
+
+        if (!messagesList) return;
+
+        if (!resolvedZoneId) {
+            messagesList.innerHTML = '<div class="empty-messages" style="text-align:center;padding:24px;color:#6b7280;"><i class="fas fa-map-marker-alt" style="margin-right:6px;"></i>Select your zone to load mentor messages</div>';
+            if (unreadBadge) unreadBadge.style.display = 'none';
+            return;
+        }
+
+        const { data: sessionData } = await supabaseClient.auth.getSession();
+        const sessionUserEmail = sessionData?.session?.user?.email || null;
+        console.log('[MentorMessages] Supabase session check:', {
+            hasSession: !!sessionData?.session,
+            sessionUserEmail
+        });
+
+        if (!sessionData?.session) {
+            messagesList.innerHTML = '<div class="error-messages" style="text-align:center;padding:20px;color:#ef4444;"><i class="fas fa-user-lock"></i> Please login again to load mentor messages</div>';
+            if (unreadBadge) unreadBadge.style.display = 'none';
+            return;
+        }
 
         messagesList.innerHTML = '<div class="loading-messages"><i class="fas fa-spinner fa-spin"></i> Loading messages...</div>';
 
         try {
-            const { data: messages, error } = await supabaseClient
+            const { data: zoneIdMessages, error } = await supabaseClient
                 .from('mentor_messages')
                 .select('*')
-                .eq('zone_id', zoneId)
+                .eq('zone_id', resolvedZoneId)
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
+
+            let messages = Array.isArray(zoneIdMessages) ? zoneIdMessages : [];
+
+            // Fallback: older records may have zone_name but null/wrong zone_id
+            if (messages.length === 0 && currentUserZoneName) {
+                console.log('[MentorMessages] zone_id query returned 0, trying zone_name fallback:', currentUserZoneName);
+
+                const { data: zoneNameMessages, error: zoneNameError } = await supabaseClient
+                    .from('mentor_messages')
+                    .select('*')
+                    .ilike('zone_name', currentUserZoneName)
+                    .order('created_at', { ascending: false });
+
+                if (zoneNameError) {
+                    console.warn('[MentorMessages] zone_name fallback failed:', zoneNameError);
+                } else {
+                    messages = Array.isArray(zoneNameMessages) ? zoneNameMessages : [];
+                }
+            }
+
+            console.log('[MentorMessages] Query success:', {
+                zoneId: resolvedZoneId,
+                zoneName: currentUserZoneName,
+                totalMessages: Array.isArray(messages) ? messages.length : 0,
+                unreadCount: Array.isArray(messages) ? messages.filter(m => m.status === 'unread').length : 0
+            });
 
             if (!messages || messages.length === 0) {
                 messagesList.innerHTML = '<div class="empty-messages" style="text-align:center;padding:40px;color:#6b7280;"><i class="fas fa-inbox" style="font-size:48px;margin-bottom:16px;display:block;opacity:0.5;"></i>No messages from mentors yet</div>';
@@ -5159,13 +5317,21 @@ document.addEventListener('DOMContentLoaded', () => {
             messagesList.querySelectorAll('.mark-read-btn').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     const messageId = e.target.closest('.mark-read-btn').dataset.id;
-                    await markMessageAsRead(messageId, zoneId);
+                    await markMessageAsRead(messageId, resolvedZoneId);
                 });
             });
 
         } catch (error) {
             console.error('Error loading mentor messages:', error);
-            messagesList.innerHTML = '<div class="error-messages" style="text-align:center;padding:20px;color:#ef4444;"><i class="fas fa-exclamation-triangle"></i> Failed to load messages</div>';
+            console.error('[MentorMessages] Query failed details:', {
+                zoneId: resolvedZoneId,
+                message: error?.message,
+                details: error?.details,
+                hint: error?.hint,
+                code: error?.code
+            });
+            const errorText = error?.message ? `: ${error.message}` : '';
+            messagesList.innerHTML = `<div class="error-messages" style="text-align:center;padding:20px;color:#ef4444;"><i class="fas fa-exclamation-triangle"></i> Failed to load messages${errorText}</div>`;
         }
     }
 
@@ -5191,9 +5357,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Refresh button handler
     document.getElementById('refresh-mentor-messages')?.addEventListener('click', () => {
-        const zoneId = zoneManager?.currentZone?.id;
-        if (zoneId) {
-            loadMentorMessages(zoneId);
-        }
+        const zoneId = zoneManager?.currentZone?.id || authManager?.currentUser?.zone;
+        loadMentorMessages(zoneId);
     });
 });

@@ -190,48 +190,8 @@
     </div>
 
     <script>
-        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwo3Ys-gcf8AWAkrnG1Y0BCPOiea6CTPYLRK5vmI15kc9IxSOICte5y8oIs0Lia8p_f/exec';
-        const SUPABASE_URL = 'https://jgsrsjwmywiirtibofth.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impnc3JzandteXdpaXJ0aWJvZnRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwNzY2NDgsImV4cCI6MjA3NDY1MjY0OH0.qN_GZIIOm6J1-qSY7r-HX8RLMoH7udc_0Jn7izqk8J8';
-        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-        function verifyEmail() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const status = urlParams.get('status');
-            const message = urlParams.get('message');
-            const token = urlParams.get('token');
-            const email = urlParams.get('email');
-
-            // If we have status parameter, show result
-            if (status === 'success') {
-                showSuccess();
-                return;
-            } else if (status === 'error') {
-                showError(message || 'Verification failed. Please try again or contact support.');
-                return;
-            }
-
-            // If we have token and email, verify using JSONP (avoids CORS and redirect blocking)
-            if (token && email) {
-                // Create JSONP callback
-                window.handleVerification = function (response) {
-                    if (response.success) {
-                        showSuccess();
-                    } else {
-                        showError(response.error || 'Verification failed. Please try again or contact support.');
-                    }
-                };
-
-                // Create script tag to call Apps Script with JSONP callback
-                const script = document.createElement('script');
-                script.src = `${GAS_WEB_APP_URL}?action=auth&method=verifyEmail&token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}&callback=handleVerification`;
-                document.head.appendChild(script);
-                return;
-            }
-
-            // Invalid URL - no parameters
-            showError('Invalid verification link. Please use the link from your email.');
-        }
+        // ✅ Same URL as unit.js — keep in sync if GAS is redeployed
+        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz2uhTDSe7aaFZOkEoeXnM3DADG1ANjGob1sgx9U_ZKRehOvM8-OXHQhkkoYjK_PWTY/exec';
 
         function showSuccess() {
             document.getElementById('loading-state').style.display = 'none';
@@ -244,6 +204,62 @@
             document.getElementById('success-state').style.display = 'none';
             document.getElementById('error-message').textContent = message;
             document.getElementById('error-state').style.display = 'block';
+        }
+
+        async function verifyEmail() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const status = urlParams.get('status');
+            const message = urlParams.get('message');
+            const token = urlParams.get('token');
+            const email = urlParams.get('email');
+
+            // Already has a result status in URL (redirect back from GAS)
+            if (status === 'success') { showSuccess(); return; }
+            if (status === 'error') { showError(message || 'Verification failed.'); return; }
+
+            // No token/email = bad link
+            if (!token || !email) {
+                showError('Invalid verification link. Please use the link from your email.');
+                return;
+            }
+
+            // Build request URL
+            const params = new URLSearchParams({
+                action: 'auth',
+                method: 'verifyEmail',
+                token: token,
+                email: email
+            });
+            const url = `${GAS_WEB_APP_URL}?${params.toString()}`;
+
+            // 15-second timeout controller
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+            try {
+                const response = await fetch(url, { signal: controller.signal });
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    showError('Server returned an error. Please try again later.');
+                    return;
+                }
+
+                const result = await response.json();
+
+                if (result && result.success) {
+                    showSuccess();
+                } else {
+                    showError(result.error || 'Verification failed. The link may be expired or already used.');
+                }
+            } catch (err) {
+                clearTimeout(timeoutId);
+                if (err.name === 'AbortError') {
+                    showError('Verification timed out. Please check your internet connection and try again.');
+                } else {
+                    showError('Network error during verification. Please try again.');
+                }
+            }
         }
 
         // Start verification on page load

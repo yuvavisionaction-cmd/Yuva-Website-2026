@@ -1104,6 +1104,24 @@ body.modal-open {
     font-weight: 500;
 }
 
+#college-dashboard .cd-member-info .cd-session {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #6b7280;
+    font-size: 11px;
+    font-weight: 500;
+    background: #f3f4f6;
+    padding: 2px 8px;
+    border-radius: 20px;
+    margin-top: 4px;
+}
+
+#college-dashboard .cd-member-info .cd-session i {
+    color: #FF9933;
+    font-size: 10px;
+}
+
 #college-dashboard .cd-skeleton {
     position: relative;
     overflow: hidden;
@@ -1248,6 +1266,17 @@ body.modal-open {
     color: #ffffff;
     transform: scale(1.08);
     box-shadow: 0 4px 12px rgba(255, 153, 51, 0.3);
+}
+
+#college-dashboard .cd-action-btn.cd-certificate {
+    color: #7c3aed;
+}
+
+#college-dashboard .cd-action-btn.cd-certificate:hover {
+    background: #7c3aed;
+    color: #ffffff;
+    transform: scale(1.08);
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
 }
 
 .admin-header {
@@ -1588,6 +1617,67 @@ body.modal-open {
     border-radius: var(--radius-2xl);
     box-shadow: var(--shadow-lg);
     margin-bottom: 32px;
+}
+
+/* ===== MENTOR MESSAGES SECTION STYLES ===== */
+.mentor-messages-section {
+    background: var(--bg-elevated);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-md);
+    padding: 32px;
+    margin-bottom: 32px;
+    border: 1px solid var(--border-light);
+}
+
+.mentor-messages-list {
+    margin-top: 16px;
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+/* Custom scrollbar for mentor messages list */
+.mentor-messages-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.mentor-messages-list::-webkit-scrollbar-track {
+    background: var(--bg-subtle);
+    border-radius: 4px;
+}
+
+.mentor-messages-list::-webkit-scrollbar-thumb {
+    background: var(--border-medium);
+    border-radius: 4px;
+}
+
+.mentor-messages-list::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
+
+.loading-messages,
+.error-messages,
+.empty-messages {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    color: var(--text-secondary);
+}
+
+.mentor-message-card {
+    transition: var(--transition-base);
+}
+
+.mentor-message-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.mentor-message-card.unread {
+    background: var(--color-info-pale);
+    border-left-color: var(--color-info);
 }
 
 .zs-skeleton {

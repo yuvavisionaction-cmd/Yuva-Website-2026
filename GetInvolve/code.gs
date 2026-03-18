@@ -1429,6 +1429,7 @@ function createRegistration(e) {
     p_zone_id: Number(readField(e, body, 'zone_id')),
     p_applying_for: String(readField(e, body, 'applying_for')),
     p_unit_name: String(readField(e, body, 'unit_name')),
+    p_academic_session: String(readField(e, body, 'academic_session')), // <-- ADDED THIS LINE
     p_status: String(readField(e, body, 'status') || 'pending')
   };
   const res = callSupabaseRpc('create_registration', payload);
@@ -1441,7 +1442,7 @@ function updateRegistration(e) {
   const id = Number(readField(e, body, 'id'));
   if (!id) return createResponse({ success: false, error: 'id required' }, 400);
   const data = {};
-  ['applicant_name', 'email', 'phone', 'college_id', 'zone_id', 'applying_for', 'unit_name', 'status'].forEach(k => { const v = readField(e, body, k); if (v !== '') data[k] = v; });
+  ['applicant_name', 'email', 'phone', 'college_id', 'zone_id', 'applying_for', 'unit_name', 'academic_session', 'status'].forEach(k => { const v = readField(e, body, k); if (v !== '') data[k] = v; });
   const res = updateSupabaseData('registrations', id, data);
   if (!res.success) return createResponse({ success: false, error: res.error || 'Update failed', status: res.status || null }, 500);
   return createResponse({ success: true });
@@ -1800,8 +1801,9 @@ function exportData(format, name, sheetId, source) {
       if (!regsSheet) regsSheet = ss.insertSheet('Members Export', 0);
 
       if (regsRes.success) {
-        const headers = ['ID', 'Applicant Name', 'Email', 'Phone', 'Applying For', 'Unit Name', 'Status', 'College Name', 'Zone Name', 'Registered At'];
-        const rows = (regsRes.data || []).map(r => [r.id, r.applicant_name, r.email, r.phone, r.applying_for, r.unit_name, r.status, r.college_name, r.zone_name, r.created_at]);
+        // Added 'Academic Session' to headers and r.academic_session to rows
+        const headers = ['ID', 'Applicant Name', 'Email', 'Phone', 'Applying For', 'Academic Session', 'Unit Name', 'Status', 'College Name', 'Zone Name', 'Registered At'];
+        const rows = (regsRes.data || []).map(r => [r.id, r.applicant_name, r.email, r.phone, r.applying_for, r.academic_session || 'N/A', r.unit_name, r.status, r.college_name, r.zone_name, r.created_at]);
         writeSheetData(regsSheet, headers, rows);
       }
 
@@ -1857,8 +1859,9 @@ function exportData(format, name, sheetId, source) {
     var regsSheet = ss.getSheetByName('Registrations');
     if (!regsSheet) regsSheet = ss.insertSheet('Registrations');
     if (regsRes.success) {
-      const headers = ['id', 'applicant_name', 'email', 'phone', 'applying_for', 'status', 'college_name', 'zone_name'];
-      const rows = (regsRes.data || []).map(r => [r.id, r.applicant_name, r.email, r.phone, r.applying_for, r.status, r.college_name, r.zone_name]);
+      // Added 'academic_session' to headers and rows
+      const headers = ['id', 'applicant_name', 'email', 'phone', 'applying_for', 'academic_session', 'status', 'college_name', 'zone_name'];
+      const rows = (regsRes.data || []).map(r => [r.id, r.applicant_name, r.email, r.phone, r.applying_for, r.academic_session || 'N/A', r.status, r.college_name, r.zone_name]);
       writeSheetData(regsSheet, headers, rows);
     }
 

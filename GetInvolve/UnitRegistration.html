@@ -533,6 +533,13 @@
                         </div>
                     </div>
                     <div class="form-group">
+                        <label for="member-dob">Date of Birth</label>
+                        <div class="input-group-modern">
+                            <input type="date" id="member-dob" required>
+                            <i class="fas fa-calendar-day"></i>
+                        </div>
+                    </div>
+                    <div class="form-group">
                         <label for="member-role">Applying For</label>
                         <select id="member-role" required>
                             <option value="mentor">Mentor</option>
@@ -540,6 +547,14 @@
                             <option value="convener">Convener</option>
                             <option value="co-convener">Co-convener</option>
                             <option value="member">Member</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="member-academic-session-group" style="display:block!important;">
+                        <label for="member-academic-session">Academic Session <span style="color:#c0392b;">*</span></label>
+                        <select id="member-academic-session" required style="width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:10px;font-size:15px;background:#fff;display:block!important;">
+                            <option value="">-- Select Session --</option>
+                            <option value="2025-2026">2025–2026</option>
+                            <option value="2026-2027">2026–2027</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -955,6 +970,32 @@
 
     <script src="/script.js"></script>
     <script src="/GetInvolve/unit.js"></script>
+
+    <script>
+    /* Force academic session field always visible */
+    (function() {
+        function showSession() {
+            var g = document.getElementById('member-academic-session-group');
+            if (g) { g.style.cssText = 'display:block!important'; }
+        }
+        var _orig = window.openMemberModal;
+        window.openMemberModal = function(p) {
+            if (typeof _orig === 'function') _orig(p);
+            showSession();
+            setTimeout(showSession, 10);
+            setTimeout(showSession, 100);
+        };
+        document.addEventListener('DOMContentLoaded', function() {
+            showSession();
+            var modal = document.getElementById('member-modal');
+            if (modal) {
+                new MutationObserver(function() {
+                    if (modal.style.display !== 'none') showSession();
+                }).observe(modal, { attributes: true, attributeFilter: ['style'] });
+            }
+        });
+    })();
+    </script>
 
 </body>
 
