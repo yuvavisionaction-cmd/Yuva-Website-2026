@@ -39,4 +39,141 @@ class VerticalPageManager {
     showInfo(title, message) { this.showFlashNotification('info', title, message, 4000); }
 }
 
-document.addEventListener('DOMContentLoaded', () => { new VerticalPageManager(); });
+async function loadVerticalGallery() {
+    const gallerySection = document.querySelector('.gallery-section');
+    const photoGrid = document.getElementById('photo-grid-dynamic');
+    if (!gallerySection || !photoGrid) return;
+
+    const verticalName = (gallerySection.getAttribute('data-vertical') || '').trim();
+    if (!verticalName) return;
+
+    if (!window.supabase) {
+        console.error('[VerticalGallery] Supabase SDK not loaded.');
+        return;
+    }
+
+    const SUPABASE_URL = 'https://jgsrsjwmywiirtibofth.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_5KtvO0cEHfnECBoyp2CQnw_RC3_x2me';
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    photoGrid.innerHTML = '<p style="color: white;">Loading gallery...</p>';
+
+    try {
+        // Primary source: metadata table used by upload form.
+        const { data: images, error } = await supabaseClient
+            .from('vertical_events')
+            .select('image_url, event_name, event_date, event_location')
+            .eq('vertical_name', verticalName)
+            .order('event_date', { ascending: false })
+            .limit(10);
+
+        if (error) {
+            throw error;
+        }
+
+        if (images && images.length > 0) {
+            renderGalleryItems(photoGrid, images.map((image) => ({
+                image_url: image.image_url,
+                event_name: image.event_name,
+                event_date: image.event_date,
+                event_location: image.event_location
+            })));
+            return;
+        }
+
+        // Fallback: storage-only files (for images uploaded directly to bucket).
+        const candidateFolders = await resolveStorageFolderCandidates(supabaseClient, verticalName);
+        const fileItems = [];
+
+        for (const folderName of candidateFolders) {
+            const { data: storageFiles, error: storageError } = await supabaseClient
+                .storage
+                .from('vertical_images')
+                .list(folderName, { limit: 100, sortBy: { column: 'created_at', order: 'desc' } });
+
+            if (storageError) {
+                continue;
+            }
+
+            (storageFiles || [])
+                .filter((item) => item && /\.(png|jpe?g|webp|gif|bmp)$/i.test(item.name || ''))
+                .forEach((item) => {
+                    const storagePath = `${folderName}/${item.name}`;
+                    const { data: publicData } = supabaseClient.storage.from('vertical_images').getPublicUrl(storagePath);
+                    fileItems.push({
+                        image_url: publicData.publicUrl,
+                        event_name: item.name,
+                        event_date: item.created_at || item.updated_at || null,
+                        event_location: `Uploaded image (${folderName})`
+                    });
+                });
+        }
+
+        fileItems.sort((a, b) => new Date(b.event_date || 0) - new Date(a.event_date || 0));
+
+        if (fileItems.length > 0) {
+            renderGalleryItems(photoGrid, fileItems.slice(0, 10));
+        } else {
+            photoGrid.innerHTML = '<p style="color: white;">No event photos have been uploaded for this vertical yet.</p>';
+        }
+    } catch (err) {
+        console.error('[VerticalGallery] Failed to load gallery:', err);
+        photoGrid.innerHTML = '<p style="color: white;">Could not load gallery at this time.</p>';
+    }
+}
+
+function renderGalleryItems(container, items) {
+    container.innerHTML = '';
+    items.forEach((image) => {
+        const photoItem = document.createElement('div');
+        photoItem.className = 'photo-item';
+
+        const dateLabel = image.event_date
+            ? new Date(image.event_date).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' })
+            : 'Date unavailable';
+
+        photoItem.innerHTML = `
+            <img src="${image.image_url}" alt="${image.event_name || 'Vertical image'}" loading="lazy">
+            <div class="photo-caption">
+                <strong>${image.event_name || 'Uploaded image'}</strong>
+                <span>${dateLabel}${image.event_location ? ` - ${image.event_location}` : ''}</span>
+            </div>
+        `;
+        container.appendChild(photoItem);
+    });
+}
+
+async function resolveStorageFolderCandidates(supabaseClient, verticalName) {
+    const normalizedTarget = normalizeVerticalName(verticalName);
+    const candidates = new Set([verticalName]);
+
+    const { data: rootItems, error } = await supabaseClient
+        .storage
+        .from('vertical_images')
+        .list('', { limit: 200 });
+
+    if (error || !rootItems) {
+        return Array.from(candidates);
+    }
+
+    rootItems.forEach((item) => {
+        const name = (item?.name || '').trim();
+        if (!name) return;
+        if (normalizeVerticalName(name) === normalizedTarget) {
+            candidates.add(name);
+        }
+    });
+
+    return Array.from(candidates);
+}
+
+function normalizeVerticalName(value) {
+    return String(value || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    new VerticalPageManager();
+    loadVerticalGallery();
+});

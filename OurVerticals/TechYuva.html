@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>YUVA India</title>
     <link rel="stylesheet" href="/style.css">
-    <link rel="stylesheet" href="Mobile.css">
+    <!-- <link rel="stylesheet" href="Mobile.css"> -->
     <link rel="stylesheet" href="verticals.css">
     <link rel="shortcut icon" href="/Images/YUVA logo.png" type="image/x-icon">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -185,63 +185,8 @@
         </div>
     </div>
     <script src="/script.js"></script>
-    <script src="verticals.js"></script>
+    <script src="verticals.js?v=20260318b"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script>
-        // --- Initialize Supabase ---
-        const SUPABASE_URL = 'https://jgsrsjwmywiirtibofth.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable_5KtvO0cEHfnECBoyp2CQnw_RC3_x2me';
-        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-        // --- Fetch and Display Gallery Images ---
-        document.addEventListener('DOMContentLoaded', async () => {
-            const gallerySection = document.querySelector('.gallery-section');
-            const photoGrid = document.getElementById('photo-grid-dynamic');
-
-            if (!gallerySection || !photoGrid) return;
-            const verticalName = gallerySection.getAttribute('data-vertical');
-            if (!verticalName) return;
-
-            // Fetch images for THIS vertical
-            const { data: images, error } = await supabaseClient
-                .from('vertical_events')
-                .select('image_url, event_name, event_date, event_location')
-                .eq('vertical_name', verticalName)
-                .order('event_date', { ascending: false })
-                .limit(10); // <-- THIS IS THE NEW LIMIT
-
-            if (error) {
-                console.error('Error fetching gallery:', error);
-                photoGrid.innerHTML = '<p style="color: white;">Could not load gallery at this time.</p>';
-                return;
-            }
-
-            if (images && images.length > 0) {
-                photoGrid.innerHTML = ''; // Clear placeholders
-                images.forEach(image => {
-                    const photoItem = document.createElement('div');
-                    photoItem.className = 'photo-item';
-
-                    const date = new Date(image.event_date).toLocaleDateString('en-IN', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric'
-                    });
-
-                    photoItem.innerHTML = `
-                        <img src="${image.image_url}" alt="${image.event_name}">
-                        <div class="photo-caption">
-                            <strong>${image.event_name}</strong>
-                            <span>${date} - ${image.event_location}</span>
-                        </div>
-                    `;
-                    photoGrid.appendChild(photoItem);
-                });
-            } else {
-                photoGrid.innerHTML = '<p style="color: white;">No event photos have been uploaded for this vertical yet.</p>';
-            }
-        });
-    </script>
 </body>
 
 </html>

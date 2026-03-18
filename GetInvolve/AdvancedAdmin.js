@@ -51,6 +51,19 @@ const Toast = {
     }
 };
 
+const VERTICAL_STORAGE_BUCKET = 'vertical_images';
+const KNOWN_STORAGE_BUCKETS = ['vertical_images', 'gallery_photos', 'event-banners', 'alumni-images'];
+let verticalImageRecords = [];
+let pendingVerticalImageDelete = null;
+let collegeRecords = [];
+let zoneRecords = [];
+let collegesLoadInFlight = false;
+const storageManagerState = {
+    bucket: '',
+    prefix: '',
+    pendingDeletePath: ''
+};
+
 document.addEventListener('DOMContentLoaded', async () => {
 
     // 1. ACCESS CHECK & INIT
@@ -163,8 +176,11 @@ window.showSection = function (sectionId) {
     const titleMap = {
         'dashboard': 'Dashboard Overview',
         'user-manager': 'User Management',
+        'colleges-manager': 'College Details',
         'messages': 'Zone Messages',
         'events-manager': 'Event Management',
+        'verticals-manager': 'Verticals Management',
+        'storage-manager': 'Supabase Storage Manager',
     };
     const pageTitle = document.getElementById('page-title');
     if (pageTitle) pageTitle.textContent = titleMap[sectionId] || 'Dashboard';
@@ -174,8 +190,14 @@ window.showSection = function (sectionId) {
     document.getElementById('user-manager-view').classList.add('hidden');
     const messagesView = document.getElementById('messages-view');
     const eventsView = document.getElementById('events-manager-view');
+    const verticalsView = document.getElementById('verticals-manager-view');
+    const storageView = document.getElementById('storage-manager-view');
+    const collegesView = document.getElementById('colleges-manager-view');
     if (messagesView) messagesView.style.display = 'none';
     if (eventsView) eventsView.style.display = 'none';
+    if (verticalsView) verticalsView.style.display = 'none';
+    if (storageView) storageView.style.display = 'none';
+    if (collegesView) collegesView.classList.add('hidden');
 
     if (sectionId === 'dashboard') {
         document.getElementById('dashboard-view').classList.remove('hidden');
@@ -185,9 +207,19 @@ window.showSection = function (sectionId) {
     } else if (sectionId === 'messages') {
         if (messagesView) messagesView.style.display = 'block';
         loadMessages();
+    } else if (sectionId === 'colleges-manager') {
+        if (collegesView) collegesView.classList.remove('hidden');
+        loadColleges();
     } else if (sectionId === 'events-manager') {
         if (eventsView) eventsView.style.display = 'block';
         loadEvents();
+    } else if (sectionId === 'verticals-manager') {
+        if (verticalsView) verticalsView.style.display = 'block';
+        loadVerticalAccessUsers();
+        loadVerticalImages();
+    } else if (sectionId === 'storage-manager') {
+        if (storageView) storageView.style.display = 'block';
+        loadStorageBuckets();
     }
 };
 
@@ -271,6 +303,308 @@ window.getRoleBadgeClass = function (role) {
     if (role === 'super_admin') return 'primary'; // Blue
     if (role === 'zone_convener') return 'success'; // Green
     return 'warning'; // Orange
+};
+
+// 3b. COLLEGES MANAGEMENT
+window.loadColleges = async function () {
+    const tbody = document.querySelector('#colleges-table tbody');
+    if (!tbody) return;
+
+    if (collegesLoadInFlight) return;
+    collegesLoadInFlight = true;
+
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px;"><i class="fas fa-spinner fa-spin"></i> Loading colleges...</td></tr>';
+
+    try {
+        let loaded = false;
+        let lastError = null;
+
+        for (let attempt = 0; attempt < 2 && !loaded; attempt++) {
+            try {
+                // Fetch sequentially to reduce lock contention in some browsers.
+                const zonesResult = await supabaseClient
+                    .from('zones')
+                    .select('id, zone_name')
+                    .order('zone_name', { ascending: true });
+                if (zonesResult.error) throw zonesResult.error;
+
+                const collegesResult = await supabaseClient
+                    .from('colleges')
+                    .select('id, college_name, college_code, zone_id, address, contact_email, contact_phone, total_members, is_active, updated_at')
+                    .order('college_name', { ascending: true });
+                if (collegesResult.error) throw collegesResult.error;
+
+                collegeRecords = collegesResult.data || [];
+                zoneRecords = zonesResult.data || [];
+                loaded = true;
+            } catch (error) {
+                lastError = error;
+                if (isTransientLockError(error) && attempt === 0) {
+                    await waitMs(180);
+                    continue;
+                }
+                throw error;
+            }
+        }
+
+        if (!loaded && lastError) throw lastError;
+
+        populateCollegeZoneDropdown();
+        populateCollegeZoneFilter();
+        renderCollegesTable();
+    } catch (error) {
+        console.error('Error loading colleges:', error);
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#c62828; padding:20px;">Failed to load colleges: ${escapeHtml(error.message || 'Unknown error')}</td></tr>`;
+        Toast.show('error', 'Load Failed', error.message || 'Could not load college details');
+    } finally {
+        collegesLoadInFlight = false;
+    }
+};
+
+function isTransientLockError(error) {
+    const msg = String(error?.message || '').toLowerCase();
+    const name = String(error?.name || '').toLowerCase();
+    return name === 'aborterror'
+        || msg.includes('lock broken by another request')
+        || msg.includes('another request with the')
+        || msg.includes('navigator lock');
+}
+
+function waitMs(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function renderCollegesTable() {
+    const tbody = document.querySelector('#colleges-table tbody');
+    const searchInput = document.getElementById('college-search');
+    const zoneFilter = document.getElementById('college-zone-filter');
+    if (!tbody) return;
+
+    const query = String(searchInput?.value || '').trim().toLowerCase();
+    const selectedZone = String(zoneFilter?.value || 'all');
+    const zonesById = new Map((zoneRecords || []).map((zone) => [Number(zone.id), zone.zone_name || '-']));
+
+    const filtered = (collegeRecords || []).filter((row) => {
+        if (selectedZone !== 'all' && String(row.zone_id || '') !== selectedZone) {
+            return false;
+        }
+
+        if (!query) return true;
+
+        const zoneName = zonesById.get(Number(row.zone_id)) || '';
+        const haystack = [
+            row.college_name,
+            row.college_code,
+            zoneName,
+            row.contact_email,
+            row.contact_phone,
+            row.address
+        ].map((v) => String(v || '').toLowerCase()).join(' ');
+
+        return haystack.includes(query);
+    });
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px; color:#777;">No colleges found for this search.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = filtered.map((row) => {
+        const zoneName = zonesById.get(Number(row.zone_id)) || '-';
+        const members = Number(row.total_members || 0);
+        const statusClass = row.is_active ? 'badge-success' : 'badge-warning';
+        const statusText = row.is_active ? 'ACTIVE' : 'INACTIVE';
+
+        return `
+            <tr>
+                <td>
+                    <div style="font-weight:700; color:#1f2937;">${escapeHtml(row.college_name || '-')}</div>
+                    <div style="font-size:12px; color:#6b7280;">${escapeHtml(row.address || '')}</div>
+                </td>
+                <td>${escapeHtml(row.college_code || '-')}</td>
+                <td>${escapeHtml(zoneName)}</td>
+                <td>
+                    <div style="font-size:13px;">${escapeHtml(row.contact_email || '-')}</div>
+                    <div style="font-size:12px; color:#6b7280;">${escapeHtml(row.contact_phone || '-')}</div>
+                </td>
+                <td><strong>${members}</strong></td>
+                <td><span class="badge ${statusClass}">${statusText}</span></td>
+                <td>
+                    <div class="action-buttons">
+                        <button class="btn-action edit" onclick="openCollegeModal(${Number(row.id)})"><i class="fas fa-edit"></i> Edit</button>
+                        <button class="btn-action delete" onclick="deleteCollege(${Number(row.id)})"><i class="fas fa-trash"></i> Delete</button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function populateCollegeZoneFilter() {
+    const select = document.getElementById('college-zone-filter');
+    if (!select) return;
+
+    const current = select.value || 'all';
+    select.innerHTML = '<option value="all">All Zones</option>';
+
+    (zoneRecords || []).forEach((zone) => {
+        const option = document.createElement('option');
+        option.value = String(zone.id);
+        option.textContent = zone.zone_name || `Zone ${zone.id}`;
+        select.appendChild(option);
+    });
+
+    const validValues = new Set(Array.from(select.options).map((opt) => opt.value));
+    select.value = validValues.has(current) ? current : 'all';
+}
+
+function populateCollegeZoneDropdown() {
+    const select = document.getElementById('college-zone');
+    if (!select) return;
+
+    const current = select.value;
+    select.innerHTML = '<option value="">Select zone</option>';
+
+    (zoneRecords || []).forEach((zone) => {
+        const option = document.createElement('option');
+        option.value = String(zone.id);
+        option.textContent = zone.zone_name || `Zone ${zone.id}`;
+        select.appendChild(option);
+    });
+
+    if (current) select.value = current;
+}
+
+window.openCollegeModal = function (collegeId = null) {
+    const modal = document.getElementById('college-modal');
+    if (!modal) return;
+
+    const titleEl = document.getElementById('college-modal-title');
+    const idEl = document.getElementById('college-id');
+    const nameEl = document.getElementById('college-name');
+    const codeEl = document.getElementById('college-code');
+    const zoneEl = document.getElementById('college-zone');
+    const addressEl = document.getElementById('college-address');
+    const emailEl = document.getElementById('college-email');
+    const phoneEl = document.getElementById('college-phone');
+    const membersEl = document.getElementById('college-members');
+    const activeEl = document.getElementById('college-active');
+
+    populateCollegeZoneDropdown();
+
+    if (!collegeId) {
+        if (titleEl) titleEl.textContent = 'Add College';
+        if (idEl) idEl.value = '';
+        if (nameEl) nameEl.value = '';
+        if (codeEl) codeEl.value = '';
+        if (zoneEl) zoneEl.value = '';
+        if (addressEl) addressEl.value = '';
+        if (emailEl) emailEl.value = '';
+        if (phoneEl) phoneEl.value = '';
+        if (membersEl) membersEl.value = '0';
+        if (activeEl) activeEl.checked = true;
+    } else {
+        const row = (collegeRecords || []).find((item) => Number(item.id) === Number(collegeId));
+        if (!row) {
+            Toast.show('warning', 'Record Missing', 'College record not found. Refresh and try again.');
+            return;
+        }
+
+        if (titleEl) titleEl.textContent = 'Edit College';
+        if (idEl) idEl.value = String(row.id);
+        if (nameEl) nameEl.value = row.college_name || '';
+        if (codeEl) codeEl.value = row.college_code || '';
+        if (zoneEl) zoneEl.value = row.zone_id ? String(row.zone_id) : '';
+        if (addressEl) addressEl.value = row.address || '';
+        if (emailEl) emailEl.value = row.contact_email || '';
+        if (phoneEl) phoneEl.value = row.contact_phone || '';
+        if (membersEl) membersEl.value = String(Number(row.total_members || 0));
+        if (activeEl) activeEl.checked = !!row.is_active;
+    }
+
+    modal.classList.remove('hidden');
+};
+
+window.closeCollegeModal = function () {
+    const modal = document.getElementById('college-modal');
+    if (modal) modal.classList.add('hidden');
+};
+
+window.saveCollege = async function () {
+    const id = Number(document.getElementById('college-id')?.value || 0);
+    const collegeName = String(document.getElementById('college-name')?.value || '').trim();
+    const collegeCode = String(document.getElementById('college-code')?.value || '').trim();
+    const zoneId = Number(document.getElementById('college-zone')?.value || 0);
+    const address = String(document.getElementById('college-address')?.value || '').trim();
+    const contactEmail = String(document.getElementById('college-email')?.value || '').trim();
+    const contactPhone = String(document.getElementById('college-phone')?.value || '').trim();
+    const totalMembers = Number(document.getElementById('college-members')?.value || 0);
+    const isActive = !!document.getElementById('college-active')?.checked;
+
+    if (!collegeName || !collegeCode || !zoneId) {
+        Toast.show('warning', 'Missing Required Fields', 'College name, code, and zone are required.');
+        return;
+    }
+
+    const payload = {
+        college_name: collegeName,
+        college_code: collegeCode,
+        zone_id: zoneId,
+        address: address || null,
+        contact_email: contactEmail || null,
+        contact_phone: contactPhone || null,
+        total_members: Number.isFinite(totalMembers) && totalMembers >= 0 ? totalMembers : 0,
+        is_active: isActive,
+        updated_at: new Date().toISOString()
+    };
+
+    try {
+        if (id) {
+            const { error } = await supabaseClient
+                .from('colleges')
+                .update(payload)
+                .eq('id', id);
+
+            if (error) throw error;
+            Toast.show('success', 'Updated', 'College record updated successfully.');
+        } else {
+            const { error } = await supabaseClient
+                .from('colleges')
+                .insert([{ ...payload, created_at: new Date().toISOString() }]);
+
+            if (error) throw error;
+            Toast.show('success', 'Added', 'New college added successfully.');
+        }
+
+        closeCollegeModal();
+        await loadColleges();
+    } catch (error) {
+        console.error('Error saving college:', error);
+        Toast.show('error', 'Save Failed', error.message || 'Could not save college details');
+    }
+};
+
+window.deleteCollege = async function (collegeId) {
+    if (!collegeId) return;
+    const row = (collegeRecords || []).find((item) => Number(item.id) === Number(collegeId));
+    const name = row?.college_name || 'this college';
+
+    if (!confirm(`Delete ${name}? This cannot be undone.`)) return;
+
+    try {
+        const { error } = await supabaseClient
+            .from('colleges')
+            .delete()
+            .eq('id', Number(collegeId));
+
+        if (error) throw error;
+
+        Toast.show('success', 'Deleted', 'College record deleted successfully.');
+        await loadColleges();
+    } catch (error) {
+        console.error('Error deleting college:', error);
+        Toast.show('error', 'Delete Failed', error.message || 'Could not delete college');
+    }
 };
 
 // 4. MESSAGES FUNCTIONALITY
@@ -590,21 +924,920 @@ window.refreshCurrentView = function () {
 
     if (userView && !userView.classList.contains('hidden')) {
         loadUsers().finally(stopRefreshAnimation);
-    } else if (messagesView && messagesView.style.display !== 'none') {
+    } else {
+        const collegesView = document.getElementById('colleges-manager-view');
+        if (collegesView && !collegesView.classList.contains('hidden')) {
+            loadColleges().finally(stopRefreshAnimation);
+            return;
+        }
+    }
+
+    if (messagesView && messagesView.style.display !== 'none') {
         loadMessages().finally(stopRefreshAnimation);
     } else {
         const eventsView = document.getElementById('events-manager-view');
         if (eventsView && eventsView.style.display !== 'none') {
             loadEvents().finally(stopRefreshAnimation);
         } else {
-            // Main Dashboard (Static for now, but simulating refresh)
-            setTimeout(() => {
-                Toast.show('success', 'Dashboard Updated', 'Dashboard Refreshed Successfully');
-                stopRefreshAnimation();
-            }, 800);
+            const verticalsView = document.getElementById('verticals-manager-view');
+            if (verticalsView && verticalsView.style.display !== 'none') {
+                Promise.all([loadVerticalAccessUsers(), loadVerticalImages()]).finally(stopRefreshAnimation);
+            } else {
+                const storageView = document.getElementById('storage-manager-view');
+                if (storageView && storageView.style.display !== 'none') {
+                    loadStorageObjects().finally(stopRefreshAnimation);
+                } else {
+                    // Main Dashboard (Static for now, but simulating refresh)
+                    setTimeout(() => {
+                        Toast.show('success', 'Dashboard Updated', 'Dashboard Refreshed Successfully');
+                        stopRefreshAnimation();
+                    }, 800);
+                }
+            }
         }
     }
 };
+
+// ===== VERTICALS MANAGEMENT SECTION =====
+
+window.loadVerticalAccessUsers = async function () {
+    const tbody = document.querySelector('#vertical-access-table tbody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;"><i class="fas fa-spinner fa-spin"></i> Loading access users...</td></tr>';
+
+    try {
+        const [accessResult, keysResult] = await Promise.all([
+            supabaseClient
+                .from('vertical_access')
+                .select('email, vertical_name')
+                .order('vertical_name', { ascending: true })
+                .order('email', { ascending: true }),
+            supabaseClient
+                .from('security_keys')
+                .select('email, security_key')
+        ]);
+
+        if (accessResult.error) throw accessResult.error;
+        if (keysResult.error) throw keysResult.error;
+
+        const keyByEmail = new Map();
+        (keysResult.data || []).forEach((row) => {
+            if (!row || !row.email) return;
+            keyByEmail.set(String(row.email).toLowerCase(), row.security_key || '');
+        });
+
+        const rows = accessResult.data || [];
+        if (rows.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:#777;">No vertical access users found.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = rows.map((row) => {
+            const email = row.email || '';
+            const vertical = row.vertical_name || '';
+            const key = keyByEmail.get(String(email).toLowerCase()) || '';
+            const encodedEmail = encodeURIComponent(email);
+            const encodedVertical = encodeURIComponent(vertical);
+            const encodedKey = encodeURIComponent(key);
+            const keyPreview = key ? `${'*'.repeat(Math.max(4, Math.min(10, key.length)))}` : 'Not set';
+
+            return `
+                <tr>
+                    <td>${escapeHtml(email)}</td>
+                    <td>${escapeHtml(vertical)}</td>
+                    <td>${escapeHtml(keyPreview)}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn-action edit" onclick="openVerticalAccessModalFromRow('${encodedEmail}', '${encodedVertical}', '${encodedKey}')"><i class="fas fa-edit"></i> Edit</button>
+                            <button class="btn-action delete" onclick="deleteVerticalAccess('${encodedEmail}', '${encodedVertical}')"><i class="fas fa-trash"></i> Delete</button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    } catch (error) {
+        console.error('Error loading vertical access users:', error);
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#c62828; padding:20px;">Failed to load access users: ${escapeHtml(error.message || 'Unknown error')}</td></tr>`;
+        Toast.show('error', 'Load Failed', error.message || 'Could not load vertical access users');
+    }
+};
+
+window.openVerticalAccessModalFromRow = function (encodedEmail, encodedVertical, encodedKey) {
+    openVerticalAccessModal({
+        email: decodeURIComponent(encodedEmail || ''),
+        vertical_name: decodeURIComponent(encodedVertical || ''),
+        security_key: decodeURIComponent(encodedKey || '')
+    });
+};
+
+window.openVerticalAccessModal = function (record = null) {
+    const modal = document.getElementById('vertical-access-modal');
+    if (!modal) return;
+
+    const isEdit = !!record;
+    document.getElementById('vertical-access-modal-title').textContent = isEdit ? 'Edit Vertical Access' : 'Add Vertical Access';
+    document.getElementById('vertical-access-original-email').value = isEdit ? (record.email || '') : '';
+    document.getElementById('vertical-access-original-vertical').value = isEdit ? (record.vertical_name || '') : '';
+    document.getElementById('vertical-access-email').value = isEdit ? (record.email || '') : '';
+    document.getElementById('vertical-access-vertical').value = isEdit ? (record.vertical_name || '') : '';
+    document.getElementById('vertical-access-security-key').value = isEdit ? (record.security_key || '') : '';
+
+    modal.classList.remove('hidden');
+};
+
+window.closeVerticalAccessModal = function () {
+    const modal = document.getElementById('vertical-access-modal');
+    if (modal) modal.classList.add('hidden');
+};
+
+window.saveVerticalAccess = async function () {
+    const email = (document.getElementById('vertical-access-email')?.value || '').trim().toLowerCase();
+    const verticalName = (document.getElementById('vertical-access-vertical')?.value || '').trim();
+    const securityKey = (document.getElementById('vertical-access-security-key')?.value || '').trim();
+    const originalEmail = (document.getElementById('vertical-access-original-email')?.value || '').trim().toLowerCase();
+    const originalVertical = (document.getElementById('vertical-access-original-vertical')?.value || '').trim();
+
+    if (!email || !verticalName || !securityKey) {
+        Toast.show('warning', 'Missing Data', 'Email, vertical name, and security key are required.');
+        return;
+    }
+
+    try {
+        if (originalEmail && originalVertical) {
+            const { error: deleteOldError } = await supabaseClient
+                .from('vertical_access')
+                .delete()
+                .eq('email', originalEmail)
+                .eq('vertical_name', originalVertical);
+
+            if (deleteOldError) throw deleteOldError;
+        }
+
+        const { error: insertAccessError } = await supabaseClient
+            .from('vertical_access')
+            .insert([{ email, vertical_name: verticalName }]);
+
+        if (insertAccessError) throw insertAccessError;
+
+        const { error: keyUpsertError } = await supabaseClient
+            .from('security_keys')
+            .upsert([{ email, security_key: securityKey }], { onConflict: 'email' });
+
+        if (keyUpsertError) {
+            // Fallback for schemas where email is not a declared unique constraint.
+            const { error: keyUpdateError } = await supabaseClient
+                .from('security_keys')
+                .update({ security_key: securityKey })
+                .eq('email', email);
+
+            if (keyUpdateError) throw keyUpdateError;
+
+            const { data: keyRows, error: keyRowsError } = await supabaseClient
+                .from('security_keys')
+                .select('id')
+                .eq('email', email)
+                .limit(1);
+
+            if (keyRowsError) throw keyRowsError;
+
+            if (!keyRows || keyRows.length === 0) {
+                const { error: keyInsertError } = await supabaseClient
+                    .from('security_keys')
+                    .insert([{ email, security_key: securityKey }]);
+
+                if (keyInsertError) throw keyInsertError;
+            }
+        }
+
+        Toast.show('success', 'Saved', 'Vertical access updated successfully.');
+        closeVerticalAccessModal();
+        await loadVerticalAccessUsers();
+    } catch (error) {
+        console.error('Error saving vertical access:', error);
+        Toast.show('error', 'Save Failed', error.message || 'Could not save vertical access');
+    }
+};
+
+window.deleteVerticalAccess = async function (encodedEmail, encodedVertical) {
+    const email = decodeURIComponent(encodedEmail || '').toLowerCase();
+    const verticalName = decodeURIComponent(encodedVertical || '');
+
+    if (!email || !verticalName) return;
+    if (!confirm(`Delete access for ${email} in ${verticalName}?`)) return;
+
+    try {
+        const { error } = await supabaseClient
+            .from('vertical_access')
+            .delete()
+            .eq('email', email)
+            .eq('vertical_name', verticalName);
+
+        if (error) throw error;
+
+        const { data: remainingAccess, error: remainingError } = await supabaseClient
+            .from('vertical_access')
+            .select('email')
+            .eq('email', email)
+            .limit(1);
+
+        if (remainingError) throw remainingError;
+
+        if (!remainingAccess || remainingAccess.length === 0) {
+            await supabaseClient
+                .from('security_keys')
+                .delete()
+                .eq('email', email);
+        }
+
+        Toast.show('success', 'Deleted', 'Vertical access removed.');
+        await loadVerticalAccessUsers();
+    } catch (error) {
+        console.error('Error deleting vertical access:', error);
+        Toast.show('error', 'Delete Failed', error.message || 'Could not delete vertical access');
+    }
+};
+
+window.loadVerticalImages = async function () {
+    const tbody = document.querySelector('#vertical-images-table tbody');
+    const filterEl = document.getElementById('vertical-image-filter');
+    if (!tbody || !filterEl) return;
+
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;"><i class="fas fa-spinner fa-spin"></i> Loading vertical images...</td></tr>';
+
+    try {
+        const selectedVertical = filterEl.value || 'all';
+        let query = supabaseClient
+            .from('vertical_events')
+            .select('id, event_name, event_date, event_location, vertical_name, image_url, uploaded_by, created_at')
+            .order('created_at', { ascending: false });
+
+        if (selectedVertical !== 'all') {
+            query = query.eq('vertical_name', selectedVertical);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        const dbRecords = (data || []).map((row) => ({
+            ...row,
+            source: 'database'
+        }));
+
+        const storageOnlyRecords = await loadStorageOnlyVerticalImages(dbRecords, selectedVertical);
+        verticalImageRecords = [...dbRecords, ...storageOnlyRecords]
+            .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+
+        await populateVerticalImageFilterOptions(selectedVertical);
+
+        if (verticalImageRecords.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#777;">No vertical images found.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = verticalImageRecords.map((row) => {
+            const encodedUrl = encodeURIComponent(row.image_url || '');
+            const date = row.event_date ? formatDate(row.event_date) : '-';
+            const uploadedBy = row.uploaded_by || '-';
+            const canEdit = row.source !== 'storage';
+            const recordId = row.id ? Number(row.id) : null;
+            const editButtonHtml = canEdit && recordId !== null
+                ? `<button class="btn-action edit" onclick="openVerticalImageEditModal(${recordId})"><i class="fas fa-edit"></i> Edit</button>`
+                : '';
+
+            return `
+                <tr>
+                    <td><img src="${escapeHtml(row.image_url || '')}" alt="${escapeHtml(row.event_name || 'Vertical image')}" class="vertical-thumb"></td>
+                    <td>
+                        <strong>${escapeHtml(row.event_name || '-')}</strong>
+                        <div style="color:#888; font-size:12px;">${escapeHtml(row.event_location || '')}</div>
+                        <div style="color:#999; font-size:11px; margin-top:4px;">${row.source === 'storage' ? 'Storage only (no DB metadata)' : 'Database record'}</div>
+                    </td>
+                    <td>${escapeHtml(row.vertical_name || '-')}</td>
+                    <td>${escapeHtml(date)}</td>
+                    <td>${escapeHtml(uploadedBy)}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn-action view" onclick="openVerticalImageViewModal('${encodedUrl}', '${encodeURIComponent(row.event_name || 'Image Preview')}')"><i class="fas fa-eye"></i> View</button>
+                            ${editButtonHtml}
+                            <button class="btn-action delete" onclick="deleteVerticalImageRecord(${recordId === null ? 'null' : recordId}, '${encodedUrl}')"><i class="fas fa-trash"></i> Delete</button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    } catch (error) {
+        console.error('Error loading vertical images:', error);
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#c62828; padding:20px;">Failed to load images: ${escapeHtml(error.message || 'Unknown error')}</td></tr>`;
+        Toast.show('error', 'Load Failed', error.message || 'Could not load vertical images');
+    }
+};
+
+async function populateVerticalImageFilterOptions(selectedValue) {
+    const filterEl = document.getElementById('vertical-image-filter');
+    if (!filterEl) return;
+
+    const { data: allRows, error } = await supabaseClient
+        .from('vertical_events')
+        .select('vertical_name');
+
+    if (error) {
+        console.error('Error loading vertical names for filter:', error);
+        return;
+    }
+
+    const storageVerticals = await getStorageVerticalFolders();
+    const uniqueVerticals = [...new Set([...(allRows || [])
+        .map((row) => (row.vertical_name || '').trim())
+        .filter(Boolean), ...storageVerticals])].sort((a, b) => a.localeCompare(b));
+
+    filterEl.innerHTML = '<option value="all">All Verticals</option>';
+    uniqueVerticals.forEach((name) => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        filterEl.appendChild(option);
+    });
+
+    filterEl.value = uniqueVerticals.includes(selectedValue) || selectedValue === 'all' ? selectedValue : 'all';
+}
+
+window.openVerticalImageViewModal = function (encodedUrl, encodedTitle) {
+    const imageUrl = decodeURIComponent(encodedUrl || '');
+    const imageTitle = decodeURIComponent(encodedTitle || 'Image Preview');
+    if (!imageUrl) return;
+
+    const modal = document.getElementById('vertical-image-view-modal');
+    const titleEl = document.getElementById('vertical-image-view-title');
+    const imageEl = document.getElementById('vertical-image-view-img');
+
+    if (!modal || !titleEl || !imageEl) {
+        Toast.show('warning', 'Preview Unavailable', 'Preview modal not found. Please refresh the page.');
+        return;
+    }
+
+    titleEl.textContent = imageTitle;
+    imageEl.src = imageUrl;
+    imageEl.onerror = function () {
+        this.removeAttribute('src');
+        Toast.show('error', 'Preview Failed', 'Could not load this image.');
+    };
+
+    modal.classList.remove('hidden');
+};
+
+window.closeVerticalImageViewModal = function () {
+    const modal = document.getElementById('vertical-image-view-modal');
+    const imageEl = document.getElementById('vertical-image-view-img');
+    if (imageEl) {
+        imageEl.onerror = null;
+        imageEl.removeAttribute('src');
+    }
+    if (modal) modal.classList.add('hidden');
+};
+
+window.openVerticalImageEditModal = function (recordId) {
+    const modal = document.getElementById('vertical-image-modal');
+    if (!modal) return;
+
+    const record = verticalImageRecords.find((row) => Number(row.id) === Number(recordId));
+    if (!record) {
+        Toast.show('warning', 'Not Found', 'Image record not found in current list. Refresh and try again.');
+        return;
+    }
+
+    document.getElementById('vertical-image-id').value = record.id;
+    document.getElementById('vertical-image-event-name').value = record.event_name || '';
+    document.getElementById('vertical-image-event-date').value = record.event_date || '';
+    document.getElementById('vertical-image-vertical').value = record.vertical_name || '';
+    document.getElementById('vertical-image-location').value = record.event_location || '';
+
+    modal.classList.remove('hidden');
+};
+
+window.closeVerticalImageModal = function () {
+    const modal = document.getElementById('vertical-image-modal');
+    if (modal) modal.classList.add('hidden');
+};
+
+window.saveVerticalImageRecord = async function () {
+    const id = Number(document.getElementById('vertical-image-id')?.value || 0);
+    const eventName = (document.getElementById('vertical-image-event-name')?.value || '').trim();
+    const eventDate = (document.getElementById('vertical-image-event-date')?.value || '').trim();
+    const verticalName = (document.getElementById('vertical-image-vertical')?.value || '').trim();
+    const eventLocation = (document.getElementById('vertical-image-location')?.value || '').trim();
+
+    if (!id || !eventName || !eventDate || !verticalName) {
+        Toast.show('warning', 'Missing Data', 'Event name, date, and vertical are required.');
+        return;
+    }
+
+    try {
+        const { error } = await supabaseClient
+            .from('vertical_events')
+            .update({
+                event_name: eventName,
+                event_date: eventDate,
+                vertical_name: verticalName,
+                event_location: eventLocation,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', id);
+
+        if (error) throw error;
+
+        Toast.show('success', 'Updated', 'Vertical image record updated successfully.');
+        closeVerticalImageModal();
+        await loadVerticalImages();
+    } catch (error) {
+        console.error('Error updating vertical image record:', error);
+        Toast.show('error', 'Update Failed', error.message || 'Could not update image record');
+    }
+};
+
+window.deleteVerticalImageRecord = function (recordId, encodedUrl) {
+    const imageUrl = decodeURIComponent(encodedUrl || '');
+    if (!imageUrl) return;
+
+    pendingVerticalImageDelete = {
+        recordId: recordId ? Number(recordId) : null,
+        imageUrl
+    };
+
+    const modal = document.getElementById('vertical-image-delete-modal');
+    const fileNameEl = document.getElementById('vertical-image-delete-name');
+    if (!modal || !fileNameEl) {
+        Toast.show('warning', 'Delete Unavailable', 'Delete modal is not available. Please refresh page.');
+        return;
+    }
+
+    const storagePath = getStoragePathFromPublicUrl(imageUrl, VERTICAL_STORAGE_BUCKET) || '';
+    const fileName = storagePath.split('/').pop() || 'Selected image';
+    fileNameEl.textContent = fileName;
+    modal.classList.remove('hidden');
+};
+
+window.closeVerticalImageDeleteModal = function () {
+    const modal = document.getElementById('vertical-image-delete-modal');
+    if (modal) modal.classList.add('hidden');
+    pendingVerticalImageDelete = null;
+};
+
+window.confirmVerticalImageDelete = async function () {
+    if (!pendingVerticalImageDelete || !pendingVerticalImageDelete.imageUrl) {
+        closeVerticalImageDeleteModal();
+        return;
+    }
+
+    const { recordId, imageUrl } = pendingVerticalImageDelete;
+    const confirmBtn = document.getElementById('vertical-image-delete-confirm-btn');
+    const originalBtnText = confirmBtn ? confirmBtn.innerHTML : '';
+
+    if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+    }
+
+    try {
+        const storagePath = getStoragePathFromPublicUrl(imageUrl, VERTICAL_STORAGE_BUCKET);
+        if (storagePath) {
+            const { error: storageError } = await supabaseClient.storage
+                .from(VERTICAL_STORAGE_BUCKET)
+                .remove([storagePath]);
+
+            if (storageError) throw storageError;
+        }
+
+        if (recordId) {
+            const { error: dbError } = await supabaseClient
+                .from('vertical_events')
+                .delete()
+                .eq('id', recordId);
+
+            if (dbError) throw dbError;
+        }
+
+        Toast.show('success', 'Deleted', 'Image deleted successfully.');
+        closeVerticalImageDeleteModal();
+        await loadVerticalImages();
+    } catch (error) {
+        console.error('Error deleting vertical image:', error);
+        Toast.show('error', 'Delete Failed', error.message || 'Could not delete image');
+    } finally {
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = originalBtnText;
+        }
+    }
+};
+
+function getStoragePathFromPublicUrl(publicUrl, bucketName) {
+    const marker = `/storage/v1/object/public/${bucketName}/`;
+    const markerIndex = publicUrl.indexOf(marker);
+    if (markerIndex === -1) return null;
+
+    const rawPath = publicUrl.slice(markerIndex + marker.length);
+    return decodeURIComponent(rawPath.split('?')[0]);
+}
+
+async function getStorageVerticalFolders() {
+    const { data, error } = await supabaseClient.storage
+        .from(VERTICAL_STORAGE_BUCKET)
+        .list('', { limit: 200 });
+
+    if (error) {
+        console.error('Error listing storage folders:', error);
+        return [];
+    }
+
+    return (data || [])
+        .map((item) => String(item?.name || '').trim())
+        .filter(Boolean);
+}
+
+async function loadStorageOnlyVerticalImages(dbRecords, selectedVertical) {
+    const dbImageUrls = new Set((dbRecords || []).map((row) => normalizePublicUrl(row.image_url)).filter(Boolean));
+    const storageFolders = selectedVertical === 'all' ? await getStorageVerticalFolders() : [selectedVertical];
+    const output = [];
+
+    for (const folder of storageFolders) {
+        if (!folder) continue;
+
+        const { data: files, error } = await supabaseClient.storage
+            .from(VERTICAL_STORAGE_BUCKET)
+            .list(folder, { limit: 200, sortBy: { column: 'created_at', order: 'desc' } });
+
+        if (error) {
+            console.warn('Failed to list folder in storage:', folder, error.message);
+            continue;
+        }
+
+        for (const file of files || []) {
+            if (!file || !file.name) continue;
+            if (!/\.(png|jpe?g|webp|gif|bmp)$/i.test(file.name)) continue;
+
+            const storagePath = `${folder}/${file.name}`;
+            const { data: publicData } = supabaseClient.storage.from(VERTICAL_STORAGE_BUCKET).getPublicUrl(storagePath);
+            const publicUrl = publicData.publicUrl;
+            const normalizedUrl = normalizePublicUrl(publicUrl);
+
+            if (dbImageUrls.has(normalizedUrl)) continue;
+
+            output.push({
+                id: null,
+                event_name: file.name,
+                event_date: file.created_at ? String(file.created_at).slice(0, 10) : null,
+                event_location: '',
+                vertical_name: folder,
+                image_url: publicUrl,
+                uploaded_by: '-',
+                created_at: file.created_at || file.updated_at || null,
+                source: 'storage'
+            });
+        }
+    }
+
+    return output;
+}
+
+function normalizePublicUrl(url) {
+    if (!url) return '';
+    return decodeURIComponent(String(url).split('?')[0]);
+}
+
+// ===== STORAGE MANAGEMENT SECTION =====
+
+window.loadStorageBuckets = async function () {
+    const bucketSelect = document.getElementById('storage-bucket-select');
+    if (!bucketSelect) return;
+
+    try {
+        const { data, error } = await supabaseClient.storage.listBuckets();
+        if (error) throw error;
+
+        const buckets = (data || []).map((b) => b.name).filter(Boolean);
+
+        // Some anon sessions return empty bucket list without throwing an error.
+        if (buckets.length === 0) {
+            renderStorageBucketOptions(KNOWN_STORAGE_BUCKETS);
+            Toast.show('warning', 'Limited Bucket Access', 'Using known buckets because bucket listing returned empty.');
+        } else {
+            renderStorageBucketOptions(buckets);
+        }
+    } catch (error) {
+        console.warn('Falling back to known bucket list:', error.message || error);
+        renderStorageBucketOptions(KNOWN_STORAGE_BUCKETS);
+        Toast.show('warning', 'Limited Bucket Access', 'Bucket listing is restricted. Showing known buckets only.');
+    }
+
+    await loadStorageObjects();
+};
+
+function renderStorageBucketOptions(bucketNames) {
+    const bucketSelect = document.getElementById('storage-bucket-select');
+    if (!bucketSelect) return;
+
+    const unique = [...new Set((bucketNames || []).map((x) => String(x).trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    const current = storageManagerState.bucket;
+
+    bucketSelect.innerHTML = '<option value="">Select bucket...</option>';
+    unique.forEach((name) => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        bucketSelect.appendChild(option);
+    });
+
+    if (current && unique.includes(current)) {
+        bucketSelect.value = current;
+    } else if (!current && unique.length > 0) {
+        bucketSelect.value = unique[0];
+        storageManagerState.bucket = unique[0];
+    }
+
+    syncStorageBucketCustomDropdown();
+    updateStoragePathLabel();
+}
+
+function syncStorageBucketCustomDropdown() {
+    const select = document.getElementById('storage-bucket-select');
+    const wrapper = document.getElementById('storage-bucket-custom');
+    const menu = document.getElementById('storage-bucket-menu');
+    const label = document.getElementById('storage-bucket-selected-label');
+    if (!select || !wrapper || !menu || !label) return;
+
+    const selectedOption = select.options[select.selectedIndex];
+    label.textContent = selectedOption ? selectedOption.textContent : 'Select bucket...';
+
+    menu.innerHTML = '';
+    Array.from(select.options).forEach((option) => {
+        const optionBtn = document.createElement('button');
+        optionBtn.type = 'button';
+        optionBtn.className = 'storage-select-option';
+        if (option.value === select.value) optionBtn.classList.add('active');
+        optionBtn.textContent = option.textContent || '';
+
+        optionBtn.addEventListener('click', () => {
+            select.value = option.value;
+            select.dispatchEvent(new Event('change'));
+            wrapper.classList.remove('open');
+            wrapper.querySelector('.storage-select-trigger')?.setAttribute('aria-expanded', 'false');
+        });
+
+        menu.appendChild(optionBtn);
+    });
+}
+
+function initStorageBucketCustomDropdown() {
+    const wrapper = document.getElementById('storage-bucket-custom');
+    const trigger = document.getElementById('storage-bucket-trigger');
+    if (!wrapper || !trigger || wrapper.dataset.bound === 'true') return;
+
+    wrapper.dataset.bound = 'true';
+    trigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = wrapper.classList.toggle('open');
+        trigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!wrapper.contains(e.target)) {
+            wrapper.classList.remove('open');
+            trigger.setAttribute('aria-expanded', 'false');
+        }
+    });
+}
+
+window.loadStorageObjects = async function () {
+    const tbody = document.querySelector('#storage-objects-table tbody');
+    const bucketSelect = document.getElementById('storage-bucket-select');
+    if (!tbody || !bucketSelect) return;
+
+    const bucket = (bucketSelect.value || '').trim();
+    storageManagerState.bucket = bucket;
+
+    if (!bucket) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px;">Select a bucket to load storage objects.</td></tr>';
+        updateStoragePathLabel();
+        return;
+    }
+
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px;"><i class="fas fa-spinner fa-spin"></i> Loading storage objects...</td></tr>';
+    updateStoragePathLabel();
+
+    try {
+        const { data, error } = await supabaseClient.storage
+            .from(bucket)
+            .list(storageManagerState.prefix, { limit: 200, sortBy: { column: 'name', order: 'asc' } });
+
+        if (error) throw error;
+
+        const objects = data || [];
+        if (objects.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px; color:#777;">No items found in this path.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = objects.map((item) => {
+            const name = item?.name || '';
+            const isFolder = !item?.metadata || !item?.metadata?.mimetype;
+            const fullPath = storageManagerState.prefix ? `${storageManagerState.prefix}/${name}` : name;
+            const encodedPath = encodeURIComponent(fullPath);
+            const encodedName = encodeURIComponent(name);
+
+            if (isFolder) {
+                return `
+                    <tr>
+                        <td><i class="fas fa-folder" style="color:#f59e0b; margin-right:8px;"></i> ${escapeHtml(name)}</td>
+                        <td>Folder</td>
+                        <td>-</td>
+                        <td>-</td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="btn-action view" onclick="openStorageFolder('${encodedName}')"><i class="fas fa-folder-open"></i> Open</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }
+
+            const updatedAt = item.updated_at ? formatDateTime(item.updated_at) : '-';
+            const size = formatBytes(item.metadata?.size || item.metadata?.contentLength || 0);
+            return `
+                <tr>
+                    <td><i class="fas fa-file" style="color:#64748b; margin-right:8px;"></i> ${escapeHtml(name)}</td>
+                    <td>${escapeHtml(item.metadata?.mimetype || 'File')}</td>
+                    <td>${escapeHtml(size)}</td>
+                    <td>${escapeHtml(updatedAt)}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn-action view" onclick="openStorageFilePreview('${encodedPath}', '${encodedName}')"><i class="fas fa-eye"></i> View</button>
+                            <button class="btn-action delete" onclick="openStorageDeleteModal('${encodedPath}')"><i class="fas fa-trash"></i> Delete</button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    } catch (error) {
+        console.error('Error loading storage objects:', error);
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:30px; color:#c62828;">Failed to load storage objects: ${escapeHtml(error.message || 'Unknown error')}</td></tr>`;
+        Toast.show('error', 'Storage Load Failed', error.message || 'Could not load storage objects');
+    }
+};
+
+window.openStorageFolder = function (encodedName) {
+    const folderName = decodeURIComponent(encodedName || '').trim();
+    if (!folderName) return;
+
+    storageManagerState.prefix = storageManagerState.prefix
+        ? `${storageManagerState.prefix}/${folderName}`
+        : folderName;
+
+    loadStorageObjects();
+};
+
+window.goUpStoragePath = function () {
+    if (!storageManagerState.prefix) return;
+    const parts = storageManagerState.prefix.split('/').filter(Boolean);
+    parts.pop();
+    storageManagerState.prefix = parts.join('/');
+    loadStorageObjects();
+};
+
+function updateStoragePathLabel() {
+    const pathEl = document.getElementById('storage-current-path');
+    if (!pathEl) return;
+    const bucket = storageManagerState.bucket || '(no bucket)';
+    const prefix = storageManagerState.prefix ? `/${storageManagerState.prefix}` : '/';
+    pathEl.textContent = `${bucket}${prefix}`;
+}
+
+window.uploadStorageFile = async function () {
+    const fileInput = document.getElementById('storage-upload-file');
+    const bucket = storageManagerState.bucket;
+    const file = fileInput?.files?.[0];
+
+    if (!bucket) {
+        Toast.show('warning', 'Bucket Required', 'Please select a bucket first.');
+        return;
+    }
+    if (!file) {
+        Toast.show('warning', 'File Required', 'Please choose a file to upload.');
+        return;
+    }
+
+    const targetPath = storageManagerState.prefix ? `${storageManagerState.prefix}/${file.name}` : file.name;
+
+    try {
+        const { error } = await supabaseClient.storage
+            .from(bucket)
+            .upload(targetPath, file, { upsert: false });
+
+        if (error) throw error;
+
+        Toast.show('success', 'Upload Complete', `${file.name} uploaded successfully.`);
+        if (fileInput) {
+            fileInput.value = '';
+            updateStorageSelectedFileName();
+        }
+        await loadStorageObjects();
+    } catch (error) {
+        console.error('Upload failed:', error);
+        Toast.show('error', 'Upload Failed', error.message || 'Could not upload file');
+    }
+};
+
+window.openStorageFilePicker = function () {
+    const fileInput = document.getElementById('storage-upload-file');
+    if (fileInput) fileInput.click();
+};
+
+function updateStorageSelectedFileName() {
+    const fileInput = document.getElementById('storage-upload-file');
+    const fileNameEl = document.getElementById('storage-upload-file-name');
+    if (!fileInput || !fileNameEl) return;
+
+    const selectedName = fileInput.files && fileInput.files[0] ? fileInput.files[0].name : 'No file chosen';
+    fileNameEl.textContent = selectedName;
+}
+
+window.openStorageFilePreview = function (encodedPath, encodedName) {
+    const bucket = storageManagerState.bucket;
+    const path = decodeURIComponent(encodedPath || '');
+    const fileName = decodeURIComponent(encodedName || 'Preview');
+    if (!bucket || !path) return;
+
+    const { data } = supabaseClient.storage.from(bucket).getPublicUrl(path);
+    if (!data?.publicUrl) {
+        Toast.show('warning', 'Preview Unavailable', 'Could not generate file preview URL.');
+        return;
+    }
+
+    openVerticalImageViewModal(encodeURIComponent(data.publicUrl), encodeURIComponent(fileName));
+};
+
+window.openStorageDeleteModal = function (encodedPath) {
+    const path = decodeURIComponent(encodedPath || '').trim();
+    if (!path) return;
+
+    storageManagerState.pendingDeletePath = path;
+    const targetEl = document.getElementById('storage-delete-target');
+    const modal = document.getElementById('storage-delete-modal');
+    if (targetEl) targetEl.textContent = path;
+    if (modal) modal.classList.remove('hidden');
+};
+
+window.closeStorageDeleteModal = function () {
+    const modal = document.getElementById('storage-delete-modal');
+    if (modal) modal.classList.add('hidden');
+    storageManagerState.pendingDeletePath = '';
+};
+
+window.confirmStorageDelete = async function () {
+    const bucket = storageManagerState.bucket;
+    const path = storageManagerState.pendingDeletePath;
+    const btn = document.getElementById('storage-delete-confirm-btn');
+    const originalBtnText = btn ? btn.innerHTML : '';
+
+    if (!bucket || !path) {
+        closeStorageDeleteModal();
+        return;
+    }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+    }
+
+    try {
+        const { error } = await supabaseClient.storage
+            .from(bucket)
+            .remove([path]);
+
+        if (error) throw error;
+
+        Toast.show('success', 'Deleted', 'Storage object deleted successfully.');
+        closeStorageDeleteModal();
+        await loadStorageObjects();
+    } catch (error) {
+        console.error('Delete storage object failed:', error);
+        Toast.show('error', 'Delete Failed', error.message || 'Could not delete storage object');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalBtnText;
+        }
+    }
+};
+
+function formatBytes(bytes) {
+    const value = Number(bytes || 0);
+    if (!value) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const index = Math.min(Math.floor(Math.log(value) / Math.log(1024)), units.length - 1);
+    const scaled = value / (1024 ** index);
+    return `${scaled.toFixed(scaled >= 10 || index === 0 ? 0 : 1)} ${units[index]}`;
+}
 
 // ===== CUSTOM DROPDOWN FOR MESSAGE STATUS FILTER =====
 (function () {
@@ -1017,6 +2250,43 @@ document.addEventListener('DOMContentLoaded', function() {
             loadRegistrations();
         }, 500));
     }
+
+    const verticalImageFilter = document.getElementById('vertical-image-filter');
+    if (verticalImageFilter) {
+        verticalImageFilter.addEventListener('change', loadVerticalImages);
+    }
+
+    const collegeSearch = document.getElementById('college-search');
+    if (collegeSearch) {
+        collegeSearch.addEventListener('input', debounce(() => {
+            renderCollegesTable();
+        }, 180));
+    }
+
+    const collegeZoneFilter = document.getElementById('college-zone-filter');
+    if (collegeZoneFilter) {
+        collegeZoneFilter.addEventListener('change', () => {
+            renderCollegesTable();
+        });
+    }
+
+    const storageBucketSelect = document.getElementById('storage-bucket-select');
+    if (storageBucketSelect) {
+        storageBucketSelect.addEventListener('change', () => {
+            storageManagerState.bucket = storageBucketSelect.value || '';
+            storageManagerState.prefix = '';
+            syncStorageBucketCustomDropdown();
+            loadStorageObjects();
+        });
+    }
+
+    const storageFileInput = document.getElementById('storage-upload-file');
+    if (storageFileInput) {
+        storageFileInput.addEventListener('change', updateStorageSelectedFileName);
+        updateStorageSelectedFileName();
+    }
+
+    initStorageBucketCustomDropdown();
 });
 
 // Debounce helper
