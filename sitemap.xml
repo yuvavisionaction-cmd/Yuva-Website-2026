@@ -126,7 +126,7 @@
 
   <!-- Our Activities -->
   <url>
-    <loc>https://yuva.ind.in/our activity/Activities.html</loc>
+    <loc>https://yuva.ind.in/our%20activity/Activities.html</loc>
     <lastmod>2026-03-24</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>

@@ -42,7 +42,7 @@ https://yuva.ind.in/Media/News.html
 https://yuva.ind.in/Media/Video.html
 
 # ========== OUR ACTIVITIES ==========
-https://yuva.ind.in/our activity/Activities.html
+https://yuva.ind.in/our%20activity/Activities.html
 
 # ========== OUR VERTICALS ==========
 https://yuva.ind.in/OurVerticals/MediaManthan.html
