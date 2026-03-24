@@ -1,0 +1,44 @@
+# robots.txt for YUVA India
+# Allow search engines to crawl and index the site
+
+# Allow all user agents
+User-agent: *
+Allow: /
+
+# Disallow admin and private areas
+Disallow: /GetInvolve/reset-password.html
+Disallow: /GetInvolve/verify-email.html
+Disallow: /GetInvolve/register.html
+Disallow: /Gallary/photo-admin.html
+Disallow: /OurVerticals/upload-form.html
+Disallow: /OurVerticals/photo-upload.html
+
+# Disallow common admin/utility paths if they exist
+Disallow: /admin/
+Disallow: /private/
+Disallow: /api/
+Disallow: /database/
+
+# Allow sitemap
+Sitemap: https://yuva.ind.in/sitemap.xml
+
+# Crawl delay (optional - adjust based on server capacity)
+# Crawl-delay: 1
+
+# Specific rules for googlebot (optional - higher priority allowed)
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 0
+
+# Specific rules for bingbot
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
+
+# Block bad bots (optional)
+User-agent: Yandex
+Allow: /
+
+# AdsBot (for ad-related crawling)
+User-agent: AdsBot-Google
+Allow: /

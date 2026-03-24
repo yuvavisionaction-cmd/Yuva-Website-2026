@@ -1,0 +1,88 @@
+# YUVA India - All Public URLs for Google Search Console & Webmaster Tools Inspection
+# Generated: 2026-03-24
+# Domain: https://yuva.ind.in/
+# 
+# Copy and paste these URLs directly into Google Search Console URL Inspection tool
+# for indexing verification and crawl testing
+
+# ========== HOMEPAGE ==========
+https://yuva.ind.in/
+https://yuva.ind.in/home.html
+https://yuva.ind.in/index.html
+
+# ========== ABOUT SECTION ==========
+https://yuva.ind.in/About/AboutUs.html
+https://yuva.ind.in/About/whoiswho.html
+
+# ========== BLOG - CAMPUS CHRONICLES ==========
+https://yuva.ind.in/Blog/CC.html
+
+# ========== DONATE ==========
+https://yuva.ind.in/Donate/Donate.html
+
+# ========== EVENTS ==========
+https://yuva.ind.in/Events/Upcoming.html
+https://yuva.ind.in/Events/Past.html
+
+# ========== GET INVOLVED ==========
+https://yuva.ind.in/GetInvolve/Fellowship.html
+https://yuva.ind.in/GetInvolve/internship.html
+https://yuva.ind.in/GetInvolve/Volunteer.html
+https://yuva.ind.in/GetInvolve/YuvaAlumini.html
+
+
+
+
+# ========== GALLERY ==========
+https://yuva.ind.in/Gallary/photo.html
+
+# ========== MEDIA SECTION ==========
+https://yuva.ind.in/Media/DigitalMedia.html
+https://yuva.ind.in/Media/News.html
+https://yuva.ind.in/Media/Video.html
+
+# ========== OUR ACTIVITIES ==========
+https://yuva.ind.in/our activity/Activities.html
+
+# ========== OUR VERTICALS ==========
+https://yuva.ind.in/OurVerticals/MediaManthan.html
+https://yuva.ind.in/OurVerticals/MedicoYuva.html
+https://yuva.ind.in/OurVerticals/NitiManthan.html
+https://yuva.ind.in/OurVerticals/TechYuva.html
+https://yuva.ind.in/OurVerticals/YDL.html
+
+# ========== INITIATIVES ==========
+https://yuva.ind.in/Our.Initiative/Vimarsh/index.html
+https://yuva.ind.in/Our.Initiative/Vimarsh/Gallery.html
+https://yuva.ind.in/Our.Initiative/Vimarsh/Know_More.html
+https://yuva.ind.in/Our.Initiative/Vimarsh/vimarsh2019.html
+https://yuva.ind.in/Our.Initiative/NatyaTarang/index.html
+
+# ========== COMING SOON PAGE ==========
+https://yuva.ind.in/coming-soon.html
+
+# ========== SPECIAL PAGES ==========
+# Note: These pages are excluded from robots.txt as they are private/admin pages
+# https://yuva.ind.in/GetInvolve/register.html (EXCLUDED - Private)
+# https://yuva.ind.in/GetInvolve/reset-password.html (EXCLUDED - Private)
+# https://yuva.ind.in/GetInvolve/verify-email.html (EXCLUDED - Private)
+# https://yuva.ind.in/Gallary/photo-admin.html (EXCLUDED - Admin)
+# https://yuva.ind.in/OurVerticals/upload-form.html (EXCLUDED - Admin)
+# https://yuva.ind.in/OurVerticals/photo-upload.html (EXCLUDED - Admin)
+
+# ========== HOW TO USE IN GOOGLE SEARCH CONSOLE ==========
+# 1. Go to: https://search.google.com/search-console
+# 2. Select your property: https://yuva.ind.in/
+# 3. Go to "URL Inspection" (left sidebar)
+# 4. Copy and paste each URL above into the search bar
+# 5. Click "Inspect" to check indexation status
+# 6. Request indexing if the page is not yet indexed
+#
+# ALTERNATIVE: Bulk Submit via Sitemap
+# 1. Go to "Sitemaps" in Google Search Console
+# 2. Submit: https://yuva.ind.in/sitemap.xml
+# This will automatically schedule all URLs for crawling
+#
+# ========== VERIFICATION FILES ==========
+# Sitemap: https://yuva.ind.in/sitemap.xml
+# Robots.txt: https://yuva.ind.in/robots.txt
