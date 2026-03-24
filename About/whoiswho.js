@@ -137,16 +137,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Sort: Heads (designation === role) come first
-        executives.sort((a, b) => {
-            const isHeadA = a.designation && a.role && a.designation.trim() === a.role.trim();
-            const isHeadB = b.designation && b.role && b.designation.trim() === b.role.trim();
-            return isHeadA === isHeadB ? 0 : isHeadA ? -1 : 1;
-        });
-
-        // Extract heads (first 2, or all that match)
-        const heads = executives.filter((exec, index) => index < 2 && exec.designation && exec.role && exec.designation.trim() === exec.role.trim());
-        const members = executives.filter((exec, index) => !(index < 2 && exec.designation && exec.role && exec.designation.trim() === exec.role.trim()));
+        // Display in order from database (display_order) - no re-sorting
+        // First 2 are "heads" (larger cards), rest are regular members
+        const heads = executives.slice(0, 2);
+        const members = executives.slice(2);
 
         // Create container for heads
         const headsContainer = document.createElement('div');
@@ -344,6 +338,41 @@ document.addEventListener('DOMContentLoaded', () => {
             .toUpperCase() || '?';
     }
 
+    function toTitleCase(text) {
+        if (!text || typeof text !== 'string') return '';
+
+        return text
+            .trim()
+            .replace(/[\s_]+/g, ' ')
+            .split(' ')
+            .map(word => word
+                .split('-')
+                .map(part => part ? part.charAt(0).toUpperCase() + part.slice(1).toLowerCase() : '')
+                .join('-'))
+            .join(' ');
+    }
+
+    function buildMemberDesignation(member) {
+        const rawRole = (member?.applying_for || '').trim();
+        const rawUnit = (member?.unit_name || '').trim();
+
+        const role = rawRole && !['n/a', 'na', 'null', 'undefined'].includes(rawRole.toLowerCase())
+            ? toTitleCase(rawRole)
+            : '';
+
+        const unit = rawUnit && !['n/a', 'na', 'null', 'undefined'].includes(rawUnit.toLowerCase())
+            ? toTitleCase(rawUnit)
+            : '';
+
+        if (unit && role) {
+            return unit.toLowerCase().includes(role.toLowerCase())
+                ? unit
+                : `${unit} ${role}`;
+        }
+
+        return role || unit || 'Member';
+    }
+
     // --- 7. LEVEL DATA LOADING (Zones, Colleges, Members) ---
     async function loadLevelData() {
         showLoading(true);
@@ -436,7 +465,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!supabase || !collegeId) throw new Error("Missing Supabase client or College ID");
         const { data, error } = await supabase
             .from('registrations')
-            .select(`applicant_name, applying_for, unit_name, colleges(college_name), zones(zone_name)`)
+            .select(`applicant_name, applying_for, unit_name, email, academic_session, colleges(college_name), zones(zone_name)`)
             .eq('college_id', collegeId)
             .eq('status', 'approved'); // Fetch only approved members
         if (error) { console.error("Supabase fetchMembers Error:", error); throw error; }
@@ -509,7 +538,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 initials = name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() || '?';
             } else if (levelKey === 'members') {
                 name = item.applicant_name || 'N/A';
-                subtitle = item.applying_for || 'Member';
+                subtitle = buildMemberDesignation(item);
                 location1 = item.colleges ? item.colleges.college_name : state.collegeName;
                 location2 = item.zones ? item.zones.zone_name : state.zoneName;
                 initials = name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() || '?';
@@ -670,8 +699,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!modalContent || !modalBackdrop) return;
         const name = member.applicant_name || 'N/A';
-        const role = member.applying_for || 'Member';
+        const designation = buildMemberDesignation(member);
         const unit = member.unit_name || 'N/A';
+        const email = member.email || 'N/A';
+        const academicSession = member.academic_session || 'N/A';
         const college = member.colleges ? member.colleges.college_name : state.collegeName;
         const zone = member.zones ? member.zones.zone_name : state.zoneName;
         const initials = name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
@@ -680,8 +711,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (themeIndex === 0) photoGradient = 'var(--gradient-saffron)';
         if (themeIndex === 2) photoGradient = 'var(--gradient-green)';
         modalContent.innerHTML = `
-            <div class="modal-header"><div class="modal-photo" style="background: ${photoGradient};">${initials}</div><div class="modal-header-info"><h3>${name}</h3><p>${role}</p></div></div>
-            <div class="modal-body"><div class="info-grid"><div class="info-item"><strong>Unit</strong><span>${unit}</span></div><div class="info-item"><strong>Zone</strong><span>${zone}</span></div><div class="info-item" style="grid-column: 1 / -1;"><strong>College</strong><span>${college}</span></div></div></div>`;
+            <div class="modal-header"><div class="modal-photo" style="background: ${photoGradient};">${initials}</div><div class="modal-header-info"><h3>${name}</h3><p>${designation}</p></div></div>
+            <div class="modal-body"><div class="info-grid"><div class="info-item"><strong>Designation</strong><span>${designation}</span></div><div class="info-item"><strong>Unit</strong><span>${unit}</span></div><div class="info-item"><strong>Email</strong><span>${email}</span></div><div class="info-item"><strong>Academic Session</strong><span>${academicSession}</span></div><div class="info-item"><strong>Zone</strong><span>${zone}</span></div><div class="info-item" style="grid-column: 1 / -1;"><strong>College</strong><span>${college}</span></div></div></div>`;
 
         // ===== CHANGE =====
         // Set flag and push a history state BEFORE showing the modal

@@ -20,6 +20,7 @@
     <link rel="shortcut icon" href="/Images/YUVA logo.png" type="image/x-icon">
     <!-- ✅ Bing Webmaster Verification -->
     <meta name="msvalidate.01" content="762998E140200B5AFB94E40845B01499" />
+    <meta name="google-adsense-account" content="ca-pub-2428095333578047">
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://yuva.ind.in/home.html" />
@@ -188,11 +189,11 @@
             <div class="dropdown">
                 <a class="dropdown-btn">Our Initiatives ▾</a>
                 <div class="dropdown-content">
-                    <!-- <a href="/Our.Initiative/vimarsh2025.html">Vimarsh</a> -->
+                    <!-- <a href="/coming-soon.html">Vimarsh</a> -->
                     <a href="/coming-soon.html">Vimarsh</a>
-                    <!-- <a href="/Our.Initiative/Bharatparv.html">Bharat Parv</a> -->
+                    <!-- <a href="/coming-soon.html">Bharat Parv</a> -->
                     <a href="/coming-soon.html">Bharat Parv</a>
-                    <!-- <a href="/Our.Initiative/ritam.html">Ritam</a> -->
+                    <!-- <a href="/coming-soon.html">Ritam</a> -->
                     <a href="/coming-soon.html">Ritam</a>
                     <!-- <a href="/Our.Initiative/ims.html">Indraprasth Media Sambad</a> -->
                     <a href="/coming-soon.html">Indraprasth Media Sambad</a>
@@ -512,6 +513,74 @@
                 </div>
             </div>
 
+            <!-- ===== LIVE COUNTERS SECTION ===== -->
+            <section id="live-counters-section" class="live-counters-container">
+                <div class="counters-wrapper">
+                    <!-- Section Header -->
+                    <div class="counters-header">
+                        <h2 class="counters-title">Our Impact in Real-Time</h2>
+                        <p class="counters-subtitle">Watch as YUVA Delhi's community grows with every interaction</p>
+                    </div>
+
+                    <!-- Loading Spinner (shown during initialization) -->
+                    <div id="counters-loading" class="counters-loading-container">
+                        <div class="spinner-wrapper">
+                            <div class="spinner"></div>
+                            <p class="loading-text">Loading live counters...</p>
+                        </div>
+                    </div>
+
+                    <!-- Counters Grid -->
+                    <div class="counters-grid" style="display: none;">
+                        <!-- Counter 1: Total Page Refreshes -->
+                        <div class="counter-card refresh-counter">
+                            <div class="counter-icon-wrapper">
+                                <div class="counter-icon rotation-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="counter-content">
+                                <p class="counter-label">Page Refreshes</p>
+                                <div class="counter-value-wrapper">
+                                    <span class="counter-value refresh-count" data-target="0">0</span>
+                                    <span class="counter-unit">reloads</span>
+                                </div>
+                                <p class="counter-description">Total page visits and refreshes from all users</p>
+                            </div>
+                        </div>
+
+                        <!-- Counter 2: Unique Visits -->
+                        <div class="counter-card unique-counter">
+                            <div class="counter-icon-wrapper">
+                                <div class="counter-icon pulse-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                                        <circle cx="9" cy="7" r="4" />
+                                        <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="counter-content">
+                                <p class="counter-label">Unique Visitors</p>
+                                <div class="counter-value-wrapper">
+                                    <span class="counter-value unique-count" data-target="0">0</span>
+                                    <span class="counter-unit">visitors</span>
+                                </div>
+                                <p class="counter-description">Individual visitors within a 24-hour window</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Live Status Indicator -->
+                    <div class="live-status-indicator">
+                        <span class="status-dot"></span>
+                        <span class="status-text">Live Data • Updated in Real-Time</span>
+                    </div>
+                </div>
+            </section>
+
             <div class="gallery-preview-section">
                 <div class="gallery-preview-container">
                     <div class="gallery-preview-header">
@@ -542,7 +611,7 @@
                             <h3>About Us</h3>
                             <p>Learn about our mission, vision, and objectives</p>
                         </a>
-                        <a href="/Our.Initiative/Vimarsh/index.html" class="quick-link-card">
+                        <a href="/coming-soon.html" class="quick-link-card">
                             <div class="quick-link-icon">
                                 <i class="fas fa-microphone"></i>
                             </div>
@@ -591,7 +660,7 @@
                             <h3>Support Us</h3>
                             <p>Help us continue our mission through donations</p>
                         </a>
-                        <!-- <a href="/Our.Initiative/Bharatparv.html" class="quick-link-card">
+                        <!-- <a href="/coming-soon.html" class="quick-link-card">
                             <div class="quick-link-icon">
                                 <i class="fas fa-flag"></i>
                             </div>
@@ -743,6 +812,22 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mailcheck/1.1.1/mailcheck.min.js"></script>
     <script src="script.js"></script>
     <script src="home.js"></script>
+    
+    <!-- ===== LIVE COUNTER SYSTEM INITIALIZATION ===== -->
+    <script>
+        // Initialize Live Counter System with your GAS Deployment URL
+        // Replace 'YOUR_GAS_DEPLOYMENT_URL_HERE' with your actual GAS deployment URL
+        window.YUVA_GAS_COUNTER_URL = 'https://script.google.com/macros/s/AKfycbwwx6hQ4rdoSGlKkKE3l1a1nfbQJNoJBXg0xkK662IWoYWQCo_KB1GIHigX6Fcd-j38fA/exec';
+        
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.YUVA_GAS_COUNTER_URL && !window.YUVA_GAS_COUNTER_URL.includes('YOUR_GAS')) {
+                initializeLiveCounters(window.YUVA_GAS_COUNTER_URL);
+            } else {
+                console.warn('⚠️ GAS URL not configured. Update YUVA_GAS_COUNTER_URL in home.html');
+            }
+        });
+    </script>
 </body>
 
 </html>

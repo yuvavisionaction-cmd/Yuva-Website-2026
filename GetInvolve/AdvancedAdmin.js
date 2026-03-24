@@ -52,9 +52,10 @@ const Toast = {
 };
 
 const VERTICAL_STORAGE_BUCKET = 'vertical_images';
-const KNOWN_STORAGE_BUCKETS = ['vertical_images', 'gallery_photos', 'event-banners', 'alumni-images'];
+const KNOWN_STORAGE_BUCKETS = ['vertical_images', 'gallery_photos', 'event-banners', 'alumni-images', 'executive_team'];
 let verticalImageRecords = [];
 let pendingVerticalImageDelete = null;
+let pendingExecutiveDelete = null;
 let collegeRecords = [];
 let zoneRecords = [];
 let collegesLoadInFlight = false;
@@ -147,6 +148,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (contentDiv) contentDiv.style.display = 'flex'; // Flex for sidebar layout
 
         document.body.classList.remove('logged-out-state');
+
+        // Load dashboard counters
+        await updateDashboardCounters();
     };
 
     // Call immediately without delay
@@ -181,6 +185,7 @@ window.showSection = function (sectionId) {
         'events-manager': 'Event Management',
         'verticals-manager': 'Verticals Management',
         'storage-manager': 'Supabase Storage Manager',
+        'executive-manager': 'Executive Team Members',
     };
     const pageTitle = document.getElementById('page-title');
     if (pageTitle) pageTitle.textContent = titleMap[sectionId] || 'Dashboard';
@@ -193,14 +198,19 @@ window.showSection = function (sectionId) {
     const verticalsView = document.getElementById('verticals-manager-view');
     const storageView = document.getElementById('storage-manager-view');
     const collegesView = document.getElementById('colleges-manager-view');
+    const executiveView = document.getElementById('executive-manager-view');
+    const counterView = document.getElementById('counter-admin-view');
     if (messagesView) messagesView.style.display = 'none';
     if (eventsView) eventsView.style.display = 'none';
     if (verticalsView) verticalsView.style.display = 'none';
     if (storageView) storageView.style.display = 'none';
     if (collegesView) collegesView.classList.add('hidden');
+    if (executiveView) executiveView.style.display = 'none';
+    if (counterView) counterView.style.display = 'none';
 
     if (sectionId === 'dashboard') {
         document.getElementById('dashboard-view').classList.remove('hidden');
+        updateDashboardCounters();
     } else if (sectionId === 'user-manager') {
         document.getElementById('user-manager-view').classList.remove('hidden');
         loadUsers();
@@ -220,6 +230,12 @@ window.showSection = function (sectionId) {
     } else if (sectionId === 'storage-manager') {
         if (storageView) storageView.style.display = 'block';
         loadStorageBuckets();
+    } else if (sectionId === 'executive-manager') {
+        if (executiveView) executiveView.style.display = 'block';
+        loadExecutiveMembers();
+    } else if (sectionId === 'counter-admin') {
+        if (counterView) counterView.style.display = 'block';
+        loadCounterData();
     }
 };
 
@@ -1949,22 +1965,22 @@ function formatBytes(bytes) {
 async function loadEvents() {
     try {
         const statusFilter = document.getElementById('event-status-filter').value;
-        
+
         // Use published_events view which already has mode and capacity
         let query = supabaseClient.from('published_events').select('*');
-        
+
         // Apply status filter
         if (statusFilter !== 'all') {
             query = query.eq('status', statusFilter);
         }
-        
+
         const { data: events, error } = await query.order('start_at', { ascending: false });
-        
+
         if (error) throw error;
-        
+
         displayEventTable(events || []);
         updateEventStats(events || []);
-        
+
         Toast.show('success', 'Events Loaded', `Loaded ${events?.length || 0} events`);
     } catch (error) {
         console.error('Error loading events:', error);
@@ -1975,26 +1991,26 @@ async function loadEvents() {
 // Display events in table
 function displayEventTable(events) {
     const tbody = document.querySelector('#events-table tbody');
-    
+
     if (!events || events.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px;"><i class="fas fa-calendar-times"></i> No events found</td></tr>';
         return;
     }
-    
+
     tbody.innerHTML = events.map(event => {
         const startDate = new Date(event.start_at);
         const endDate = new Date(event.end_at);
         const status = getEventStatus(event.start_at, event.end_at, event.status);
         const mode = event.mode ? event.mode.charAt(0).toUpperCase() + event.mode.slice(1) : '-';
         const capacity = event.capacity || '∞';
-        
+
         // Display settings text
         const displaySettings = [
             event.display_on_home ? 'Home' : null,
             event.display_on_upcoming ? 'Upcoming' : null,
             event.display_on_past ? 'Past' : null
         ].filter(Boolean).join(', ') || 'None';
-        
+
         return `
             <tr>
                 <td><strong>${escapeHtml(event.title)}</strong></td>
@@ -2020,7 +2036,7 @@ function getEventStatus(startAt, endAt, status) {
     const now = new Date();
     const start = new Date(startAt);
     const end = new Date(endAt);
-    
+
     if (status === 'cancelled') return 'cancelled';
     if (status === 'completed' || end < now) return 'completed';
     if (start <= now && now <= end) return 'ongoing';
@@ -2032,7 +2048,7 @@ function updateEventStats(events) {
     const now = new Date();
     const upcoming = events.filter(e => new Date(e.start_at) > now).length;
     const past = events.filter(e => new Date(e.end_at) < now).length;
-    
+
     document.getElementById('total-events').textContent = events.length;
     document.getElementById('upcoming-events').textContent = upcoming;
     document.getElementById('past-events').textContent = past;
@@ -2042,7 +2058,7 @@ function updateEventStats(events) {
 function openNewEventModal() {
     document.getElementById('event-id').value = '';
     document.getElementById('event-modal-title').textContent = 'Create New Event';
-    
+
     // Clear form
     document.getElementById('event-title').value = '';
     document.getElementById('event-start').value = '';
@@ -2056,7 +2072,7 @@ function openNewEventModal() {
     document.getElementById('event-category').value = '';
     document.getElementById('event-display-upcoming').checked = true;
     document.getElementById('event-display-past').checked = false;
-    
+
     document.getElementById('event-modal').classList.remove('hidden');
 }
 
@@ -2068,9 +2084,9 @@ async function editEvent(eventId) {
             .select('*')
             .eq('id', eventId)
             .single();
-        
+
         if (error) throw error;
-        
+
         document.getElementById('event-id').value = event.id;
         document.getElementById('event-modal-title').textContent = 'Edit Event';
         document.getElementById('event-title').value = event.title;
@@ -2086,7 +2102,7 @@ async function editEvent(eventId) {
         document.getElementById('event-display-upcoming').checked = event.display_on_upcoming || false;
         document.getElementById('event-display-home').checked = event.display_on_home || false;
         document.getElementById('event-display-past').checked = event.display_on_past || false;
-        
+
         document.getElementById('event-modal').classList.remove('hidden');
     } catch (error) {
         console.error('Error loading event:', error);
@@ -2108,7 +2124,7 @@ async function saveEvent() {
             status: document.getElementById('event-status').value,
             updated_at: new Date().toISOString()
         };
-        
+
         const publicationData = {
             mode: document.getElementById('event-mode').value,
             capacity: parseInt(document.getElementById('event-capacity').value) || null,
@@ -2117,13 +2133,13 @@ async function saveEvent() {
             display_on_past: document.getElementById('event-display-past').checked,
             updated_at: new Date().toISOString()
         };
-        
+
         // Validation
         if (!eventData.title || !eventData.start_at || !eventData.end_at || !eventData.location) {
             Toast.show('error', 'Validation Error', 'Please fill in all required fields');
             return;
         }
-        
+
         let result;
         if (eventId) {
             // Update existing event
@@ -2131,15 +2147,15 @@ async function saveEvent() {
                 .from('events')
                 .update(eventData)
                 .eq('id', eventId);
-            
+
             if (result.error) throw result.error;
-            
+
             // Update event publication
             const pubResult = await supabaseClient
                 .from('event_publications')
                 .update(publicationData)
                 .eq('event_id', eventId);
-            
+
             if (pubResult.error) throw pubResult.error;
         } else {
             // Create new event
@@ -2151,11 +2167,11 @@ async function saveEvent() {
                 }])
                 .select('id')
                 .single();
-            
+
             if (createResult.error) throw createResult.error;
-            
+
             const newEventId = createResult.data.id;
-            
+
             // Create event publication
             const pubResult = await supabaseClient
                 .from('event_publications')
@@ -2164,10 +2180,10 @@ async function saveEvent() {
                     ...publicationData,
                     created_at: new Date().toISOString()
                 }]);
-            
+
             if (pubResult.error) throw pubResult.error;
         }
-        
+
         Toast.show('success', 'Success', eventId ? 'Event updated successfully' : 'Event created successfully');
         closeEventModal();
         loadEvents();
@@ -2180,15 +2196,15 @@ async function saveEvent() {
 // Delete event
 async function deleteEvent(eventId) {
     if (!confirm('Are you sure you want to delete this event?')) return;
-    
+
     try {
         const { error } = await supabaseClient
             .from('events')
             .delete()
             .eq('id', eventId);
-        
+
         if (error) throw error;
-        
+
         Toast.show('success', 'Deleted', 'Event deleted successfully');
         loadEvents();
     } catch (error) {
@@ -2238,15 +2254,15 @@ function escapeHtml(unsafe) {
 }
 
 // Initialize event listeners
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     const eventStatusFilter = document.getElementById('event-status-filter');
     if (eventStatusFilter) {
         eventStatusFilter.addEventListener('change', loadEvents);
     }
-    
+
     const registrationSearch = document.getElementById('registration-search');
     if (registrationSearch) {
-        registrationSearch.addEventListener('keyup', debounce(function() {
+        registrationSearch.addEventListener('keyup', debounce(function () {
             loadRegistrations();
         }, 500));
     }
@@ -2302,3 +2318,734 @@ function debounce(func, wait) {
     };
 }
 
+// ===== COUNTER ADMIN FUNCTIONALITY =====
+
+// GAS middleware URL - same as home page uses
+const COUNTER_GAS_URL = window.YUVA_GAS_COUNTER_URL || 'https://script.google.com/macros/s/AKfycbwwx6hQ4rdoSGlKkKE3l1a1nfbQJNoJBXg0xkK662IWoYWQCo_KB1GIHigX6Fcd-j38fA/exec';
+let counterAutoRefreshInterval = null;
+
+function getCounterVisitorId() {
+    const key = 'yuva_admin_counter_visitor_id';
+    let visitorId = localStorage.getItem(key);
+
+    if (!visitorId) {
+        visitorId = 'visitor_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem(key, visitorId);
+    }
+
+    return visitorId;
+}
+
+function getCounterSessionToken() {
+    return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 12);
+}
+
+async function counterTextRequest(payload) {
+    const response = await fetch(COUNTER_GAS_URL, {
+        method: 'POST',
+        headers: {
+            // Keep request simple (same pattern as home page live counter)
+            'Content-Type': 'text/plain;charset=utf-8'
+        },
+        body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+        return { success: false, message: `HTTP ${response.status}` };
+    }
+
+    const rawText = (await response.text() || '').trim();
+    if (!rawText) {
+        return { success: false, message: 'Empty response from counter service' };
+    }
+
+    const normalizeCounterResult = (value) => {
+        if (value && typeof value === 'object') {
+            // Already in expected format: { success, data: { refreshCount, uniqueCount } }
+            if (value.success === true && value.data) {
+                return value;
+            }
+
+            // Alternate object format: { refreshCount, uniqueCount }
+            if (value.refreshCount !== undefined || value.uniqueCount !== undefined) {
+                return {
+                    success: true,
+                    data: {
+                        refreshCount: Number(value.refreshCount || 0),
+                        uniqueCount: Number(value.uniqueCount || 0)
+                    }
+                };
+            }
+
+            // Nested alternate format: { data: { refreshCount, uniqueCount } }
+            if (value.data && (value.data.refreshCount !== undefined || value.data.uniqueCount !== undefined)) {
+                return {
+                    success: true,
+                    data: {
+                        refreshCount: Number(value.data.refreshCount || 0),
+                        uniqueCount: Number(value.data.uniqueCount || 0)
+                    }
+                };
+            }
+        }
+
+        if (typeof value === 'string') {
+            // Plain-text format: "123|45" or "123,45"
+            const pairMatch = value.match(/^\s*(\d+)\s*[|,]\s*(\d+)\s*$/);
+            if (pairMatch) {
+                return {
+                    success: true,
+                    data: {
+                        refreshCount: Number(pairMatch[1]),
+                        uniqueCount: Number(pairMatch[2])
+                    }
+                };
+            }
+
+            // Named plain-text format: "refresh=123 unique=45"
+            const refreshMatch = value.match(/refresh(?:count)?\s*[:=]\s*(\d+)/i);
+            const uniqueMatch = value.match(/unique(?:count|visitors?)?\s*[:=]\s*(\d+)/i);
+            if (refreshMatch || uniqueMatch) {
+                return {
+                    success: true,
+                    data: {
+                        refreshCount: refreshMatch ? Number(refreshMatch[1]) : 0,
+                        uniqueCount: uniqueMatch ? Number(uniqueMatch[1]) : 0
+                    }
+                };
+            }
+        }
+
+        return { success: false, message: 'Unsupported response format from counter service' };
+    };
+
+    try {
+        const parsed = JSON.parse(rawText);
+        return normalizeCounterResult(parsed);
+    } catch (_) {
+        return normalizeCounterResult(rawText);
+    }
+}
+
+window.loadCounterData = async function () {
+    try {
+        // Stop any existing auto-refresh
+        if (counterAutoRefreshInterval) {
+            clearInterval(counterAutoRefreshInterval);
+        }
+
+        // Load initial data
+        await fetchCounterValues();
+
+        // Set up auto-refresh every 5 seconds
+        counterAutoRefreshInterval = setInterval(() => {
+            fetchCounterValues();
+        }, 5000);
+    } catch (error) {
+        console.error('Error loading counter data:', error);
+        Toast.show('error', 'Load Failed', 'Could not load counter data');
+    }
+};
+
+window.fetchCounterValues = async function () {
+    try {
+        if (!COUNTER_GAS_URL || COUNTER_GAS_URL.includes('YOUR_GAS')) {
+            const refreshDisplay = document.getElementById('counter-refresh-display');
+            const uniqueDisplay = document.getElementById('counter-unique-display');
+            const refreshInput = document.getElementById('counter-refresh-input');
+            const uniqueInput = document.getElementById('counter-unique-input');
+
+            if (refreshDisplay) refreshDisplay.textContent = 'N/A';
+            if (uniqueDisplay) uniqueDisplay.textContent = 'N/A';
+            if (refreshInput) refreshInput.value = 'GAS URL not configured';
+            if (uniqueInput) uniqueInput.value = 'GAS URL not configured';
+
+            Toast.show('warning', 'Configuration Required', 'GAS URL not configured. Please set up Google Apps Script middleware.');
+            return;
+        }
+
+        const result = await counterTextRequest({
+            action: 'getCounters',
+            visitorId: getCounterVisitorId(),
+            sessionToken: getCounterSessionToken()
+        });
+
+        if (result && result.success && result.data) {
+            const refreshCount = result.data.refreshCount || 0;
+            const uniqueCount = result.data.uniqueCount || 0;
+
+            // Update displays
+            const refreshDisplay = document.getElementById('counter-refresh-display');
+            const uniqueDisplay = document.getElementById('counter-unique-display');
+            const refreshInput = document.getElementById('counter-refresh-input');
+            const uniqueInput = document.getElementById('counter-unique-input');
+
+            if (refreshDisplay) {
+                refreshDisplay.textContent = formatNumberIndian(refreshCount);
+            }
+            if (uniqueDisplay) {
+                uniqueDisplay.textContent = formatNumberIndian(uniqueCount);
+            }
+            if (refreshInput) {
+                refreshInput.value = refreshCount;
+            }
+            if (uniqueInput) {
+                uniqueInput.value = uniqueCount;
+            }
+        } else if (result && !result.success) {
+            console.warn('Counter data not available:', result.message || result.error || result);
+            const refreshDisplay = document.getElementById('counter-refresh-display');
+            const uniqueDisplay = document.getElementById('counter-unique-display');
+            if (refreshDisplay) refreshDisplay.textContent = 'Error';
+            if (uniqueDisplay) uniqueDisplay.textContent = 'Error';
+        }
+    } catch (error) {
+        console.error('Error fetching counter values:', error);
+        Toast.show('error', 'Counter Error', 'Failed to load counter data. Please verify GAS deployment settings.');
+
+        // Show fallback values
+        const refreshDisplay = document.getElementById('counter-refresh-display');
+        const uniqueDisplay = document.getElementById('counter-unique-display');
+        if (refreshDisplay) refreshDisplay.textContent = 'N/A';
+        if (uniqueDisplay) uniqueDisplay.textContent = 'N/A';
+    }
+};
+
+window.openCounterResetModal = function () {
+    const modal = document.getElementById('counter-reset-modal');
+    const adminKeyInput = document.getElementById('counter-admin-key');
+
+    if (modal) {
+        modal.classList.remove('hidden');
+        if (adminKeyInput) {
+            adminKeyInput.value = '';
+            adminKeyInput.focus();
+        }
+    }
+};
+
+window.closeCounterResetModal = function () {
+    const modal = document.getElementById('counter-reset-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+};
+
+window.confirmCounterReset = async function () {
+    const adminKeyInput = document.getElementById('counter-admin-key');
+    const adminKey = adminKeyInput ? adminKeyInput.value.trim() : '';
+
+    if (!adminKey) {
+        Toast.show('warning', 'Required Field', 'Please enter admin key');
+        return;
+    }
+
+    try {
+        if (!COUNTER_GAS_URL || COUNTER_GAS_URL.includes('YOUR_GAS')) {
+            Toast.show('error', 'Configuration Error', 'GAS URL not configured');
+            return;
+        }
+
+        const result = await counterTextRequest({
+            action: 'reset',
+            visitorId: getCounterVisitorId(),
+            sessionToken: getCounterSessionToken(),
+            adminKey: adminKey
+        });
+
+        if (result && result.success) {
+            Toast.show('success', 'Success', 'Counters have been reset to 0');
+            closeCounterResetModal();
+            // Refresh the display
+            await fetchCounterValues();
+        } else {
+            Toast.show('error', 'Reset Failed', (result && result.message) || 'Could not reset counters');
+        }
+    } catch (error) {
+        console.error('Error resetting counters:', error);
+        Toast.show('error', 'Request Error', error.message || 'Failed to reset counters');
+    }
+};
+
+window.refreshCurrentView = function () {
+    const pageTitle = document.getElementById('page-title');
+    if (pageTitle && pageTitle.textContent.includes('Counter')) {
+        loadCounterData();
+    }
+};
+
+function formatNumberIndian(num) {
+    return new Intl.NumberFormat('en-IN').format(num || 0);
+}
+
+// --- DASHBOARD COUNTERS ---
+async function updateDashboardCounters() {
+    try {
+        // Get executive members count
+        const { data: executives, error } = await supabaseClient
+            .from('executive_members')
+            .select('id', { count: 'exact', head: true });
+
+        if (!error) {
+            const execCount = executives?.length || 0;
+            const countEl = document.getElementById('dashboard-exec-count');
+            if (countEl) {
+                countEl.innerHTML = `Total Members: <strong>${execCount}</strong>`;
+            }
+        }
+
+        // Get counter status
+        const counterStatusEl = document.getElementById('dashboard-counter-status');
+        if (counterStatusEl) {
+            // Check if counter data exists in localStorage or session
+            const refreshCount = localStorage.getItem('page_refresh_count') || '0';
+            if (refreshCount && parseInt(refreshCount) > 0) {
+                counterStatusEl.innerHTML = `Status: <strong style="color:#10b981;">Active</strong>`;
+            } else {
+                counterStatusEl.innerHTML = `Status: <strong style="color:#666;">Ready</strong>`;
+            }
+        }
+    } catch (error) {
+        console.error('Error loading dashboard counters:', error);
+    }
+}
+
+function getInitials(name) {
+    if (!name || typeof name !== 'string') return '?';
+    return name
+        .split(' ')
+        .map(n => n[0])
+        .slice(0, 2)
+        .join('')
+        .toUpperCase() || '?';
+}
+
+// --- EXECUTIVE MEMBERS MANAGEMENT ---
+
+window.loadExecutiveMembers = async function () {
+    const tbody = document.querySelector('#executives-table tbody');
+    if (!tbody) return;
+
+    try {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px;">Loading executive members...</td></tr>';
+
+        const { data, error } = await supabaseClient
+            .from('executive_members')
+            .select('id, member_name, designation, role, photo_url, contact_email, description, display_order')
+            .order('display_order', { ascending: true });
+
+        if (error) throw error;
+
+        renderExecutivesTable(data || []);
+        updateDashboardCounters(); // Update dashboard counter
+    } catch (error) {
+        console.error('Error loading executives:', error);
+        Toast.show('error', 'Load Failed', error.message);
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px; color:#c00;">Failed to load executive members</td></tr>';
+    }
+};
+
+function renderExecutivesTable(executives) {
+    const tbody = document.querySelector('#executives-table tbody');
+    const searchInput = document.querySelector('#executive-search');
+    if (!tbody) return;
+
+    // Apply search filter
+    const searchTerm = (searchInput?.value || '').toLowerCase();
+    const filtered = executives.filter(exec =>
+        (exec.member_name || '').toLowerCase().includes(searchTerm) ||
+        (exec.designation || '').toLowerCase().includes(searchTerm) ||
+        (exec.role || '').toLowerCase().includes(searchTerm)
+    );
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px; color:#666;">No executive members found</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = filtered.map((exec, index) => `
+        <tr>
+            <td>
+                ${exec.photo_url ? `
+                    <img src="${exec.photo_url}" alt="${exec.member_name}" 
+                        style="width:40px; height:40px; border-radius:50%; object-fit:cover; cursor:pointer;"
+                        onclick="openExecutiveImageViewModal('${encodeURIComponent(exec.photo_url)}', '${escapeHtml(exec.member_name)}')">
+                ` : `
+                    <div style="width:40px; height:40px; border-radius:50%; background:#ddd; display:flex; align-items:center; justify-content:center; color:#999; font-weight:600;">
+                        ${getInitials(exec.member_name || '')}
+                    </div>
+                `}
+            </td>
+            <td><strong>${escapeHtml(exec.member_name || '')}</strong></td>
+            <td>${escapeHtml(exec.designation || '')}</td>
+            <td>${escapeHtml(exec.role || '')}</td>
+            <td><small>${escapeHtml(exec.contact_email || '-')}</small></td>
+            <td style="text-align:center;">${exec.display_order || 0}</td>
+            <td style="text-align:center;">
+                ${index > 0 ? `<button class="btn-icon" title="Move Up" onclick="moveExecutiveMemberUp('${exec.id}')"><i class="fas fa-arrow-up"></i></button>` : '<span style="width:32px; display:inline-block;"></span>'}
+                ${index < filtered.length - 1 ? `<button class="btn-icon" title="Move Down" onclick="moveExecutiveMemberDown('${exec.id}')"><i class="fas fa-arrow-down"></i></button>` : '<span style="width:32px; display:inline-block;"></span>'}
+            </td>
+            <td style="text-align:center;">
+                <button class="btn-icon" title="Edit" onclick="openExecutiveMemberModal('${exec.id}')">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn-icon delete" title="Delete" onclick="deleteExecutiveMember('${exec.id}')">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+window.openExecutiveMemberModal = async function (memberId) {
+    const modal = document.getElementById('executive-member-modal');
+    const titleEl = document.getElementById('executive-modal-title');
+
+    // Reset form
+    document.getElementById('executive-id').value = '';
+    document.getElementById('executive-name').value = '';
+    document.getElementById('executive-designation').value = '';
+    document.getElementById('executive-role').value = '';
+    document.getElementById('executive-email').value = '';
+    document.getElementById('executive-description').value = '';
+    document.getElementById('executive-display-order').value = '0';
+    document.getElementById('executive-photo-input').value = '';
+    document.getElementById('executive-current-photo').style.display = 'none';
+
+    if (memberId) {
+        // Load existing member
+        try {
+            const { data, error } = await supabaseClient
+                .from('executive_members')
+                .select('*')
+                .eq('id', memberId)
+                .single();
+
+            if (error) throw error;
+
+            document.getElementById('executive-id').value = data.id;
+            document.getElementById('executive-name').value = data.member_name || '';
+            document.getElementById('executive-designation').value = data.designation || '';
+            document.getElementById('executive-role').value = data.role || '';
+            document.getElementById('executive-email').value = data.contact_email || '';
+            document.getElementById('executive-description').value = data.description || '';
+            document.getElementById('executive-display-order').value = data.display_order || '0';
+
+            // Show current photo if available
+            if (data.photo_url) {
+                const currentPhotoDiv = document.getElementById('executive-current-photo');
+                const currentPhotoImg = document.getElementById('executive-current-photo-img');
+                currentPhotoImg.src = data.photo_url;
+                currentPhotoDiv.style.display = 'block';
+            }
+
+            titleEl.textContent = 'Edit Executive Member';
+        } catch (error) {
+            console.error('Error loading member:', error);
+            Toast.show('error', 'Load Failed', error.message);
+            return;
+        }
+    } else {
+        titleEl.textContent = 'Add Executive Member';
+    }
+
+    if (modal) modal.classList.remove('hidden');
+};
+
+window.closeExecutiveMemberModal = function () {
+    const modal = document.getElementById('executive-member-modal');
+    if (modal) modal.classList.add('hidden');
+};
+
+window.saveExecutiveMember = async function () {
+    const memberId = document.getElementById('executive-id').value;
+    const memberName = document.getElementById('executive-name').value.trim();
+    const designation = document.getElementById('executive-designation').value.trim();
+    const role = document.getElementById('executive-role').value.trim();
+    const email = document.getElementById('executive-email').value.trim();
+    const description = document.getElementById('executive-description').value.trim();
+    const displayOrder = parseInt(document.getElementById('executive-display-order').value) || 0;
+    const photoInput = document.getElementById('executive-photo-input');
+
+    // Validation
+    if (!memberName || !designation || !role) {
+        Toast.show('warning', 'Missing Fields', 'Please fill in Name, Designation, and Role');
+        return;
+    }
+
+    try {
+        let photoUrl = null;
+
+        // Handle photo upload
+        if (photoInput?.files?.[0]) {
+            const file = photoInput.files[0];
+
+            // Validate file size (max 500 KB for executive member photos)
+            const MAX_FILE_SIZE = 500 * 1024; // 500 KB
+            if (file.size > MAX_FILE_SIZE) {
+                const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+                Toast.show('warning', 'File Too Large', `Photo must be less than 500 KB. Current size: ${fileSizeMB} MB`);
+                return;
+            }
+
+            // Upload to executive_team bucket
+            const fileName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+            const { data: uploadData, error: uploadError } = await supabaseClient.storage
+                .from('executive_team')
+                .upload(fileName, file, { upsert: true });
+
+            if (uploadError) throw uploadError;
+
+            // Get public URL
+            const { data: urlData } = supabaseClient.storage
+                .from('executive_team')
+                .getPublicUrl(fileName);
+
+            photoUrl = urlData?.publicUrl || null;
+        }
+
+        const memberData = {
+            member_name: memberName,
+            designation: designation,
+            role: role,
+            contact_email: email || null,
+            description: description || null,
+            display_order: displayOrder
+        };
+
+        // Add photo URL if new photo was uploaded
+        if (photoUrl) {
+            memberData.photo_url = photoUrl;
+        }
+
+        if (memberId) {
+            // Update existing
+            const { error } = await supabaseClient
+                .from('executive_members')
+                .update(memberData)
+                .eq('id', memberId);
+
+            if (error) throw error;
+            Toast.show('success', 'Updated', 'Executive member updated successfully');
+        } else {
+            // Create new
+            const { error } = await supabaseClient
+                .from('executive_members')
+                .insert([{
+                    ...memberData,
+                    photo_url: photoUrl
+                }]);
+
+            if (error) throw error;
+            Toast.show('success', 'Created', 'Executive member added successfully');
+        }
+
+        closeExecutiveMemberModal();
+        loadExecutiveMembers();
+    } catch (error) {
+        console.error('Error saving executive member:', error);
+        Toast.show('error', 'Save Failed', error.message);
+    }
+};
+
+window.deleteExecutiveMember = async function (memberId) {
+    if (!memberId) {
+        console.error('No member ID provided');
+        return;
+    }
+
+    try {
+        // Fetch member data for display
+        const { data: member, error } = await supabaseClient
+            .from('executive_members')
+            .select('member_name')
+            .eq('id', memberId)
+            .single();
+
+        if (error) throw error;
+
+        pendingExecutiveDelete = memberId;
+        const modal = document.getElementById('executive-delete-modal');
+        const nameEl = document.getElementById('executive-delete-name');
+
+        if (!modal || !nameEl) {
+            Toast.show('warning', 'Delete Unavailable', 'Delete modal is not available. Please refresh page.');
+            return;
+        }
+
+        nameEl.textContent = member?.member_name || 'this member';
+        modal.classList.remove('hidden');
+    } catch (error) {
+        console.error('Error loading member for deletion:', error);
+        Toast.show('error', 'Load Failed', 'Could not load member details');
+    }
+};
+
+window.closeExecutiveDeleteModal = function () {
+    const modal = document.getElementById('executive-delete-modal');
+    if (modal) modal.classList.add('hidden');
+    pendingExecutiveDelete = null;
+};
+
+window.confirmExecutiveDelete = async function () {
+    if (!pendingExecutiveDelete) {
+        closeExecutiveDeleteModal();
+        return;
+    }
+
+    const memberId = Number(pendingExecutiveDelete);
+    console.log('Deleting member with ID:', memberId);
+
+    const confirmBtn = document.getElementById('executive-delete-confirm-btn');
+    const originalBtnText = confirmBtn ? confirmBtn.innerHTML : '';
+
+    if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+    }
+
+    try {
+        const { data, error } = await supabaseClient
+            .from('executive_members')
+            .delete()
+            .eq('id', memberId);
+
+        console.log('Delete response:', { data, error });
+
+        if (error) {
+            console.error('Delete error details:', error);
+            throw error;
+        }
+
+        Toast.show('success', 'Deleted', 'Executive member deleted successfully');
+        closeExecutiveDeleteModal();
+        await loadExecutiveMembers();
+    } catch (error) {
+        console.error('Error deleting executive member:', error);
+        Toast.show('error', 'Delete Failed', error.message || 'Unable to delete member');
+    } finally {
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = originalBtnText;
+        }
+    }
+};
+
+window.moveExecutiveMemberUp = async function (memberId) {
+    try {
+        // Get all executives sorted by display_order
+        const { data: allExecutives, error: fetchError } = await supabaseClient
+            .from('executive_members')
+            .select('id, display_order')
+            .order('display_order', { ascending: true });
+
+        if (fetchError) throw fetchError;
+
+        // Find current member and previous member
+        const currentIndex = allExecutives.findIndex(e => e.id == memberId);
+        if (currentIndex <= 0) return; // Can't move up if first
+
+        const currentMember = allExecutives[currentIndex];
+        const previousMember = allExecutives[currentIndex - 1];
+
+        // Swap display_order values
+        await supabaseClient
+            .from('executive_members')
+            .update({ display_order: previousMember.display_order })
+            .eq('id', currentMember.id);
+
+        await supabaseClient
+            .from('executive_members')
+            .update({ display_order: currentMember.display_order })
+            .eq('id', previousMember.id);
+
+        Toast.show('success', 'Updated', 'Member order updated');
+        await loadExecutiveMembers();
+    } catch (error) {
+        console.error('Error moving member up:', error);
+        Toast.show('error', 'Move Failed', error.message);
+    }
+};
+
+window.moveExecutiveMemberDown = async function (memberId) {
+    try {
+        // Get all executives sorted by display_order
+        const { data: allExecutives, error: fetchError } = await supabaseClient
+            .from('executive_members')
+            .select('id, display_order')
+            .order('display_order', { ascending: true });
+
+        if (fetchError) throw fetchError;
+
+        // Find current member and next member
+        const currentIndex = allExecutives.findIndex(e => e.id == memberId);
+        if (currentIndex >= allExecutives.length - 1) return; // Can't move down if last
+
+        const currentMember = allExecutives[currentIndex];
+        const nextMember = allExecutives[currentIndex + 1];
+
+        // Swap display_order values
+        await supabaseClient
+            .from('executive_members')
+            .update({ display_order: nextMember.display_order })
+            .eq('id', currentMember.id);
+
+        await supabaseClient
+            .from('executive_members')
+            .update({ display_order: currentMember.display_order })
+            .eq('id', nextMember.id);
+
+        Toast.show('success', 'Updated', 'Member order updated');
+        await loadExecutiveMembers();
+    } catch (error) {
+        console.error('Error moving member down:', error);
+        Toast.show('error', 'Move Failed', error.message);
+    }
+};
+
+window.openExecutiveImageViewModal = function (encodedUrl, encodedName) {
+    const modal = document.getElementById('executive-image-view-modal');
+    const img = document.getElementById('executive-image-view-img');
+    const title = document.getElementById('executive-image-view-title');
+
+    if (img && encodedUrl) {
+        img.src = decodeURIComponent(encodedUrl);
+    }
+    if (title && encodedName) {
+        title.textContent = `${decodeURIComponent(encodedName)} - Profile Photo`;
+    }
+
+    if (modal) modal.classList.remove('hidden');
+};
+
+window.closeExecutiveImageViewModal = function () {
+    const modal = document.getElementById('executive-image-view-modal');
+    if (modal) modal.classList.add('hidden');
+};
+
+// Attach search event listener to executive search
+document.addEventListener('DOMContentLoaded', function () {
+    const searchInput = document.getElementById('executive-search');
+    if (searchInput) {
+        searchInput.addEventListener('input', debounce(() => {
+            const tbody = document.querySelector('#executives-table tbody');
+            if (tbody && tbody.innerHTML) {
+                // Get all executives from the data attributes or reload
+                loadExecutiveMembers();
+            }
+        }, 300));
+    }
+});
+
+window.toggleSidebar = function () {
+    document.querySelector('.sidebar').classList.toggle('open');
+    document.body.classList.toggle('sidebar-open');
+};
+document.addEventListener('click', function (e) {
+    if (document.body.classList.contains('sidebar-open') &&
+        !e.target.closest('.sidebar') &&
+        !e.target.closest('.hamburger-btn')) {
+        document.querySelector('.sidebar').classList.remove('open');
+        document.body.classList.remove('sidebar-open');
+    }
+});

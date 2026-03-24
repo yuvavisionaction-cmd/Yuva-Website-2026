@@ -725,6 +725,7 @@ table.modern-table tr:hover {
         width: 100%;
     }
 }
+
 /* ===== BUTTON ANIMATIONS ===== */
 
 /* Refresh Button Spin Animation */
@@ -732,6 +733,7 @@ table.modern-table tr:hover {
     from {
         transform: rotate(0deg);
     }
+
     to {
         transform: rotate(360deg);
     }
@@ -747,10 +749,12 @@ table.modern-table tr:hover {
         transform: scale(0) rotate(0deg);
         opacity: 0;
     }
+
     50% {
         transform: scale(1.2) rotate(180deg);
         opacity: 1;
     }
+
     100% {
         transform: scale(1) rotate(360deg);
         opacity: 1;
@@ -767,10 +771,12 @@ table.modern-table tr:hover {
         transform: translateX(-10px);
         opacity: 0;
     }
+
     50% {
         transform: translateX(5px);
         opacity: 1;
     }
+
     100% {
         transform: translateX(0);
         opacity: 1;
@@ -786,9 +792,11 @@ table.modern-table tr:hover {
     0% {
         transform: rotate(0deg) scale(1);
     }
+
     50% {
         transform: rotate(-180deg) scale(1.1);
     }
+
     100% {
         transform: rotate(-360deg) scale(1);
     }
@@ -804,10 +812,12 @@ table.modern-table tr:hover {
         transform: translateX(0) translateY(0);
         opacity: 1;
     }
+
     50% {
         transform: translateX(10px) translateY(-10px);
         opacity: 0.5;
     }
+
     100% {
         transform: translateX(20px) translateY(-20px);
         opacity: 0;
@@ -823,9 +833,11 @@ table.modern-table tr:hover {
     0% {
         box-shadow: 0 0 0 0 rgba(0, 0, 128, 0.4);
     }
+
     70% {
         box-shadow: 0 0 0 10px rgba(0, 0, 128, 0);
     }
+
     100% {
         box-shadow: 0 0 0 0 rgba(0, 0, 128, 0);
     }
@@ -837,9 +849,12 @@ table.modern-table tr:hover {
 
 /* Success Bounce */
 @keyframes successBounce {
-    0%, 100% {
+
+    0%,
+    100% {
         transform: scale(1);
     }
+
     50% {
         transform: scale(1.1);
     }
@@ -857,9 +872,12 @@ table.modern-table tr:hover {
 }
 
 @keyframes iconBounce {
-    0%, 100% {
+
+    0%,
+    100% {
         transform: translateY(0);
     }
+
     50% {
         transform: translateY(-5px);
     }
@@ -875,9 +893,12 @@ table.modern-table tr:hover {
 }
 
 @keyframes iconPulse {
-    0%, 100% {
+
+    0%,
+    100% {
         transform: scale(1);
     }
+
     50% {
         transform: scale(1.1);
     }
@@ -892,9 +913,11 @@ table.modern-table tr:hover {
     0% {
         transform: translateX(0);
     }
+
     50% {
         transform: translateX(3px);
     }
+
     100% {
         transform: translateX(0);
     }
@@ -910,6 +933,7 @@ table.modern-table tr:hover {
         transform: rotate(-180deg) scale(0);
         opacity: 0;
     }
+
     100% {
         transform: rotate(0deg) scale(1);
         opacity: 1;
@@ -922,13 +946,24 @@ table.modern-table tr:hover {
 }
 
 @keyframes bellRing {
-    0%, 100% {
+
+    0%,
+    100% {
         transform: rotate(0deg);
     }
-    10%, 30%, 50%, 70%, 90% {
+
+    10%,
+    30%,
+    50%,
+    70%,
+    90% {
         transform: rotate(-10deg);
     }
-    20%, 40%, 60%, 80% {
+
+    20%,
+    40%,
+    60%,
+    80% {
         transform: rotate(10deg);
     }
 }
@@ -978,6 +1013,7 @@ table.modern-table tr:hover {
     from {
         transform: rotate(0deg);
     }
+
     to {
         transform: rotate(360deg);
     }
@@ -992,6 +1028,7 @@ table.modern-table tr:hover {
 .header-actions .btn.refreshing i {
     animation: spin 1s linear infinite;
 }
+
 /* ===== EVENT MANAGEMENT STYLES ===== */
 
 .events-stats-grid {
@@ -1154,6 +1191,7 @@ textarea.form-control {
         transform: translateY(40px);
         opacity: 0;
     }
+
     to {
         transform: translateY(0);
         opacity: 1;
@@ -1403,33 +1441,1068 @@ textarea.form-control {
     accent-color: #FF9933;
 }
 
-/* Responsive adjustments for events section */
-@media (max-width: 768px) {
-    .events-stats-grid {
-        grid-template-columns: repeat(2, 1fr);
+/* ===== COUNTER ADMIN STYLES ===== */
+
+#counter-admin-view {
+    display: none;
+}
+
+#counter-refresh-display,
+#counter-unique-display {
+    font-size: 32px;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 10px 0 0 0;
+}
+
+.counter-info-box {
+    background: #ecfdf5;
+    border-left: 4px solid #10b981;
+    border-radius: 6px;
+    padding: 16px;
+    margin-top: 24px;
+    font-size: 13px;
+    color: #065f46;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.counter-info-box i {
+    color: #10b981;
+    margin-top: 2px;
+}
+
+
+/* ================================================================
+   YUVA ADVANCED ADMIN — RESPONSIVE CSS
+   Ground-up rewrite after full HTML + CSS structure analysis.
+
+   IMPORTANT: Link AFTER AdvancedAdmin.css in your HTML:
+   <link rel="stylesheet" href="AdvancedAdmin.responsive.css">
+
+   Hamburger button: move it OUT of sidebar, put it INSIDE .top-header:
+   <button class="hamburger-btn" onclick="toggleSidebar()">
+     <i class="fas fa-bars"></i>
+   </button>
+
+   JS (already in your file from before — keep it):
+   window.toggleSidebar = function() {
+     document.querySelector('.sidebar').classList.toggle('open');
+     document.body.classList.toggle('sidebar-open');
+   };
+   document.addEventListener('click', function(e) {
+     if (document.body.classList.contains('sidebar-open') &&
+         !e.target.closest('.sidebar') &&
+         !e.target.closest('.hamburger-btn')) {
+       document.querySelector('.sidebar').classList.remove('open');
+       document.body.classList.remove('sidebar-open');
+     }
+   });
+
+   Breakpoints:
+   ≤1280px  Large laptop
+   ≤1024px  Small laptop / tablet landscape
+   ≤768px   Tablet portrait  — sidebar becomes overlay drawer
+   ≤480px   Mobile phones
+   ================================================================ */
+
+/* ----------------------------------------------------------------
+   GLOBAL — safety nets
+   ---------------------------------------------------------------- */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+/* Hamburger hidden by default on desktop */
+.hamburger-btn {
+    display: none;
+}
+
+/* Fix: sidebar-bg colour used on dark sidebar text is unreadable */
+.user-info h4 {
+    color: #ffffff !important;
+}
+
+
+/* ================================================================
+   BREAKPOINT 1 — LARGE LAPTOPS  ≤ 1280px
+   ================================================================ */
+@media (max-width: 1280px) {
+
+    .sidebar {
+        width: 250px;
     }
-    
-    .form-row {
-        grid-template-columns: 1fr;
+
+    .main-content {
+        margin-left: 250px;
+        width: calc(100% - 250px);
     }
-    
-    .modal-content {
-        width: 95% !important;
-        max-height: 90vh;
+
+    .top-header {
+        padding: 0 32px;
+    }
+
+    .content-wrapper {
+        padding: 28px 32px;
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
     }
 }
 
-@media (max-width: 480px) {
-    .events-stats-grid {
-        grid-template-columns: 1fr;
+
+/* ================================================================
+   BREAKPOINT 2 — SMALL LAPTOP / TABLET LANDSCAPE  ≤ 1024px
+   ================================================================ */
+@media (max-width: 1024px) {
+
+    /* Sidebar */
+    .sidebar {
+        width: 210px;
     }
-    
-    .action-buttons {
+
+    .sidebar-header {
+        padding: 0 16px;
+        height: 68px;
+    }
+
+    .brand-logo {
+        font-size: 15px;
+        gap: 10px;
+    }
+
+    .brand-logo img {
+        height: 26px;
+    }
+
+    .menu-item {
+        padding: 11px 16px;
+        font-size: 13px;
+        gap: 11px;
+    }
+
+    .menu-item i {
+        font-size: 16px;
+        width: 20px;
+    }
+
+    .sidebar-footer {
+        padding: 16px;
+    }
+
+    /* Main */
+    .main-content {
+        margin-left: 210px;
+        width: calc(100% - 210px);
+    }
+
+    .top-header {
+        padding: 0 24px;
+        height: 68px;
+    }
+
+    .header-title h1 {
+        font-size: 16px;
+    }
+
+    .content-wrapper {
+        padding: 22px 24px;
+    }
+
+    /* Cards */
+    .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 18px;
+    }
+
+    .modern-card {
+        padding: 20px;
+    }
+
+    .modern-card h3 {
+        font-size: 16px;
+    }
+
+    /* Table headers allow wrapping */
+    .table-header {
+        padding: 18px 22px;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: flex-start;
+    }
+
+    .table-header>div {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .form-row {
+        gap: 12px;
+    }
+
+    #storage-bucket-custom {
+        width: 200px;
+    }
+}
+
+
+/* ================================================================
+   BREAKPOINT 3 — TABLET PORTRAIT  ≤ 768px
+   Sidebar becomes slide-over drawer.
+   Hamburger shows in top-header.
+   ================================================================ */
+@media (max-width: 768px) {
+
+    /* No horizontal scroll anywhere */
+    html,
+    body {
+        overflow-x: hidden;
+        max-width: 100vw;
+    }
+
+    .app-container {
+        display: block;
+        width: 100%;
+        overflow-x: hidden;
+    }
+
+    /* ── SIDEBAR: off-screen by default ── */
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: -280px;
+        width: 280px;
+        height: 100vh;
+        z-index: 600;
+        transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: none;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+    .sidebar.open {
+        left: 0;
+        box-shadow: 8px 0 40px rgba(0, 0, 0, 0.35);
+    }
+
+    /* Always show all text in sidebar on mobile */
+    .brand-logo span {
+        display: inline !important;
+    }
+
+    .menu-item {
+        padding: 13px 22px !important;
+        justify-content: flex-start !important;
+        gap: 14px !important;
+        font-size: 14px !important;
+        display: flex !important;
+    }
+
+    .user-info {
+        display: block !important;
+    }
+
+    .user-mini-profile {
+        justify-content: flex-start;
+    }
+
+    /* Dark dim overlay when sidebar open */
+    body.sidebar-open::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 599;
+    }
+
+    /* ── MAIN CONTENT: full width ── */
+    .main-content {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+
+    /* ── TOP HEADER ── */
+    .top-header {
+        height: 60px;
+        padding: 0 16px;
+        position: sticky;
+        top: 0;
+        z-index: 500;
+        gap: 10px;
+    }
+
+    /* Show hamburger button */
+    .hamburger-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        width: 40px;
+        height: 40px;
+        background: #f3f4f6;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 16px;
+        color: #374151;
+        transition: background 0.2s;
+        order: -1;
+    }
+
+    .hamburger-btn:active {
+        background: #e5e7eb;
+    }
+
+    .header-title {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .header-title h1 {
+        font-size: 14px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin: 0;
+    }
+
+    .header-actions {
+        gap: 8px;
+        flex-shrink: 0;
+    }
+
+    #logout-btn-nav {
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+
+    /* ── CONTENT WRAPPER ── */
+    .content-wrapper {
+        padding: 16px;
+    }
+
+    /* ── DASHBOARD CARDS: 2 columns ── */
+    .stats-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        margin-bottom: 16px;
+    }
+
+    .modern-card {
+        padding: 18px;
         flex-direction: column;
     }
-    
+
+    .card-icon {
+        width: 48px;
+        height: 48px;
+        font-size: 20px;
+        margin-bottom: 14px;
+        border-radius: 10px;
+    }
+
+    .modern-card h3 {
+        font-size: 14px;
+        margin-bottom: 8px;
+    }
+
+    .modern-card p {
+        font-size: 12px;
+        margin-bottom: 14px;
+    }
+
+    .btn-modern {
+        padding: 9px 16px;
+        font-size: 12px;
+        width: 100%;
+        text-align: center;
+    }
+
+    /* ── EVENTS STATS: 3 columns ── */
+    .events-stats-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    .event-stat-card {
+        padding: 16px 12px;
+    }
+
+    .event-stat-card .stat-value {
+        font-size: 24px;
+        margin-bottom: 6px;
+    }
+
+    .event-stat-card .stat-label {
+        font-size: 11px;
+    }
+
+    /* ── TABLE CARD ── */
+    .table-card {
+        border-radius: 12px;
+    }
+
+    /* Table header stacks */
+    .table-header {
+        padding: 14px 16px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .table-title {
+        font-size: 15px;
+    }
+
+    /* All inline-style control containers go full width */
+    .table-header>div {
+        width: 100% !important;
+        display: flex !important;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: flex-start !important;
+    }
+
+    .table-header input.form-control,
+    .table-header select.form-control {
+        flex: 1 1 140px;
+        width: auto !important;
+        min-width: 0;
+    }
+
+    /* ── TABLES: horizontal scroll, never squish ── */
+    .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        width: 100%;
+    }
+
+    table.modern-table {
+        min-width: 480px;
+        width: 100%;
+    }
+
+    table.modern-table th {
+        padding: 10px 10px;
+        font-size: 10px;
+        white-space: nowrap;
+    }
+
+    table.modern-table td {
+        padding: 10px 10px;
+        font-size: 12px;
+    }
+
+    /* Column hiding — COLLEGES: hide Zone, Contact */
+    #colleges-table th:nth-child(3),
+    #colleges-table td:nth-child(3),
+    #colleges-table th:nth-child(4),
+    #colleges-table td:nth-child(4) {
+        display: none;
+    }
+
+    /* Column hiding — EVENTS: hide Location, Mode, Capacity, Display On */
+    #events-table th:nth-child(3),
+    #events-table td:nth-child(3),
+    #events-table th:nth-child(5),
+    #events-table td:nth-child(5),
+    #events-table th:nth-child(6),
+    #events-table td:nth-child(6),
+    #events-table th:nth-child(7),
+    #events-table td:nth-child(7) {
+        display: none;
+    }
+
+    /* Column hiding — VERTICAL IMAGES: hide Vertical, Date, Uploaded By */
+    #vertical-images-table th:nth-child(3),
+    #vertical-images-table td:nth-child(3),
+    #vertical-images-table th:nth-child(4),
+    #vertical-images-table td:nth-child(4),
+    #vertical-images-table th:nth-child(5),
+    #vertical-images-table td:nth-child(5) {
+        display: none;
+    }
+
+    /* Column hiding — EXECUTIVES: hide Role, Email, Display Order, Order btns */
+    #executives-table th:nth-child(4),
+    #executives-table td:nth-child(4),
+    #executives-table th:nth-child(5),
+    #executives-table td:nth-child(5),
+    #executives-table th:nth-child(6),
+    #executives-table td:nth-child(6),
+    #executives-table th:nth-child(7),
+    #executives-table td:nth-child(7) {
+        display: none;
+    }
+
+    /* Column hiding — STORAGE: hide Size, Updated */
+    #storage-objects-table th:nth-child(3),
+    #storage-objects-table td:nth-child(3),
+    #storage-objects-table th:nth-child(4),
+    #storage-objects-table td:nth-child(4) {
+        display: none;
+    }
+
+    /* ── ACTION BUTTONS ── */
+    .action-buttons {
+        flex-wrap: wrap;
+        gap: 5px;
+    }
+
+    .btn-action {
+        padding: 5px 8px;
+        font-size: 11px;
+    }
+
+    /* ── STORAGE PATH BAR ── */
+    .storage-file-picker {
+        width: 100%;
+        max-width: 100% !important;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    #storage-bucket-custom {
+        width: 100%;
+    }
+
+    /* ── COUNTER ADMIN ── */
+    #counter-admin-view>.stats-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        margin-bottom: 16px;
+    }
+
+    /* ── MODALS: bottom sheet ── */
+    .modal-overlay {
+        align-items: flex-end;
+        padding: 0;
+    }
+
+    .modal-content {
+        width: 100% !important;
+        max-width: 100% !important;
+        border-radius: 20px 20px 0 0 !important;
+        max-height: 90vh;
+        overflow-y: auto;
+        animation: slideUpModal 0.28s ease;
+    }
+
+    @keyframes slideUpModal {
+        from {
+            transform: translateY(60px);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    .modal-header {
+        padding: 16px 20px;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: #f8f9fa;
+    }
+
+    .modal-header h3 {
+        font-size: 16px;
+    }
+
+    .modal-body {
+        padding: 16px 20px;
+    }
+
+    .modal-footer {
+        padding: 12px 20px;
+        position: sticky;
+        bottom: 0;
+        background: white;
+        z-index: 10;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .modal-footer .btn {
+        flex: 1;
+        text-align: center;
+        justify-content: center;
+        min-width: 0;
+    }
+
+    /* Form rows in modals: 2col → 1col */
+    .modal-body .form-row {
+        grid-template-columns: 1fr;
+        gap: 0;
+        margin-bottom: 0;
+    }
+
+    .modal-body .form-row>.form-group {
+        flex: unset !important;
+        width: 100%;
+    }
+
+    /* Prevent iOS zoom on input focus */
+    .form-control {
+        font-size: 16px;
+    }
+
+    /* Image preview modals: shorter max height */
+    #vertical-image-view-modal .modal-body img,
+    #executive-image-view-modal .modal-body img {
+        max-height: 55vh !important;
+    }
+
+    /* ── TOASTS ── */
+    .toast-container {
+        top: 68px;
+        right: 10px;
+        left: 10px;
+    }
+
+    .toast-notification {
+        min-width: unset;
+        width: 100%;
+    }
+
+    /* ── BADGES ── */
+    .badge,
+    .status-badge {
+        padding: 4px 8px;
+        font-size: 10px;
+    }
+
+    /* ── VERTICAL THUMB ── */
+    .vertical-thumb {
+        width: 52px;
+        height: 40px;
+        border-radius: 6px;
+    }
+}
+
+
+/* ================================================================
+   BREAKPOINT 4 — MOBILE PHONES  ≤ 480px
+   ================================================================ */
+@media (max-width: 480px) {
+
+    /* ── HEADER ── */
+    .top-header {
+        height: 56px;
+        padding: 0 12px;
+        gap: 8px;
+    }
+
+    .hamburger-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 15px;
+        border-radius: 8px;
+    }
+
+    .header-title h1 {
+        font-size: 13px;
+    }
+
+    /* Logout: icon only to save space */
+    #logout-btn-nav {
+        padding: 8px 10px;
+        font-size: 0;
+        gap: 0;
+    }
+
+    #logout-btn-nav i {
+        font-size: 15px;
+    }
+
+    /* Hide refresh + bell on tiny phones */
+    .header-actions .btn.secondary {
+        display: none;
+    }
+
+    /* ── CONTENT ── */
+    .content-wrapper {
+        padding: 12px;
+    }
+
+    /* ── DASHBOARD: single column, card horizontal layout ── */
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .modern-card {
+        padding: 16px;
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 14px;
+        flex-wrap: nowrap;
+    }
+
+    .modern-card>.card-icon {
+        flex-shrink: 0;
+        width: 42px;
+        height: 42px;
+        font-size: 18px;
+        margin-bottom: 0;
+        margin-top: 2px;
+        border-radius: 10px;
+    }
+
+    /* Content beside icon
+    .modern-card>h3,
+    .modern-card>p,
+    .modern-card>button.btn-modern {
+        /* Direct children after card-icon */
+    /* } */
+
+    /* Use a sibling combinator to make all content after icon flex-column */
+    .modern-card>*:not(.card-icon) {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .modern-card h3 {
+        font-size: 13px;
+        margin-bottom: 4px;
+    }
+
+    .modern-card p {
+        font-size: 11px;
+        margin-bottom: 10px;
+        line-height: 1.4;
+    }
+
+    .btn-modern {
+        font-size: 11px;
+        padding: 7px 12px;
+        width: auto;
+    }
+
+    /* ── EVENTS STATS: 1 column ── */
+    .events-stats-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .event-stat-card {
+        padding: 12px 16px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        text-align: left;
+    }
+
+    .event-stat-card .stat-value {
+        font-size: 26px;
+        margin-bottom: 0;
+    }
+
+    .event-stat-card .stat-label {
+        font-size: 12px;
+    }
+
+    /* ── TABLE HEADER ── */
+    .table-header {
+        padding: 12px 14px;
+        gap: 10px;
+    }
+
+    .table-title {
+        font-size: 14px;
+    }
+
+    .table-header input,
+    .table-header select {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    .table-header .btn {
+        font-size: 12px;
+        padding: 8px 12px;
+    }
+
+    /* ── TABLES ── */
+    table.modern-table {
+        min-width: 360px;
+    }
+
+    table.modern-table th {
+        padding: 8px;
+        font-size: 9px;
+        letter-spacing: 0;
+    }
+
+    table.modern-table td {
+        padding: 8px;
+        font-size: 11px;
+    }
+
+    /* Extra column hiding on phones */
+
+    /* USERS: hide Email + Zone */
+    #users-table th:nth-child(2),
+    #users-table td:nth-child(2),
+    #users-table th:nth-child(4),
+    #users-table td:nth-child(4) {
+        display: none;
+    }
+
+    /* COLLEGES: hide Code + Members */
+    #colleges-table th:nth-child(2),
+    #colleges-table td:nth-child(2),
+    #colleges-table th:nth-child(5),
+    #colleges-table td:nth-child(5) {
+        display: none;
+    }
+
+    /* VERTICAL ACCESS: hide Vertical + Security Key */
+    #vertical-access-table th:nth-child(2),
+    #vertical-access-table td:nth-child(2),
+    #vertical-access-table th:nth-child(3),
+    #vertical-access-table td:nth-child(3) {
+        display: none;
+    }
+
+    /* STORAGE: hide Type */
+    #storage-objects-table th:nth-child(2),
+    #storage-objects-table td:nth-child(2) {
+        display: none;
+    }
+
+    /* EXECUTIVES: hide Designation */
+    #executives-table th:nth-child(3),
+    #executives-table td:nth-child(3) {
+        display: none;
+    }
+
+    /* ── ACTION BUTTONS: stack ── */
+    .action-buttons {
+        flex-direction: column;
+        gap: 4px;
+        align-items: flex-start;
+    }
+
     .btn-action {
         width: 100%;
         justify-content: center;
+        padding: 6px 8px;
+        font-size: 11px;
+    }
+
+    /* ── COUNTER ADMIN: 1 column ── */
+    #counter-admin-view>.stats-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    #counter-admin-view .modern-card {
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 14px;
+    }
+
+    #counter-admin-view .modern-card>.card-icon {
+        flex-shrink: 0;
+        margin-bottom: 0;
+        width: 42px;
+        height: 42px;
+    }
+
+    /* ── STORAGE PATH BAR ── */
+    .storage-file-picker {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 10px;
+        gap: 8px;
+    }
+
+    .storage-file-btn {
+        width: 100%;
+        text-align: center;
+        padding: 9px;
+    }
+
+    #storage-current-path {
+        font-size: 11px;
+        word-break: break-all;
+        max-width: 100%;
+    }
+
+    /* ── MODALS ── */
+    .modal-content {
+        max-height: 94vh;
+    }
+
+    .modal-header {
+        padding: 14px 16px;
+    }
+
+    .modal-header h3 {
+        font-size: 15px;
+    }
+
+    .modal-body {
+        padding: 14px 16px;
+    }
+
+    .modal-footer {
+        padding: 10px 16px;
+        gap: 8px;
+    }
+
+    /* ── TOASTS: move to bottom ── */
+    .toast-container {
+        top: auto;
+        bottom: 16px;
+        right: 12px;
+        left: 12px;
+    }
+
+    .toast-notification {
+        width: 100%;
+        padding: 12px 14px;
+        gap: 10px;
+        border-radius: 10px;
+    }
+
+    .toast-title {
+        font-size: 13px;
+    }
+
+    .toast-message {
+        font-size: 12px;
+    }
+
+    /* ── MISC ── */
+    .badge,
+    .status-badge {
+        padding: 3px 7px;
+        font-size: 9px;
+    }
+
+    .vertical-thumb {
+        width: 44px;
+        height: 34px;
+    }
+}
+
+
+/* ================================================================
+   TOUCH OPTIMIZATIONS
+   ================================================================ */
+@media (hover: none) and (pointer: coarse) {
+
+    .modern-card:hover {
+        transform: none;
+        box-shadow: var(--shadow-soft);
+        border-color: transparent;
+    }
+
+    .event-stat-card:hover {
+        transform: none;
+        box-shadow: var(--shadow-soft);
+    }
+
+    .message-card:hover {
+        transform: none !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+    }
+
+    .menu-item:hover i,
+    .btn:hover i {
+        animation: none;
+    }
+
+    .modern-card:hover .card-icon {
+        animation: none;
+    }
+
+    .badge:hover {
+        transform: none;
+        box-shadow: none;
+    }
+
+    /* Minimum tap target sizes */
+    .menu-item {
+        min-height: 48px;
+    }
+
+    .btn,
+    .btn-modern {
+        min-height: 44px;
+    }
+
+    .btn-action {
+        min-height: 36px;
+    }
+
+    .modal-close {
+        width: 40px;
+        height: 40px;
+        font-size: 18px;
+    }
+}
+
+
+/* ================================================================
+   PRINT
+   ================================================================ */
+@media print {
+
+    .sidebar,
+    .top-header,
+    .hamburger-btn,
+    .action-buttons,
+    .btn,
+    .btn-action,
+    .btn-modern,
+    .toast-container,
+    .modal-overlay {
+        display: none !important;
+    }
+
+    .main-content {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+
+    .content-wrapper {
+        padding: 0 !important;
+    }
+
+    .modern-card,
+    .table-card {
+        box-shadow: none !important;
+        border: 1px solid #ddd !important;
+        break-inside: avoid;
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(3, 1fr) !important;
+    }
+
+    body {
+        background: white !important;
+        font-size: 12px !important;
+    }
+
+    table.modern-table {
+        font-size: 11px !important;
+        min-width: unset !important;
+    }
+
+    .table-responsive {
+        overflow-x: visible !important;
     }
 }

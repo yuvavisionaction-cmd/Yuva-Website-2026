@@ -695,7 +695,7 @@ class HomePageAnimations {
             // Fetch data from your Google Apps Script backend
             // Make sure to replace 'YOUR_GAS_WEB_APP_URL' if it's not globally defined
             // This URL is the same one used in your unit.js file.
-            const GAS_URL = 'https://script.google.com/macros/s/AKfycbzkOBsj6PS_ncTAy3I_hTJV4TWzup322AdUkCjpZZ1M1_RD1EHrLRQjgzdkKdNTR3-I/exec';  // also change in unit.js
+            const GAS_URL = 'https://script.google.com/macros/s/AKfycbz2uhTDSe7aaFZOkEoeXnM3DADG1ANjGob1sgx9U_ZKRehOvM8-OXHQhkkoYjK_PWTY/exec';  // also change in unit.js
             const response = await fetch(`${GAS_URL}?action=public-stats`);
 
             if (!response.ok) {
@@ -1245,8 +1245,362 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 2000);
 });
 
+// ============================================================
+// LIVE COUNTER SYSTEM - YUVA DELHI
+// ============================================================
+class LiveCounterSystem {
+    constructor(config = {}) {
+        this.GAS_DEPLOYMENT_URL = config.gasUrl || 'YOUR_GAS_DEPLOYMENT_URL_HERE';
+        this.UPDATE_INTERVAL = config.updateInterval || 5000;
+        this.VISITOR_WINDOW = config.visitorWindow || 86400000;
+        this.REQUEST_TIMEOUT = config.timeout || 15000;
+        
+        this.refreshCount = 0;
+        this.uniqueCount = 0;
+        this.visitorId = this.generateVisitorId();
+        this.isInitialized = false;
+        this.updateInProgress = false;
+        this.lastRefreshCountUpdate = 0;
+        this.lastUniqueCountUpdate = 0;
+
+        this.elements = {
+            refreshValue: document.querySelector('.refresh-count'),
+            uniqueValue: document.querySelector('.unique-count'),
+            statusDot: document.querySelector('.status-dot'),
+            loadingContainer: document.getElementById('counters-loading'),
+            countersGrid: document.querySelector('.counters-grid'),
+        };
+
+        this.sessionToken = this.generateSessionToken();
+        
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => this.init());
+        } else {
+            this.init();
+        }
+    }
+
+    async init() {
+        if (this.isInitialized) return;
+        
+        try {
+            // Show loading spinner
+            this.showLoading();
+
+            if (!this.GAS_DEPLOYMENT_URL || this.GAS_DEPLOYMENT_URL.includes('YOUR_GAS')) {
+                console.warn('⚠️ Counter System: GAS URL not configured. Please add your deployment URL.');
+                this.displayErrorState();
+                return;
+            }
+
+            await this.recordPageRefresh();
+            await this.handleUniqueVisitor();
+            await this.updateCounters();
+            this.startPeriodicUpdates();
+
+            // Hide loading and show counters when fully initialized
+            this.hideLoading();
+            this.isInitialized = true;
+            console.log('✅ Live Counter System initialized');
+        } catch (error) {
+            console.error('❌ Error initializing counter system:', error);
+            this.displayErrorState();
+        }
+    }
+
+    async recordPageRefresh() {
+        try {
+            const payload = {
+                action: 'recordRefresh',
+                timestamp: new Date().toISOString(),
+                userAgent: navigator.userAgent,
+                visitorId: this.visitorId,
+                sessionToken: this.sessionToken,
+            };
+
+            const response = await this.makeGASRequest(payload);
+            
+            if (response.success) {
+                console.log('✅ Page refresh recorded');
+                // Optimistic UI update so users see instant increment on reload.
+                this.updateCounterDisplay(this.refreshCount + 1, this.uniqueCount);
+                return true;
+            } else {
+                console.warn('⚠️ Failed to record page refresh:', response.message);
+                return false;
+            }
+        } catch (error) {
+            console.error('❌ Error recording page refresh:', error);
+            return false;
+        }
+    }
+
+    async handleUniqueVisitor() {
+        const visitorKey = 'yuva_visitor_' + this.visitorId;
+        const lastVisitTime = localStorage.getItem(visitorKey);
+        const currentTime = Date.now();
+
+        if (!lastVisitTime || (currentTime - parseInt(lastVisitTime)) > this.VISITOR_WINDOW) {
+            const recorded = await this.recordUniqueVisitor();
+            if (recorded) {
+                localStorage.setItem(visitorKey, currentTime.toString());
+                this.isNewUniqueVisitor = true;
+            } else {
+                this.isNewUniqueVisitor = false;
+            }
+        } else {
+            console.log('ℹ️ Returning visitor within 24-hour window, not counted as new');
+            this.isNewUniqueVisitor = false;
+        }
+    }
+
+    async recordUniqueVisitor() {
+        try {
+            const payload = {
+                action: 'recordUniqueVisit',
+                timestamp: new Date().toISOString(),
+                visitorId: this.visitorId,
+                sessionToken: this.sessionToken,
+                userAgent: navigator.userAgent,
+            };
+
+            const response = await this.makeGASRequest(payload);
+            
+            if (response.success) {
+                console.log('✅ Unique visitor recorded');
+                // Optimistic UI update for unique count, final value will sync on next fetch.
+                this.updateCounterDisplay(this.refreshCount, this.uniqueCount + 1);
+                return true;
+            } else {
+                console.warn('⚠️ Failed to record unique visitor:', response.message);
+                return false;
+            }
+        } catch (error) {
+            console.error('❌ Error recording unique visitor:', error);
+            return false;
+        }
+    }
+
+    async updateCounters() {
+        if (this.updateInProgress) return;
+        
+        this.updateInProgress = true;
+        
+        try {
+            const payload = {
+                action: 'getCounters',
+                visitorId: this.visitorId,
+                sessionToken: this.sessionToken,
+            };
+
+            const response = await this.makeGASRequest(payload);
+            
+            if (response.success && response.data) {
+                this.updateCounterDisplay(response.data.refreshCount, response.data.uniqueCount);
+                this.updateStatusIndicator(true);
+            } else {
+                console.warn('⚠️ Failed to fetch counters:', response.message);
+                this.updateStatusIndicator(false);
+            }
+        } catch (error) {
+            console.error('❌ Error updating counters:', error);
+            this.updateStatusIndicator(false);
+        } finally {
+            this.updateInProgress = false;
+        }
+    }
+
+    updateCounterDisplay(newRefreshCount, newUniqueCount) {
+        if (newRefreshCount !== this.refreshCount) {
+            this.animateCounterValue(
+                this.elements.refreshValue,
+                this.refreshCount,
+                newRefreshCount
+            );
+            this.refreshCount = newRefreshCount;
+            this.lastRefreshCountUpdate = Date.now();
+        }
+
+        if (newUniqueCount !== this.uniqueCount) {
+            this.animateCounterValue(
+                this.elements.uniqueValue,
+                this.uniqueCount,
+                newUniqueCount
+            );
+            this.uniqueCount = newUniqueCount;
+            this.lastUniqueCountUpdate = Date.now();
+        }
+    }
+
+    animateCounterValue(element, start, end) {
+        if (!element) return;
+
+        const duration = 800;
+        const startTime = Date.now();
+        const difference = end - start;
+
+        const animate = () => {
+            const now = Date.now();
+            const progress = Math.min((now - startTime) / duration, 1);
+            
+            const easeOutQuad = 1 - (1 - progress) * (1 - progress);
+            const currentValue = Math.floor(start + (difference * easeOutQuad));
+            
+            element.textContent = this.formatNumber(currentValue);
+
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                element.textContent = this.formatNumber(end);
+                element.classList.remove('updating');
+                void element.offsetWidth;
+                element.classList.add('updating');
+                setTimeout(() => element.classList.remove('updating'), 400);
+            }
+        };
+
+        animate();
+    }
+
+
+
+    updateStatusIndicator(isLive) {
+        if (this.elements.statusDot) {
+            if (isLive) {
+                this.elements.statusDot.style.background = '#22C55E';
+                this.elements.statusDot.style.boxShadow = '0 0 6px rgba(34, 197, 94, 0.6)';
+            } else {
+                this.elements.statusDot.style.background = '#EF4444';
+                this.elements.statusDot.style.boxShadow = '0 0 6px rgba(239, 68, 68, 0.6)';
+            }
+        }
+    }
+
+    startPeriodicUpdates() {
+        this.updateInterval = setInterval(async () => {
+            await this.updateCounters();
+        }, this.UPDATE_INTERVAL);
+    }
+
+    stopPeriodicUpdates() {
+        if (this.updateInterval) {
+            clearInterval(this.updateInterval);
+        }
+    }
+
+    async makeGASRequest(payload) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), this.REQUEST_TIMEOUT);
+
+        try {
+            const response = await fetch(this.GAS_DEPLOYMENT_URL, {
+                method: 'POST',
+                headers: {
+                    // Use a simple content type to avoid unnecessary preflight failures with GAS.
+                    'Content-Type': 'text/plain;charset=utf-8',
+                },
+                body: JSON.stringify(payload),
+                signal: controller.signal,
+            });
+
+            if (!response.ok) {
+                return { success: false, message: `HTTP ${response.status}` };
+            }
+
+            const rawText = await response.text();
+            if (!rawText) {
+                return { success: false, message: 'Empty response from server' };
+            }
+
+            try {
+                return JSON.parse(rawText);
+            } catch (parseError) {
+                console.error('❌ Invalid JSON response:', rawText);
+                return { success: false, message: 'Invalid response format from GAS' };
+            }
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                console.error('⏱️ Request timeout');
+                return { success: false, message: 'Request timeout' };
+            }
+            console.error('❌ Network error:', error);
+            return { success: false, message: error.message };
+        } finally {
+            clearTimeout(timeoutId);
+        }
+    }
+
+    generateVisitorId() {
+        let visitorId = localStorage.getItem('yuva_visitor_id');
+        
+        if (!visitorId) {
+            visitorId = 'visitor_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('yuva_visitor_id', visitorId);
+        }
+        
+        return visitorId;
+    }
+
+    generateSessionToken() {
+        return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 12);
+    }
+
+    formatNumber(num) {
+        return Math.floor(num).toLocaleString('en-IN');
+    }
+
+    displayErrorState() {
+        this.updateStatusIndicator(false);
+        if (this.elements.refreshValue) this.elements.refreshValue.textContent = '—';
+        if (this.elements.uniqueValue) this.elements.uniqueValue.textContent = '—';
+        this.hideLoading();
+    }
+
+    showLoading() {
+        if (this.elements.loadingContainer) {
+            this.elements.loadingContainer.style.display = 'flex';
+            this.elements.loadingContainer.classList.remove('hidden');
+        }
+        if (this.elements.countersGrid) {
+            this.elements.countersGrid.style.display = 'none';
+        }
+    }
+
+    hideLoading() {
+        if (this.elements.loadingContainer) {
+            this.elements.loadingContainer.classList.add('hidden');
+            this.elements.loadingContainer.style.display = 'none';
+        }
+        if (this.elements.countersGrid) {
+            this.elements.countersGrid.style.display = 'grid';
+        }
+    }
+
+    destroy() {
+        this.stopPeriodicUpdates();
+    }
+}
+
+function initializeLiveCounters(gasUrl) {
+    const config = {
+        gasUrl: gasUrl,
+        updateInterval: 5000,
+        visitorWindow: 86400000,
+        timeout: 5000,
+    };
+
+    liveCounterSystem = new LiveCounterSystem(config);
+}
+
+if (window.YUVA_GAS_COUNTER_URL) {
+    document.addEventListener('DOMContentLoaded', () => {
+        initializeLiveCounters(window.YUVA_GAS_COUNTER_URL);
+    });
+}
+
 // ===== EXPORT FOR GLOBAL ACCESS =====
 window.HomePageManager = HomePageManager;
 window.HomePageAnimations = HomePageAnimations;
 window.FlashNotification = FlashNotification;
 window.HomeUtils = HomeUtils;
+window.LiveCounterSystem = LiveCounterSystem;

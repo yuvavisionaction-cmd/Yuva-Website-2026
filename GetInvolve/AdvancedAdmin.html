@@ -33,6 +33,7 @@
     <!-- MAIN APP CONTAINER -->
     <div class="app-container" id="admin-content" style="display:none;">
 
+
         <!-- SIDEBAR -->
         <aside class="sidebar">
             <div class="sidebar-header">
@@ -64,6 +65,12 @@
                 <a href="#" class="menu-item" onclick="showSection('storage-manager')">
                     <i class="fas fa-database"></i> Storage Manager
                 </a>
+                <a href="#" class="menu-item" onclick="showSection('executive-manager')">
+                    <i class="fas fa-user-tie"></i> Executive Members
+                </a>
+                <a href="#" class="menu-item" onclick="showSection('counter-admin')">
+                    <i class="fas fa-chart-line"></i> Live Counter
+                </a>
                 <a href="#" class="menu-item" onclick="alert('Coming Soon')">
                     <i class="fas fa-bullhorn"></i> Broadcasts
                 </a>
@@ -90,6 +97,9 @@
         <main class="main-content">
             <!-- TOP HEADER -->
             <div class="top-header">
+                <button class="hamburger-btn" onclick="toggleSidebar()">
+                    <i class="fas fa-bars"></i>
+                </button>
                 <div class="header-title">
                     <h1 id="page-title">Dashboard Overview</h1>
                 </div>
@@ -116,7 +126,8 @@
                             <div class="card-icon icon-orange"><i class="fas fa-school"></i></div>
                             <h3>College Details</h3>
                             <p>Manage college records, zone mapping, and contact details.</p>
-                            <button class="btn-modern" onclick="showSection('colleges-manager')">Manage Colleges</button>
+                            <button class="btn-modern" onclick="showSection('colleges-manager')">Manage
+                                Colleges</button>
                         </div>
                         <div class="modern-card">
                             <div class="card-icon icon-red"><i class="fas fa-envelope"></i></div>
@@ -134,13 +145,32 @@
                             <div class="card-icon icon-blue"><i class="fas fa-layer-group"></i></div>
                             <h3>Verticals Control</h3>
                             <p>Manage vertical access users, permissions, and uploaded images.</p>
-                            <button class="btn-modern" onclick="showSection('verticals-manager')">Manage Verticals</button>
+                            <button class="btn-modern" onclick="showSection('verticals-manager')">Manage
+                                Verticals</button>
                         </div>
                         <div class="modern-card">
                             <div class="card-icon icon-green"><i class="fas fa-database"></i></div>
                             <h3>Supabase Storage</h3>
                             <p>Browse buckets, upload files, and manage storage objects.</p>
                             <button class="btn-modern" onclick="showSection('storage-manager')">Open Storage</button>
+                        </div>
+                        <div class="modern-card">
+                            <div class="card-icon icon-blue"><i class="fas fa-user-tie"></i></div>
+                            <h3>Executive Members</h3>
+                            <p id="dashboard-exec-count" style="margin-bottom:15px;">Total Members: <strong>0</strong>
+                            </p>
+                            <p>Manage executive team members and their profiles.</p>
+                            <button class="btn-modern" onclick="showSection('executive-manager')">Manage
+                                Members</button>
+                        </div>
+                        <div class="modern-card">
+                            <div class="card-icon icon-purple"><i class="fas fa-chart-line"></i></div>
+                            <h3>Live Counter</h3>
+                            <p id="dashboard-counter-status" style="margin-bottom:15px;">Status:
+                                <strong>Loading...</strong>
+                            </p>
+                            <p>Real-time event and volunteer counter system.</p>
+                            <button class="btn-modern" onclick="showSection('counter-admin')">Open Counter</button>
                         </div>
                         <div class="modern-card">
                             <div class="card-icon icon-orange"><i class="fas fa-bullhorn"></i></div>
@@ -192,11 +222,13 @@
                     <div class="table-card">
                         <div class="table-header">
                             <div class="table-title">College Details</div>
-                            <div style="display:flex; gap:10px; align-items:center; flex-wrap: wrap; justify-content: flex-end;">
+                            <div
+                                style="display:flex; gap:10px; align-items:center; flex-wrap: wrap; justify-content: flex-end;">
                                 <select id="college-zone-filter" class="form-control" style="width: 210px;">
                                     <option value="all">All Zones</option>
                                 </select>
-                                <input type="text" id="college-search" class="form-control" style="width: 280px;" placeholder="Search college, code, zone, email...">
+                                <input type="text" id="college-search" class="form-control" style="width: 280px;"
+                                    placeholder="Search college, code, zone, email...">
                                 <button class="btn primary" onclick="openCollegeModal()">
                                     <i class="fas fa-plus"></i> Add College
                                 </button>
@@ -220,7 +252,8 @@
                                 </thead>
                                 <tbody>
                                     <tr>
-                                        <td colspan="7" style="text-align:center; padding:30px;">Loading college records...</td>
+                                        <td colspan="7" style="text-align:center; padding:30px;">Loading college
+                                            records...</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -342,7 +375,8 @@
                                 </thead>
                                 <tbody>
                                     <tr>
-                                        <td colspan="4" style="text-align:center; padding:30px;">Loading vertical access...</td>
+                                        <td colspan="4" style="text-align:center; padding:30px;">Loading vertical
+                                            access...</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -388,12 +422,15 @@
                     <div class="table-card">
                         <div class="table-header">
                             <div class="table-title">Supabase Storage Browser</div>
-                            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
-                                <select id="storage-bucket-select" class="form-control storage-native-select" style="width: 220px;">
+                            <div
+                                style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
+                                <select id="storage-bucket-select" class="form-control storage-native-select"
+                                    style="width: 220px;">
                                     <option value="">Select bucket...</option>
                                 </select>
                                 <div class="storage-select" id="storage-bucket-custom" style="width: 280px;">
-                                    <button type="button" class="storage-select-trigger" id="storage-bucket-trigger" aria-haspopup="listbox" aria-expanded="false">
+                                    <button type="button" class="storage-select-trigger" id="storage-bucket-trigger"
+                                        aria-haspopup="listbox" aria-expanded="false">
                                         <span id="storage-bucket-selected-label">Select bucket...</span>
                                         <i class="fas fa-chevron-down"></i>
                                     </button>
@@ -407,15 +444,19 @@
                                 </button>
                             </div>
                         </div>
-                        <div style="padding: 18px 24px; border-bottom:1px solid #eee; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                        <div
+                            style="padding: 18px 24px; border-bottom:1px solid #eee; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                             <span style="font-weight:600; color:#333;">Current Path:</span>
-                            <span id="storage-current-path" style="background:#f3f4f6; padding:6px 10px; border-radius:8px; color:#374151; font-size:13px;">/</span>
+                            <span id="storage-current-path"
+                                style="background:#f3f4f6; padding:6px 10px; border-radius:8px; color:#374151; font-size:13px;">/</span>
                             <div class="storage-file-picker" style="max-width: 380px; width: 100%;">
                                 <input type="file" id="storage-upload-file" class="storage-native-file-input">
-                                <button type="button" class="storage-file-btn" onclick="openStorageFilePicker()">Choose File</button>
+                                <button type="button" class="storage-file-btn" onclick="openStorageFilePicker()">Choose
+                                    File</button>
                                 <span id="storage-upload-file-name" class="storage-file-name">No file chosen</span>
                             </div>
-                            <button class="btn primary" onclick="uploadStorageFile()"><i class="fas fa-upload"></i> Upload</button>
+                            <button class="btn primary" onclick="uploadStorageFile()"><i class="fas fa-upload"></i>
+                                Upload</button>
                         </div>
                         <div class="table-responsive">
                             <table class="modern-table" id="storage-objects-table">
@@ -430,15 +471,160 @@
                                 </thead>
                                 <tbody>
                                     <tr>
-                                        <td colspan="5" style="text-align:center; padding:30px;">Select a bucket to load storage objects.</td>
+                                        <td colspan="5" style="text-align:center; padding:30px;">Select a bucket to load
+                                            storage objects.</td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
                 </div>
+
+                <!-- EXECUTIVE MEMBERS MANAGEMENT VIEW -->
+                <div id="executive-manager-view" style="display:none;">
+                    <div class="table-card">
+                        <div class="table-header">
+                            <div class="table-title">Executive Team Members</div>
+                            <div
+                                style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
+                                <input type="text" id="executive-search" class="form-control" style="width: 280px;"
+                                    placeholder="Search by name, designation...">
+                                <button class="btn primary" onclick="openExecutiveMemberModal()">
+                                    <i class="fas fa-plus"></i> Add Member
+                                </button>
+                                <button class="btn secondary" onclick="loadExecutiveMembers()">
+                                    <i class="fas fa-sync"></i> Refresh
+                                </button>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="modern-table" id="executives-table">
+                                <thead>
+                                    <tr>
+                                        <th>Photo</th>
+                                        <th>Name</th>
+                                        <th>Designation</th>
+                                        <th>Role</th>
+                                        <th>Email</th>
+                                        <th>Display Order</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td colspan="7" style="text-align:center; padding:30px;">Loading executive
+                                            members...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- COUNTER ADMIN VIEW -->
+                <div id="counter-admin-view" style="display:none;">
+                    <div class="stats-grid" style="margin-bottom:30px;">
+                        <div class="modern-card">
+                            <div class="card-icon icon-blue"><i class="fas fa-redo"></i></div>
+                            <div>
+                                <h3 style="margin-bottom:5px;">Page Refreshes</h3>
+                                <p style="font-size:32px; font-weight:700; color:#1f2937; margin:0;"
+                                    id="counter-refresh-display">0</p>
+                                <p style="color:#999; margin:5px 0 0; font-size:13px;">Total page loads</p>
+                            </div>
+                        </div>
+                        <div class="modern-card">
+                            <div class="card-icon icon-green"><i class="fas fa-users"></i></div>
+                            <div>
+                                <h3 style="margin-bottom:5px;">Unique Visitors (24h)</h3>
+                                <p style="font-size:32px; font-weight:700; color:#1f2937; margin:0;"
+                                    id="counter-unique-display">0</p>
+                                <p style="color:#999; margin:5px 0 0; font-size:13px;">Last 24 hours</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-card">
+                        <div class="table-header">
+                            <div class="table-title">Counter Management</div>
+                            <div style="display:flex; gap:10px;">
+                                <button class="btn secondary" onclick="loadCounterData()">
+                                    <i class="fas fa-sync"></i> Refresh Data
+                                </button>
+                                <button class="btn primary" onclick="openCounterResetModal()">
+                                    <i class="fas fa-history"></i> Reset Counters
+                                </button>
+                            </div>
+                        </div>
+                        <div style="padding:24px;">
+                            <div class="form-row">
+                                <div class="form-group" style="flex:1;">
+                                    <label>Page Refresh Count</label>
+                                    <div style="display:flex; gap:10px; align-items:center;">
+                                        <input type="number" id="counter-refresh-input" class="form-control" readonly
+                                            style="background:#f3f4f6;">
+                                        <span style="color:#999; font-size:13px;">Real-time auto-updates every 5
+                                            seconds</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-row" style="margin-top:20px;">
+                                <div class="form-group" style="flex:1;">
+                                    <label>Unique Visitors (24h Window)</label>
+                                    <div style="display:flex; gap:10px; align-items:center;">
+                                        <input type="number" id="counter-unique-input" class="form-control" readonly
+                                            style="background:#f3f4f6;">
+                                        <span style="color:#999; font-size:13px;">Uses localStorage + visitor ID
+                                            tracking</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div
+                                style="margin-top:24px; padding:16px; background:#ecfdf5; border-left:4px solid #10b981; border-radius:6px;">
+                                <p style="margin:0; color:#065f46; font-size:13px;">
+                                    <i class="fas fa-info-circle"></i> <strong>Auto-Refresh Enabled:</strong> Counter
+                                    data updates automatically every 5 seconds from Supabase via Google Apps Script
+                                    middleware.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
             </div>
         </main>
+    </div>
+
+    <!-- COUNTER RESET MODAL -->
+    <div id="counter-reset-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="width: 500px; max-width: 90%;">
+            <div class="modal-header">
+                <h3>Reset Counters</h3>
+                <button class="modal-close" onclick="closeCounterResetModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div
+                    style="padding:16px; background:#fef2f2; border-left:4px solid #ef4444; border-radius:6px; margin-bottom:20px;">
+                    <p style="margin:0; color:#991b1b; font-size:14px;">
+                        <i class="fas fa-exclamation-triangle"></i> <strong>Warning:</strong> This will reset both
+                        counters to 0. This action cannot be undone.
+                    </p>
+                </div>
+                <div class="form-group">
+                    <label>Admin Key (for security)</label>
+                    <input type="password" id="counter-admin-key" class="form-control" placeholder="Enter admin key">
+                </div>
+                <p style="color:#666; font-size:13px; margin-top:10px;">
+                    Resetting counters will clear all tracking data and restart from zero.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn secondary" onclick="closeCounterResetModal()">Cancel</button>
+                <button class="btn primary" id="counter-reset-confirm-btn" onclick="confirmCounterReset()">
+                    <i class="fas fa-history"></i> Reset Counters
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- Hidden logout button for script compatibility -->
@@ -507,7 +693,8 @@
                 </div>
                 <div class="form-group">
                     <label>Description</label>
-                    <textarea id="event-description" class="form-control" rows="4" placeholder="Event description"></textarea>
+                    <textarea id="event-description" class="form-control" rows="4"
+                        placeholder="Event description"></textarea>
                 </div>
                 <div class="form-row">
                     <div class="form-group" style="flex: 1;">
@@ -618,7 +805,8 @@
                 </div>
                 <div class="form-group">
                     <label>Address</label>
-                    <textarea id="college-address" class="form-control" rows="3" placeholder="College address"></textarea>
+                    <textarea id="college-address" class="form-control" rows="3"
+                        placeholder="College address"></textarea>
                 </div>
                 <div class="form-row">
                     <div class="form-group" style="flex:1;">
@@ -661,7 +849,8 @@
                 <input type="hidden" id="vertical-access-original-vertical">
                 <div class="form-group">
                     <label>Email *</label>
-                    <input type="email" id="vertical-access-email" class="form-control" placeholder="convenor@example.com">
+                    <input type="email" id="vertical-access-email" class="form-control"
+                        placeholder="convenor@example.com">
                 </div>
                 <div class="form-group">
                     <label>Vertical Name *</label>
@@ -669,13 +858,16 @@
                 </div>
                 <div class="form-group">
                     <label>Security Key *</label>
-                    <input type="text" id="vertical-access-security-key" class="form-control" placeholder="Set login key for this user">
-                    <small style="color:#777; display:block; margin-top:6px;">This key is used in the vertical photo upload verification flow.</small>
+                    <input type="text" id="vertical-access-security-key" class="form-control"
+                        placeholder="Set login key for this user">
+                    <small style="color:#777; display:block; margin-top:6px;">This key is used in the vertical photo
+                        upload verification flow.</small>
                 </div>
             </div>
             <div class="modal-footer">
                 <button class="btn secondary" onclick="closeVerticalAccessModal()">Cancel</button>
-                <button class="btn primary" onclick="saveVerticalAccess()"><i class="fas fa-save"></i> Save Access</button>
+                <button class="btn primary" onclick="saveVerticalAccess()"><i class="fas fa-save"></i> Save
+                    Access</button>
             </div>
         </div>
     </div>
@@ -700,7 +892,8 @@
                     </div>
                     <div class="form-group" style="flex: 1;">
                         <label>Vertical *</label>
-                        <input type="text" id="vertical-image-vertical" class="form-control" placeholder="Vertical name">
+                        <input type="text" id="vertical-image-vertical" class="form-control"
+                            placeholder="Vertical name">
                     </div>
                 </div>
                 <div class="form-group">
@@ -710,7 +903,8 @@
             </div>
             <div class="modal-footer">
                 <button class="btn secondary" onclick="closeVerticalImageModal()">Cancel</button>
-                <button class="btn primary" onclick="saveVerticalImageRecord()"><i class="fas fa-save"></i> Update Record</button>
+                <button class="btn primary" onclick="saveVerticalImageRecord()"><i class="fas fa-save"></i> Update
+                    Record</button>
             </div>
         </div>
     </div>
@@ -720,15 +914,18 @@
         <div class="modal-content" style="width: 520px; max-width: 92%;">
             <div class="modal-header">
                 <h3>Delete Image</h3>
-                <button class="modal-close" onclick="closeVerticalImageDeleteModal()"><i class="fas fa-times"></i></button>
+                <button class="modal-close" onclick="closeVerticalImageDeleteModal()"><i
+                        class="fas fa-times"></i></button>
             </div>
             <div class="modal-body">
-                <p style="margin:0; color:#555; line-height:1.6;">This will permanently delete the image file from storage. This action cannot be undone.</p>
+                <p style="margin:0; color:#555; line-height:1.6;">This will permanently delete the image file from
+                    storage. This action cannot be undone.</p>
                 <p style="margin:12px 0 0; font-weight:600; color:#111;" id="vertical-image-delete-name"></p>
             </div>
             <div class="modal-footer">
                 <button class="btn secondary" onclick="closeVerticalImageDeleteModal()">Cancel</button>
-                <button class="btn primary" id="vertical-image-delete-confirm-btn" onclick="confirmVerticalImageDelete()">
+                <button class="btn primary" id="vertical-image-delete-confirm-btn"
+                    onclick="confirmVerticalImageDelete()">
                     <i class="fas fa-trash"></i> Delete Image
                 </button>
             </div>
@@ -740,10 +937,13 @@
         <div class="modal-content" style="width: 920px; max-width: 96%; max-height: 92vh;">
             <div class="modal-header">
                 <h3 id="vertical-image-view-title">Image Preview</h3>
-                <button class="modal-close" onclick="closeVerticalImageViewModal()"><i class="fas fa-times"></i></button>
+                <button class="modal-close" onclick="closeVerticalImageViewModal()"><i
+                        class="fas fa-times"></i></button>
             </div>
-            <div class="modal-body" style="display:flex; justify-content:center; align-items:center; background:#0f172a; min-height:320px;">
-                <img id="vertical-image-view-img" alt="Preview" style="max-width:100%; max-height:72vh; object-fit:contain; border-radius:8px;" />
+            <div class="modal-body"
+                style="display:flex; justify-content:center; align-items:center; background:#0f172a; min-height:320px;">
+                <img id="vertical-image-view-img" alt="Preview"
+                    style="max-width:100%; max-height:72vh; object-fit:contain; border-radius:8px;" />
             </div>
             <div class="modal-footer">
                 <button class="btn secondary" onclick="closeVerticalImageViewModal()">Close</button>
@@ -759,12 +959,112 @@
                 <button class="modal-close" onclick="closeStorageDeleteModal()"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal-body">
-                <p style="margin:0; color:#555; line-height:1.6;">Are you sure you want to permanently delete this item?</p>
+                <p style="margin:0; color:#555; line-height:1.6;">Are you sure you want to permanently delete this item?
+                </p>
                 <p style="margin:12px 0 0; font-weight:600; color:#111;" id="storage-delete-target"></p>
             </div>
             <div class="modal-footer">
                 <button class="btn secondary" onclick="closeStorageDeleteModal()">Cancel</button>
-                <button class="btn primary" id="storage-delete-confirm-btn" onclick="confirmStorageDelete()"><i class="fas fa-trash"></i> Delete</button>
+                <button class="btn primary" id="storage-delete-confirm-btn" onclick="confirmStorageDelete()"><i
+                        class="fas fa-trash"></i> Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- EXECUTIVE MEMBER FORM MODAL -->
+    <div id="executive-member-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="width: 700px; max-width: 92%; max-height: 92vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h3 id="executive-modal-title">Add Executive Member</h3>
+                <button class="modal-close" onclick="closeExecutiveMemberModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="executive-id">
+                <div class="form-group">
+                    <label>Member Name *</label>
+                    <input type="text" id="executive-name" class="form-control" placeholder="Enter member name">
+                </div>
+                <div class="form-row">
+                    <div class="form-group" style="flex:1;">
+                        <label>Designation *</label>
+                        <input type="text" id="executive-designation" class="form-control"
+                            placeholder="e.g., Chairperson">
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>Role *</label>
+                        <input type="text" id="executive-role" class="form-control" placeholder="e.g., Chairperson">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="executive-email" class="form-control" placeholder="contact@example.com">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="executive-description" class="form-control" rows="3"
+                        placeholder="Brief bio or description"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Display Order</label>
+                    <input type="number" id="executive-display-order" class="form-control" placeholder="0" value="0">
+                </div>
+                <div class="form-group">
+                    <label>Profile Photo</label>
+                    <input type="file" id="executive-photo-input" class="form-control" accept="image/*"
+                        style="padding:8px;">
+                    <small style="color:#777; display:block; margin-top:6px;">Upload a photo (JPG, PNG, max 5MB)</small>
+                    <div id="executive-current-photo" style="margin-top:12px; display:none;">
+                        <small style="color:#666;">Current photo:</small>
+                        <img id="executive-current-photo-img" src="" alt="Current photo"
+                            style="max-width:120px; max-height:120px; border-radius:8px; margin-top:8px;">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn secondary" onclick="closeExecutiveMemberModal()">Cancel</button>
+                <button class="btn primary" onclick="saveExecutiveMember()"><i class="fas fa-save"></i> Save
+                    Member</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- EXECUTIVE MEMBER IMAGE VIEW MODAL -->
+    <div id="executive-image-view-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="width: 680px; max-width: 96%; max-height: 92vh;">
+            <div class="modal-header">
+                <h3 id="executive-image-view-title">Profile Photo</h3>
+                <button class="modal-close" onclick="closeExecutiveImageViewModal()"><i
+                        class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body"
+                style="display:flex; justify-content:center; align-items:center; background:#f3f4f6; min-height:400px;">
+                <img id="executive-image-view-img" alt="Profile photo"
+                    style="max-width:100%; max-height:72vh; object-fit:contain; border-radius:8px;" />
+            </div>
+            <div class="modal-footer">
+                <button class="btn secondary" onclick="closeExecutiveImageViewModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- EXECUTIVE MEMBER DELETE MODAL -->
+    <div id="executive-delete-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="width: 520px; max-width: 92%;">
+            <div class="modal-header">
+                <h3>Delete Executive Member</h3>
+                <button class="modal-close" onclick="closeExecutiveDeleteModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <p style="margin:0; color:#555; line-height:1.6;">This will permanently delete the executive member
+                    record. This action cannot be undone.</p>
+                <p style="margin:12px 0 0; font-weight:600; color:#111;" id="executive-delete-name"></p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn secondary" onclick="closeExecutiveDeleteModal()">Cancel</button>
+                <button class="btn primary" id="executive-delete-confirm-btn" onclick="confirmExecutiveDelete()"
+                    style="background-color:#dc2626;">
+                    <i class="fas fa-trash"></i> Delete Member
+                </button>
             </div>
         </div>
     </div>

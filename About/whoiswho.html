@@ -13,6 +13,7 @@
         content="YUVA leadership, YUVA team, Who is Who YUVA, YUVA advisors, coordinators, unit heads, youth organization leaders, youth NGO leadership, YUVA India team, student leaders Delhi, youth leadership India" />
     <meta name="author" content="YUVA Organization" />
     <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+    <meta name="google-adsense-account" content="ca-pub-2428095333578047">
     <meta name="language" content="en" />
     <meta name="theme-color" content="#FF9933" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -159,9 +160,9 @@
             <div class="dropdown">
                 <a class="dropdown-btn">Our Initiatives ▾</a>
                 <div class="dropdown-content">
-                    <a href="/Our.Initiative/vimarsh2025.html">Vimarsh</a>
-                    <a href="/Our.Initiative/Bharatparv.html">Bharat Parv</a>
-                    <a href="/Our.Initiative/ritam.html">Ritam</a>
+                    <a href="/coming-soon.html">Vimarsh</a>
+                    <a href="/coming-soon.html">Bharat Parv</a>
+                    <a href="/coming-soon.html">Ritam</a>
                     <a href="/Our.Initiative/ims.html">Indraprasth Media Sambad</a>
                     <a href="/Our.Initiative/Samarpan.html">Samarpan</a>
                     <a href="/Our.Initiative/NatyaTarang.html">Natya Tarang</a>
@@ -232,12 +233,80 @@
         </div>
     </div>
 
-    <div class="main">
+    <main class="main">
+        <section class="who-hero">
+            <div class="hero-background">
+                <div class="hero-particles"></div>
+            </div>
+            <div class="who-hero-content">
+                <div class="hero-badge">
+                    <i class="fas fa-users"></i>
+                    <span>YUVA Leadership Network</span>
+                </div>
+                <h2 class="hero-title">
+                    <span class="hero-title-line">Who Is</span>
+                    <span class="hero-title-line hero-title-accent">Who</span>
+                </h2>
+                <p class="hero-description">
+                    Explore the people powering YUVA across zones, campuses, and units. Start from the national executive team and move through the full organization structure.
+                </p>
+                <div class="about-impact">
+                    <div class="about-impact-item">
+                        <div class="impact-icon">
+                            <i class="fas fa-sitemap"></i>
+                        </div>
+                        <div class="impact-content">
+                            <span class="about-impact-number">3 Levels</span>
+                            <span class="about-impact-label">Zone to Member View</span>
+                        </div>
+                    </div>
+                    <div class="about-impact-item">
+                        <div class="impact-icon">
+                            <i class="fas fa-university"></i>
+                        </div>
+                        <div class="impact-content">
+                            <span class="about-impact-number">Campus Network</span>
+                            <span class="about-impact-label">Organized by Colleges</span>
+                        </div>
+                    </div>
+                    <div class="about-impact-item">
+                        <div class="impact-icon">
+                            <i class="fas fa-id-badge"></i>
+                        </div>
+                        <div class="impact-content">
+                            <span class="about-impact-number">Member Profiles</span>
+                            <span class="about-impact-label">Role and Unit Details</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="hero-visual" aria-hidden="true">
+                <div class="floating-card card-1">
+                    <i class="fas fa-user-tie"></i>
+                    <span>Executive Team</span>
+                </div>
+                <div class="floating-card card-2">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span>Zones</span>
+                </div>
+                <div class="floating-card card-3">
+                    <i class="fas fa-university"></i>
+                    <span>Colleges</span>
+                </div>
+                <div class="floating-card card-4">
+                    <i class="fas fa-id-card"></i>
+                    <span>Members</span>
+                </div>
+            </div>
+        </section>
+
         <section class="executive-team-section">
             <div class="executive-team-container">
-                <h2 class="executive-team-title">YUVA Executive Team</h2>
-                <div id="executive-grid" class="executive-grid">
+                <div class="section-heading">
+                    <p class="section-kicker">National Core</p>
+                    <h2 class="executive-team-title">Executive Team</h2>
                 </div>
+                <div id="executive-grid" class="executive-grid"></div>
                 <div id="executive-loading" class="loading-indicator" style="display: none;">
                     <div class="spinner"></div>
                     <p>Loading Team...</p>
@@ -246,40 +315,45 @@
             </div>
         </section>
 
-        <section class="page-intro">
-            <h2>Explore Our Structure</h2>
-            <p>Meet the leadership and navigate through Zones, Colleges, and Members.</p>
+        <section class="explorer-section" aria-label="Hierarchy explorer">
+            <div class="explorer-shell">
+                <div class="explorer-header">
+                    <div>
+                        <p class="section-kicker">Structure Explorer</p>
+                        <h2>Find Members by Zone and College</h2>
+                    </div>
+                    <p class="explorer-note">Use the cards below to move deeper into the organization map.</p>
+                </div>
+
+                <nav class="navigation-bar">
+                    <button id="back-button" class="btn-back" style="display: none;">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </button>
+                    <div id="breadcrumbs" class="breadcrumbs"></div>
+                </nav>
+
+                <div class="level-container-wrapper">
+                    <div id="level-zones" class="level-container active">
+                        <h3 class="level-title">Select a Zone</h3>
+                        <div id="zones-grid" class="card-grid"></div>
+                    </div>
+                    <div id="level-colleges" class="level-container">
+                        <h3 class="level-title">Select a College</h3>
+                        <div id="colleges-grid" class="card-grid"></div>
+                    </div>
+                    <div id="level-members" class="level-container">
+                        <h3 class="level-title">Team Members</h3>
+                        <div id="members-grid" class="card-grid member-grid"></div>
+                    </div>
+                    <div id="loading-indicator" class="loading-indicator" style="display: none;">
+                        <div class="spinner"></div>
+                        <p>Loading...</p>
+                    </div>
+                    <div id="state-message" class="state-message" style="display: none;"></div>
+                </div>
+            </div>
         </section>
-
-        <nav class="navigation-bar">
-            <button id="back-button" class="btn-back" style="display: none;">
-                <i class="fas fa-arrow-left"></i> Back
-            </button>
-            <div id="breadcrumbs" class="breadcrumbs">
-            </div>
-        </nav>
-
-        <div class="level-container-wrapper">
-            <div id="level-zones" class="level-container active">
-                <h3 class="level-title">Select a Zone</h3>
-                <div id="zones-grid" class="card-grid"></div>
-            </div>
-            <div id="level-colleges" class="level-container">
-                <h3 class="level-title">Select a College</h3>
-                <div id="colleges-grid" class="card-grid"></div>
-            </div>
-            <div id="level-members" class="level-container">
-                <h3 class="level-title">Team Members</h3>
-                <div id="members-grid" class="card-grid member-grid"></div>
-            </div>
-            <div id="loading-indicator" class="loading-indicator" style="display: none;">
-                <div class="spinner"></div>
-                <p>Loading...</p>
-            </div>
-            <div id="state-message" class="state-message" style="display: none;"></div>
-        </div>
-
-    </div>
+    </main>
 
     <div class="modal-backdrop" id="member-modal-backdrop" style="display: none;">
         <div class="modal-content" id="member-modal-content"></div>

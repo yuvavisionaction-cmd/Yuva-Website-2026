@@ -2045,6 +2045,17 @@ class ZoneManager {
         // --- ADD THIS LINE ---
         document.getElementById('search-container').style.display = 'block';
 
+        // Scroll to search bar on mobile when zone is selected
+        const isMobile = window.matchMedia('(max-width: 768px)').matches;
+        if (isMobile) {
+            setTimeout(() => {
+                const searchContainer = document.getElementById('search-container');
+                if (searchContainer) {
+                    searchContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }, 100);
+        }
+
         await this.loadColleges(zone.id);
 
         // Load mentor messages if available (and if user is zone convener)
