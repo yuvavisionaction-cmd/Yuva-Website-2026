@@ -3774,13 +3774,13 @@ window.downloadCertificatePDF = async function (certId) {
         // Capture the inner cert div (not the offscreen wrapper)
         const certInner = certElement.querySelector('.cert-capture');
         const canvas = await window.html2canvas(certInner, {
-            scale: 1,
+            scale: 3,
             backgroundColor: '#f5f0e8',
             useCORS: true,
             logging: false,
             imageTimeout: 0
         });
-        const imgData = canvas.toDataURL('image/jpeg', 0.75);
+        const imgData = canvas.toDataURL('image/jpeg', 1.0);
         const JsPdfCtor = getJsPdfConstructor();
         const pdf = new JsPdfCtor({
             orientation: 'landscape',
@@ -3921,6 +3921,7 @@ function generateCertificateHTML(cert) {
                 justify-content: space-between;
                 padding: 20px 60px 16px;
                 box-sizing: border-box;
+                position: relative;
             ">
  
                 <!-- ── Header row: YUVA logo | title text | Vimarsh logo ── -->
@@ -4052,7 +4053,9 @@ function generateCertificateHTML(cert) {
             </div>
  
             <!-- ── Bottom red stripe ── -->
-            <div style="width:100%; height:20px; background:#c20f0f; flex-shrink:0;"></div>
+            <div style="width:100%; height:24px; background:#c20f0f; flex-shrink:0; display:flex; justify-content:flex-start; align-items:center; padding-left:30px; box-sizing:border-box;">
+                <span style="color:#ffffff; font-family:Arial,sans-serif; font-size:12px; font-weight:bold; letter-spacing:1px; margin-top:-2px;">Registration No.(YUVA): DL/2023/0362176</span>
+            </div>
         </div>
     `;
 

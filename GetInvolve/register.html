@@ -1529,11 +1529,28 @@
                                 <option value="super_admin">🌟 Super Admin</option>
                                 <option value="zone_convener">📍 Zone Convener</option>
                                 <option value="mentor">🎓 College Mentor</option>
+                                <option value="yuva_student_program">📚 YUVA Student Program</option>
                             </select>
                         </div>
                     </div>
 
-                    <!-- Zone Selector -->
+                    <!-- Program Type Selector (for YUVA Student Program role) -->
+                    <div class="form-group full-width" id="program-type-group" style="display: none;">
+                        <label for="register-program-type">
+                            Program Type <span class="required">*</span>
+                        </label>
+                        <div class="input-wrapper">
+                            <i class="fas fa-graduation-cap input-icon"></i>
+                            <select id="register-program-type">
+                                <option value="">Select program type</option>
+                                <option value="NCWEB">NCWEB</option>
+                                <option value="DUSOL">DUSOL</option>
+                                <option value="IGNOU">IGNOU</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Zone Selector (for Zone Convener role) -->
                     <div class="form-group full-width" id="zone-selector-group" style="display: none;">
                         <label for="register-zone">
                             Zone <span class="required">*</span>
@@ -1545,8 +1562,6 @@
                             </select>
                         </div>
                     </div>
-
-                    <!-- College Fields -->
                     <div class="college-fields" id="college-fields-group">
                         <div class="college-fields-header">
                             <i class="fas fa-university"></i>
@@ -1661,19 +1676,68 @@
         document.getElementById('register-role').addEventListener('change', function () {
             const role = this.value;
             const zoneGroup = document.getElementById('zone-selector-group');
+            const collegeTypeGroup = document.getElementById('college-type-group');
             const collegeGroup = document.getElementById('college-fields-group');
+            const collegeType = document.getElementById('register-college-type');
 
             if (role === 'mentor') {
-                zoneGroup.style.display = 'none';
-                collegeGroup.classList.add('show');
+                // Mentor: Show college-type selector
+                if (collegeTypeGroup) collegeTypeGroup.style.display = 'block';
+                if (collegeType) collegeType.required = true;
+                // Zone visibility depends on college type
+                updateMentorCollegeFieldsVisibility();
             } else if (role === 'zone_convener') {
+                // Zone convener: Show zone, hide college fields
                 zoneGroup.style.display = 'block';
+                if (collegeTypeGroup) collegeTypeGroup.style.display = 'none';
                 collegeGroup.classList.remove('show');
+                if (collegeType) {
+                    collegeType.required = false;
+                    collegeType.value = '';
+                }
             } else {
+                // Super admin: Hide both
                 zoneGroup.style.display = 'none';
+                if (collegeTypeGroup) collegeTypeGroup.style.display = 'none';
                 collegeGroup.classList.remove('show');
+                if (collegeType) {
+                    collegeType.required = false;
+                    collegeType.value = '';
+                }
             }
         });
+
+        // College Type change handler
+        const collegeTypeSelect = document.getElementById('register-college-type');
+        if (collegeTypeSelect) {
+            collegeTypeSelect.addEventListener('change', updateMentorCollegeFieldsVisibility);
+        }
+
+        function updateMentorCollegeFieldsVisibility() {
+            const role = document.getElementById('register-role').value;
+            const collegeType = document.getElementById('register-college-type').value;
+            const zoneGroup = document.getElementById('zone-selector-group');
+            const collegeGroup = document.getElementById('college-fields-group');
+            const zoneSelect = document.getElementById('register-zone');
+
+            if (role === 'mentor') {
+                if (collegeType === 'Regular') {
+                    // Regular: Show zone (auto-filled) and college fields
+                    zoneGroup.style.display = 'block';
+                    if (zoneSelect) zoneSelect.required = true;
+                    collegeGroup.classList.add('show');
+                } else if (['NCWEB', 'DUSOL', 'IGNOU'].includes(collegeType)) {
+                    // Program-based: Hide zone and college fields
+                    zoneGroup.style.display = 'none';
+                    if (zoneSelect) zoneSelect.required = false;
+                    collegeGroup.classList.remove('show');
+                } else {
+                    // No type selected yet
+                    zoneGroup.style.display = 'none';
+                    collegeGroup.classList.remove('show');
+                }
+            }
+        }
 
         // College Code Autocomplete with Type-ahead
         (function() {

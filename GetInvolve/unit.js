@@ -3179,7 +3179,7 @@ async function loadCollegeMembers(collegeId, contextNames = {}) {
         }
         let { data, error } = await supabaseClient
             .from('registrations')
-            .select('id, applicant_name, created_at, applying_for, college_id, email, phone, unit_name, academic_session, status, date_of_birth')
+            .select('id, applicant_name, created_at, applying_for, college_id, email, phone, unit_name, academic_session, student_year, status, date_of_birth')
             .eq('college_id', collegeId);
         if (error) {
             flashNotification.showError('Load failed', error.message || 'Unable to fetch members');
@@ -3199,6 +3199,7 @@ async function loadCollegeMembers(collegeId, contextNames = {}) {
             phone: r.phone || '',
             unit_name: r.unit_name || '',
             academic_session: r.academic_session || '',
+            student_year: r.student_year || '',
             date_of_birth: r.date_of_birth || '',
             status: r.status || 'pending',
             avatar_url: null
@@ -3245,7 +3246,7 @@ async function loadCollegeMembers(collegeId, contextNames = {}) {
             const currentUserRole = (authManager.currentUser && authManager.currentUser.role) || 'viewer';
             const canApprove = currentUserRole === 'super_admin' || currentUserRole === 'zone_convener';
 
-            card.innerHTML = `<div class="cd-member-avatar${hasPhoto ? '' : ' placeholder'}">${avatar}</div><div class="cd-member-info"><h4>${dispName}</h4><p>${m.email || '—'}<br>${m.post || 'member'}${m.unit_name ? ' · <span class="cd-unit">' + m.unit_name + '</span>' : ''}${m.academic_session ? '<br><span class="cd-session"><i class="fas fa-calendar-alt"></i> ' + m.academic_session + '</span>' : ''}</p></div><div class="cd-member-actions"><button class=\"cd-action-btn cd-edit\" title=\"Edit\"><i class=\"fas fa-edit\"></i></button><button class=\"cd-action-btn cd-delete\" title=\"Delete\"><i class=\"fas fa-trash\"></i></button><button class=\"cd-action-btn cd-certificate\" title=\"Certificate\"><i class=\"fas fa-certificate\"></i></button>${canApprove ? '<button class=\"cd-action-btn cd-approve\" title=\"Approve\"><i class=\"fas fa-check\"></i></button><button class=\"cd-action-btn cd-reject\" title=\"Reject\"><i class=\"fas fa-times\"></i></button>' : ''}</div>`;
+            card.innerHTML = `<div class="cd-member-avatar${hasPhoto ? '' : ' placeholder'}">${avatar}</div><div class="cd-member-info"><h4>${dispName}</h4><p>${m.email || '—'}<br>${m.post || 'member'}${m.unit_name ? ' · <span class="cd-unit">' + m.unit_name + '</span>' : ''}${m.academic_session ? '<br><span class="cd-session"><i class="fas fa-calendar-alt"></i> ' + m.academic_session + '</span>' : ''}${m.student_year ? ' · <span class="cd-year">Year ' + m.student_year + '</span>' : ''}</p></div><div class="cd-member-actions"><button class=\"cd-action-btn cd-edit\" title=\"Edit\"><i class=\"fas fa-edit\"></i></button><button class=\"cd-action-btn cd-delete\" title=\"Delete\"><i class=\"fas fa-trash\"></i></button><button class=\"cd-action-btn cd-certificate\" title=\"Certificate\"><i class=\"fas fa-certificate\"></i></button>${canApprove ? '<button class=\"cd-action-btn cd-approve\" title=\"Approve\"><i class=\"fas fa-check\"></i></button><button class=\"cd-action-btn cd-reject\" title=\"Reject\"><i class=\"fas fa-times\"></i></button>' : ''}</div>`;
 
             if (idx < featured.length) {
                 leadsWrap.appendChild(card);
@@ -3264,6 +3265,7 @@ async function loadCollegeMembers(collegeId, contextNames = {}) {
                     applying_for: m.post || 'member',
                     unit_name: m.unit_name || '',
                     academic_session: m.academic_session || '',
+                    student_year: m.student_year || '',
                     status: m.status || 'pending',
                     college_id: collegeId,
                     college_name: contextNames.collegeName || '',
@@ -3573,6 +3575,7 @@ function openTenureCertificatePrintWindow(member, cert, contextNames = {}) {
         </div>
 
         <div class="cid">Verified by YUVA Tenure Certificate System</div>
+        <div style="margin-top:20px; text-align:left; font-size:13px; font-weight:bold; color:#333; font-family:Arial,sans-serif; letter-spacing:0.5px;">Registration No.(YUVA): DL/2023/0362176</div>
         </div>
     </div>
     <div class="print-wrap">
@@ -4287,6 +4290,9 @@ function openMemberModal(prefill) {
     // Pre-fill academic session (for edit mode)
     const sessionEl = document.getElementById('member-academic-session');
     if (sessionEl) sessionEl.value = prefill.academic_session || '';
+    // Pre-fill year (for edit mode)
+    const yearEl = document.getElementById('member-year');
+    if (yearEl) yearEl.value = prefill.student_year || '';
     // Setup unit helpers (datalist + required toggle based on role)
     try { setupMemberUnitHelpers(); } catch (_) { }
 
@@ -4486,7 +4492,8 @@ document.getElementById('member-form')?.addEventListener('submit', async (e) => 
         unit_name: document.getElementById('member-unit').value.trim(),
         college_id: parseInt(document.getElementById('member-college-id').value, 10) || null,
         zone_id: parseInt(document.getElementById('member-zone-id').value, 10) || null,
-        academic_session: document.getElementById('member-academic-session')?.value.trim() || null
+        academic_session: document.getElementById('member-academic-session')?.value.trim() || null,
+        student_year: document.getElementById('member-year')?.value.trim() || null
     };
 
     // === VALIDATION ===
@@ -4540,6 +4547,13 @@ document.getElementById('member-form')?.addEventListener('submit', async (e) => 
     if (!payload.academic_session) {
         flashNotification.showError('Validation Error', 'Please select an Academic Session');
         document.getElementById('member-academic-session')?.focus();
+        return;
+    }
+
+    // 4b. Validate Year (required for all roles)
+    if (!payload.student_year) {
+        flashNotification.showError('Validation Error', 'Please select a Year');
+        document.getElementById('member-year')?.focus();
         return;
     }
 
@@ -4632,7 +4646,8 @@ document.getElementById('member-form')?.addEventListener('submit', async (e) => 
                 p_applying_for: payload.applying_for,
                 p_unit_name: payload.unit_name,
                 p_academic_session: payload.academic_session || null,
-                p_status: null // Pass null to prevent status update from this modal
+                p_status: null, // Pass null to prevent status update from this modal
+                p_student_year: payload.student_year || null
             });
             if (error) throw new Error(error.message || 'Update failed');
         } else {
@@ -4647,7 +4662,8 @@ document.getElementById('member-form')?.addEventListener('submit', async (e) => 
                 p_applying_for: payload.applying_for,
                 p_unit_name: payload.unit_name,
                 p_academic_session: payload.academic_session || null,
-                p_status: 'pending' // Always create as pending
+                p_status: 'pending', // Always create as pending
+                p_student_year: payload.student_year || null
             });
             if (error) throw new Error(error.message || 'Create failed');
         }
