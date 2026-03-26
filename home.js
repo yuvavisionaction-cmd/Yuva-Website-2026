@@ -1254,7 +1254,7 @@ class LiveCounterSystem {
         this.UPDATE_INTERVAL = config.updateInterval || 5000;
         this.VISITOR_WINDOW = config.visitorWindow || 86400000;
         this.REQUEST_TIMEOUT = config.timeout || 15000;
-        
+
         this.refreshCount = 0;
         this.uniqueCount = 0;
         this.visitorId = this.generateVisitorId();
@@ -1272,7 +1272,7 @@ class LiveCounterSystem {
         };
 
         this.sessionToken = this.generateSessionToken();
-        
+
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => this.init());
         } else {
@@ -1282,7 +1282,7 @@ class LiveCounterSystem {
 
     async init() {
         if (this.isInitialized) return;
-        
+
         try {
             // Show loading spinner
             this.showLoading();
@@ -1319,7 +1319,7 @@ class LiveCounterSystem {
             };
 
             const response = await this.makeGASRequest(payload);
-            
+
             if (response.success) {
                 console.log('✅ Page refresh recorded');
                 // Optimistic UI update so users see instant increment on reload.
@@ -1365,7 +1365,7 @@ class LiveCounterSystem {
             };
 
             const response = await this.makeGASRequest(payload);
-            
+
             if (response.success) {
                 console.log('✅ Unique visitor recorded');
                 // Optimistic UI update for unique count, final value will sync on next fetch.
@@ -1383,9 +1383,9 @@ class LiveCounterSystem {
 
     async updateCounters() {
         if (this.updateInProgress) return;
-        
+
         this.updateInProgress = true;
-        
+
         try {
             const payload = {
                 action: 'getCounters',
@@ -1394,7 +1394,7 @@ class LiveCounterSystem {
             };
 
             const response = await this.makeGASRequest(payload);
-            
+
             if (response.success && response.data) {
                 this.updateCounterDisplay(response.data.refreshCount, response.data.uniqueCount);
                 this.updateStatusIndicator(true);
@@ -1442,10 +1442,10 @@ class LiveCounterSystem {
         const animate = () => {
             const now = Date.now();
             const progress = Math.min((now - startTime) / duration, 1);
-            
+
             const easeOutQuad = 1 - (1 - progress) * (1 - progress);
             const currentValue = Math.floor(start + (difference * easeOutQuad));
-            
+
             element.textContent = this.formatNumber(currentValue);
 
             if (progress < 1) {
@@ -1532,12 +1532,12 @@ class LiveCounterSystem {
 
     generateVisitorId() {
         let visitorId = localStorage.getItem('yuva_visitor_id');
-        
+
         if (!visitorId) {
             visitorId = 'visitor_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
             localStorage.setItem('yuva_visitor_id', visitorId);
         }
-        
+
         return visitorId;
     }
 

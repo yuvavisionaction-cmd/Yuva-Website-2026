@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vimarsh Certificate Finder | YUVA India</title>
+    <meta name="description" content="Find and download your Vimarsh participation certificate using registration ID or email.">
+    <link rel="shortcut icon" href="/Images/Vimarsh2025_logo.jpg" type="image/x-icon">
+    <style>
+        :root {
+            --brand-red: #8b0000;
+            --brand-gold: #d4850a;
+            --text: #111827;
+            --muted: #6b7280;
+            --bg: #f8f4ec;
+            --card: #ffffff;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            color: var(--text);
+            background: radial-gradient(circle at 10% 10%, #fff8e8 0%, #f8f4ec 40%, #efe7dc 100%);
+            min-height: 100vh;
+        }
+
+        .page-wrap {
+            width: min(980px, 92vw);
+            margin: 40px auto;
+        }
+
+        .top-card {
+            background: var(--card);
+            border: 1px solid #eadfce;
+            border-radius: 16px;
+            box-shadow: 0 14px 35px rgba(78, 44, 12, 0.08);
+            overflow: hidden;
+        }
+
+        .top-strip {
+            height: 10px;
+            background: linear-gradient(90deg, var(--brand-red) 0%, #c20f0f 100%);
+        }
+
+        .top-content {
+            padding: 24px;
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            font-size: clamp(26px, 3vw, 36px);
+            line-height: 1.2;
+            color: #1f2937;
+        }
+
+        .sub {
+            margin: 0;
+            color: var(--muted);
+            font-size: 15px;
+        }
+
+        .form-grid {
+            margin-top: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px;
+        }
+
+        label {
+            display: block;
+            font-size: 13px;
+            margin-bottom: 6px;
+            color: #374151;
+            font-weight: 700;
+        }
+
+        input {
+            width: 100%;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            padding: 11px 12px;
+            font-size: 15px;
+        }
+
+        .actions {
+            margin-top: 14px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            border: 0;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 700;
+            padding: 11px 16px;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background: var(--brand-red);
+            color: #fff;
+        }
+
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #111827;
+            border: 1px solid #e5e7eb;
+        }
+
+        .hint {
+            margin-top: 10px;
+            color: #6b7280;
+            font-size: 13px;
+        }
+
+        .results {
+            margin-top: 18px;
+            display: grid;
+            gap: 12px;
+        }
+
+        .result-card {
+            background: #fff;
+            border: 1px solid #eadfce;
+            border-radius: 12px;
+            padding: 14px;
+            display: grid;
+            gap: 8px;
+        }
+
+        .row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: baseline;
+        }
+
+        .k {
+            color: #6b7280;
+            font-size: 13px;
+            min-width: 115px;
+        }
+
+        .v {
+            color: #111827;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .status {
+            color: #0a7a33;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .msg {
+            margin-top: 16px;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .msg.info {
+            display: block;
+            background: #eff6ff;
+            color: #1e40af;
+            border: 1px solid #bfdbfe;
+        }
+
+        .msg.error {
+            display: block;
+            background: #fef2f2;
+            color: #b91c1c;
+            border: 1px solid #fecaca;
+        }
+
+        .msg.success {
+            display: block;
+            background: #f0fdf4;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+    </style>
+</head>
+
+<body>
+    <main class="page-wrap">
+        <section class="top-card">
+            <div class="top-strip"></div>
+            <div class="top-content">
+                <h1>Vimarsh Certificate Finder</h1>
+                <p class="sub">Search by Registration ID or Email and download your certificate PDF.</p>
+
+                <div class="form-grid">
+                    <div>
+                        <label for="registrationInput">Registration ID or Certificate ID</label>
+                        <input id="registrationInput" type="text" placeholder="VIM2026-... or VM-2026-...">
+                    </div>
+                    <div>
+                        <label for="emailInput">Email</label>
+                        <input id="emailInput" type="email" placeholder="your@email.com">
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button class="btn-primary" id="searchBtn" onclick="findCertificates()">Find Certificate</button>
+                    <button class="btn-secondary" onclick="resetFinder()">Reset</button>
+                </div>
+
+                <p class="hint">Enter at least one field. If both are provided, both conditions are checked.</p>
+
+                <div id="messageBox" class="msg"></div>
+                <div id="results" class="results"></div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const CONFIG = {
+            SUPABASE_URL: 'https://jgsrsjwmywiirtibofth.supabase.co',
+            SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impnc3JzandteXdpaXJ0aWJvZnRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwNzY2NDgsImV4cCI6MjA3NDY1MjY0OH0.qN_GZIIOm6J1-qSY7r-HX8RLMoH7udc_0Jn7izqk8J8',
+            CERT_TABLE: 'vim_cert_vimarsh_certificates',
+            EVENT_YEAR: 2026,
+            DIRECTOR_NAME: 'Dr. Kavindra Taliyan',
+            COORDINATOR_NAME: 'Dr. Meenu Rani',
+            YUVA_LOGO_SRC: '/Images/YUVA logo.png',
+            VIMARSH_LOGO_SRC: '/Images/Vimarsh2025_logo.jpg'
+        };
+
+        const messageBox = document.getElementById('messageBox');
+        const resultsNode = document.getElementById('results');
+        let latestSearchResults = [];
+
+        function showMessage(type, text) {
+            messageBox.className = `msg ${type}`;
+            messageBox.textContent = text;
+        }
+
+        function clearMessage() {
+            messageBox.className = 'msg';
+            messageBox.textContent = '';
+        }
+
+        function escapeHtml(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function normalizeEmail(v) {
+            return String(v || '').trim().toLowerCase();
+        }
+
+        function getApiHeaders() {
+            return {
+                'apikey': CONFIG.SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}`
+            };
+        }
+
+        async function queryByField(field, value) {
+            const operator = field === 'email' ? 'ilike' : 'eq';
+            const filterValue = field === 'email' ? `*${value}*` : value;
+            const endpoint = `${CONFIG.SUPABASE_URL}/rest/v1/${CONFIG.CERT_TABLE}` +
+                `?select=id,certificate_id,registration_id,first_name,last_name,email,college_name,year,status,issued_date` +
+                `&${field}=${operator}.${encodeURIComponent(filterValue)}` +
+                `&order=issued_date.desc` +
+                `&limit=20`;
+
+            const response = await fetch(endpoint, { headers: getApiHeaders() });
+            const text = await response.text();
+            let data = [];
+            try {
+                data = text ? JSON.parse(text) : [];
+            } catch (_) {
+                data = [];
+            }
+
+            if (!response.ok) {
+                throw new Error(data.message || `Search failed (${response.status})`);
+            }
+
+            return Array.isArray(data) ? data : [];
+        }
+
+        function dedupeCertificates(rows) {
+            const seen = new Set();
+            return (rows || []).filter(row => {
+                const key = String(row.id || row.certificate_id || '');
+                if (!key || seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            });
+        }
+
+        function renderResults() {
+            if (latestSearchResults.length === 0) {
+                resultsNode.innerHTML = '';
+                return;
+            }
+
+            resultsNode.innerHTML = latestSearchResults.map((cert, index) => {
+                const participant = `${cert.first_name || ''} ${cert.last_name || ''}`.trim() || '-';
+                const issuedDate = cert.issued_date ? new Date(cert.issued_date).toLocaleDateString() : '-';
+                return `
+                    <article class="result-card">
+                        <div class="row"><span class="k">Participant</span><span class="v">${escapeHtml(participant)}</span></div>
+                        <div class="row"><span class="k">Certificate ID</span><span class="v">${escapeHtml(cert.certificate_id || '-')}</span></div>
+                        <div class="row"><span class="k">Registration ID</span><span class="v">${escapeHtml(cert.registration_id || '-')}</span></div>
+                        <div class="row"><span class="k">Email</span><span class="v">${escapeHtml(cert.email || '-')}</span></div>
+                        <div class="row"><span class="k">College</span><span class="v">${escapeHtml(cert.college_name || '-')}</span></div>
+                        <div class="row"><span class="k">Issued Date</span><span class="v">${escapeHtml(issuedDate)}</span></div>
+                        <div class="row"><span class="k">Status</span><span class="status">Digitally Generated Certificate</span></div>
+                        <div class="actions" style="margin-top:2px;">
+                            <button class="btn-primary" onclick="downloadCertificateByIndex(${index})">Download PDF</button>
+                        </div>
+                    </article>
+                `;
+            }).join('');
+        }
+
+        async function findCertificates() {
+            clearMessage();
+            resultsNode.innerHTML = '';
+
+            const searchBtn = document.getElementById('searchBtn');
+            const regOrCert = String(document.getElementById('registrationInput').value || '').trim();
+            const email = normalizeEmail(document.getElementById('emailInput').value);
+
+            if (!regOrCert && !email) {
+                showMessage('error', 'Please enter Registration ID/Certificate ID or Email.');
+                return;
+            }
+
+            searchBtn.disabled = true;
+            searchBtn.textContent = 'Searching...';
+
+            try {
+                let records = [];
+
+                if (regOrCert) {
+                    const [byReg, byCert] = await Promise.all([
+                        queryByField('registration_id', regOrCert),
+                        queryByField('certificate_id', regOrCert)
+                    ]);
+                    records = records.concat(byReg, byCert);
+                }
+
+                if (email) {
+                    const byEmail = await queryByField('email', email);
+                    records = records.concat(byEmail);
+                }
+
+                const allMatchedCertificates = dedupeCertificates(records);
+                const revokedCertificates = allMatchedCertificates.filter(c => String(c.status || '').toLowerCase() === 'revoked');
+                latestSearchResults = allMatchedCertificates.filter(c => String(c.status || '').toLowerCase() === 'issued');
+
+                if (latestSearchResults.length === 0) {
+                    if (revokedCertificates.length > 0) {
+                        showMessage('error', 'Certificate is revoked for the provided details. Download is disabled. Please contact Vimarsh helpdesk.');
+                        return;
+                    }
+
+                    showMessage('error', 'No issued certificate found with the provided details.');
+                    return;
+                }
+
+                if (revokedCertificates.length > 0) {
+                    showMessage('info', `Found ${latestSearchResults.length} issued certificate(s). ${revokedCertificates.length} revoked record(s) are blocked from download.`);
+                } else {
+                    showMessage('success', `Found ${latestSearchResults.length} certificate(s).`);
+                }
+                renderResults();
+            } catch (error) {
+                console.error('Certificate search failed:', error);
+                showMessage('error', 'Could not fetch certificate data. Please try again later.');
+            } finally {
+                searchBtn.disabled = false;
+                searchBtn.textContent = 'Find Certificate';
+            }
+        }
+
+        function resetFinder() {
+            document.getElementById('registrationInput').value = '';
+            document.getElementById('emailInput').value = '';
+            latestSearchResults = [];
+            clearMessage();
+            resultsNode.innerHTML = '';
+        }
+
+        function getJsPdfConstructor() {
+            return (window.jspdf && window.jspdf.jsPDF) || window.jsPDF || null;
+        }
+
+        async function loadExternalScript(url) {
+            return new Promise((resolve, reject) => {
+                const existing = document.querySelector(`script[src="${url}"]`);
+                if (existing) {
+                    if (existing.dataset.loaded === 'true') return resolve();
+                    existing.addEventListener('load', () => resolve(), { once: true });
+                    existing.addEventListener('error', () => reject(new Error('Script load failed')), { once: true });
+                    return;
+                }
+
+                const script = document.createElement('script');
+                script.src = url;
+                script.async = true;
+                script.onload = () => {
+                    script.dataset.loaded = 'true';
+                    resolve();
+                };
+                script.onerror = () => reject(new Error('Script load failed'));
+                document.head.appendChild(script);
+            });
+        }
+
+        async function ensurePdfLibraries() {
+            if (window.html2canvas && getJsPdfConstructor()) return true;
+
+            const html2canvasSources = [
+                'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
+                'https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js'
+            ];
+
+            const jsPdfSources = [
+                'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',
+                'https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js'
+            ];
+
+            if (!window.html2canvas) {
+                for (const src of html2canvasSources) {
+                    try {
+                        await loadExternalScript(src);
+                        if (window.html2canvas) break;
+                    } catch (_) { }
+                }
+            }
+
+            if (!getJsPdfConstructor()) {
+                for (const src of jsPdfSources) {
+                    try {
+                        await loadExternalScript(src);
+                        if (getJsPdfConstructor()) break;
+                    } catch (_) { }
+                }
+            }
+
+            return Boolean(window.html2canvas && getJsPdfConstructor());
+        }
+
+        function generateCertificateHTML(cert) {
+            const wrapper = document.createElement('div');
+            wrapper.style.cssText = 'position:fixed; left:-99999px; top:0; z-index:-1;';
+
+            const participantName = `${cert.first_name || ''} ${cert.last_name || ''}`.trim();
+            const certYear = cert.year || CONFIG.EVENT_YEAR;
+            const refId = cert.registration_id || cert.certificate_id;
+
+            wrapper.innerHTML = `
+                <div class="cert-capture" style="
+                    width: 1122px;
+                    height: 794px;
+                    box-sizing: border-box;
+                    background: #f5f0e8;
+                    border-radius: 16px;
+                    border: 7px solid #d4850a;
+                    position: relative;
+                    font-family: Georgia, 'Times New Roman', serif;
+                    color: #111;
+                    overflow: hidden;
+                    display: flex;
+                    flex-direction: column;
+                ">
+                    <div style="width:100%; height:20px; background:#c20f0f; flex-shrink:0;"></div>
+
+                    <div style="
+                        flex: 1;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: space-between;
+                        padding: 20px 60px 16px;
+                        box-sizing: border-box;
+                    ">
+                        <div style="display:flex; align-items:center; justify-content:space-between; width:100%;">
+                            <img src="${CONFIG.YUVA_LOGO_SRC}" alt="YUVA Logo"
+                                style="height:120px; width:120px; object-fit:contain; flex-shrink:0; border-radius:50%; background:#fff; padding:8px; border:2px solid #d4850a;">
+                            <div style="flex:1; text-align:center; padding:0 16px;">
+                                <div style="font-size:30px; font-weight:400; line-height:1.35; font-family:Georgia,serif; color:#111;">Youth United for Vision and Action</div>
+                                <div style="font-size:28px; font-weight:400; line-height:1.35; font-family:Georgia,serif; color:#111;">(YUVA)</div>
+                            </div>
+                            <img src="${CONFIG.VIMARSH_LOGO_SRC}" alt="Vimarsh Logo"
+                                style="height:120px; width:120px; object-fit:contain; flex-shrink:0; border-radius:50%; background:#fff; padding:8px; border:2px solid #d4850a;">
+                        </div>
+
+                        <div style="font-size:44px; font-weight:900; font-family:Georgia,serif; color:#111; text-align:center; letter-spacing:0.4px; line-height:1.1;">Certificate for Participation</div>
+                        <div style="font-size:58px; font-weight:900; font-family:Arial,sans-serif; color:#111; text-align:center; line-height:1.1;">${participantName}</div>
+                        <div style="font-size:28px; font-weight:400; font-family:Arial,sans-serif; color:#555; text-align:center; line-height:1.2;">${cert.college_name || '-'}</div>
+
+                        <div style="font-family:Arial,sans-serif; font-size:18px; line-height:1.7; text-align:center; color:#222; max-width:800px;">
+                            This Certificate is awarded for Participating at VIMARSH ${certYear},<br>
+                            the three-day annual conclave of Youth United for Vision &amp; Action (YUVA).<br>
+                            We appreciate your commitment and dedication towards the conclave.
+                        </div>
+
+                        <div style="display:flex; justify-content:space-between; align-items:flex-end; width:90%;">
+                            <div style="text-align:left; font-family:Arial,sans-serif;">
+                                <div style="font-size:18px; color:#444; margin-bottom:3px; letter-spacing:3px;">_______________</div>
+                                <div style="font-size:21px; font-weight:700; color:#111;">${CONFIG.DIRECTOR_NAME}</div>
+                                <div style="font-size:17px; color:#555;">Convener, YUVA</div>
+                                <div style="font-size:13px; color:#0a7a33; font-weight:700; margin-top:4px;">Digitally Signed</div>
+                            </div>
+
+                            <div style="font-family:Arial,sans-serif; font-size:15px; font-weight:700; color:#c20f0f; text-align:center; letter-spacing:0.5px; padding-bottom:2px;">${refId}</div>
+
+                            <div style="text-align:right; font-family:Arial,sans-serif;">
+                                <div style="font-size:18px; color:#444; margin-bottom:3px; letter-spacing:3px;">_______________</div>
+                                <div style="font-size:21px; font-weight:700; color:#111;">${CONFIG.COORDINATOR_NAME}</div>
+                                <div style="font-size:17px; color:#555;">Convener, Vimarsh ${certYear}</div>
+                                <div style="font-size:13px; color:#0a7a33; font-weight:700; margin-top:4px;">Digitally Signed</div>
+                            </div>
+                        </div>
+
+                        <div style="font-family:Arial,sans-serif; font-size:13px; color:#444; text-align:center; margin-top:6px; letter-spacing:0.2px;">
+                            This is a digitally generated certificate and does not require physical signatures.
+                        </div>
+                    </div>
+
+                    <div style="width:100%; height:20px; background:#c20f0f; flex-shrink:0;"></div>
+                </div>
+            `;
+
+            document.body.appendChild(wrapper);
+            return wrapper;
+        }
+
+        async function downloadCertificateByIndex(index) {
+            const cert = latestSearchResults[index];
+            if (!cert) return;
+
+            if (String(cert.status || '').toLowerCase() !== 'issued') {
+                showMessage('error', 'This certificate is not eligible for download.');
+                return;
+            }
+
+            try {
+                showMessage('info', 'Preparing your PDF...');
+
+                const libsReady = await ensurePdfLibraries();
+                if (!libsReady) {
+                    showMessage('error', 'Could not load PDF libraries. Please allow CDN scripts and retry.');
+                    return;
+                }
+
+                const certElement = generateCertificateHTML(cert);
+                await new Promise(resolve => setTimeout(resolve, 300));
+
+                const certInner = certElement.querySelector('.cert-capture');
+                const canvas = await window.html2canvas(certInner, {
+                    scale: 1,
+                    backgroundColor: '#f5f0e8',
+                    useCORS: true,
+                    logging: false,
+                    imageTimeout: 0
+                });
+
+                const imgData = canvas.toDataURL('image/jpeg', 0.75);
+                const JsPdfCtor = getJsPdfConstructor();
+                const pdf = new JsPdfCtor({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+                const margin = 6;
+                const maxWidth = pageWidth - (margin * 2);
+                const maxHeight = pageHeight - (margin * 2);
+
+                const scaleFit = Math.min(maxWidth / canvas.width, maxHeight / canvas.height);
+                const imgWidth = canvas.width * scaleFit;
+                const imgHeight = canvas.height * scaleFit;
+                const x = (pageWidth - imgWidth) / 2;
+                const y = (pageHeight - imgHeight) / 2;
+
+                pdf.addImage(imgData, 'JPEG', x, y, imgWidth, imgHeight);
+                pdf.save(`${cert.certificate_id || 'vimarsh-certificate'}.pdf`);
+
+                // Mark certificate as downloaded by user in database
+                await markCertificateAsDownloaded(cert.id);
+
+                showMessage('success', 'Certificate downloaded successfully.');
+
+                if (certElement && certElement.parentNode) {
+                    certElement.parentNode.removeChild(certElement);
+                }
+            } catch (error) {
+                console.error('Download failed:', error);
+                showMessage('error', 'Could not generate certificate PDF. Please retry.');
+            }
+        }
+
+        async function markCertificateAsDownloaded(certId) {
+            try {
+                // Get current download count
+                const getUrl = `${CONFIG.SUPABASE_URL}/rest/v1/${CONFIG.CERT_TABLE}?id=eq.${certId}&select=download_count`;
+                
+                const getResponse = await fetch(getUrl, {
+                    method: 'GET',
+                    headers: {
+                        'apikey': CONFIG.SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const currentRecords = await getResponse.json();
+                const currentCount = (currentRecords[0]?.download_count || 0);
+                const newCount = currentCount + 1;
+
+                // Update with new count
+                const updateUrl = `${CONFIG.SUPABASE_URL}/rest/v1/${CONFIG.CERT_TABLE}?id=eq.${certId}`;
+                
+                const updateResponse = await fetch(updateUrl, {
+                    method: 'PATCH',
+                    headers: {
+                        'apikey': CONFIG.SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        downloaded: true,
+                        download_count: newCount,
+                        last_download_at: new Date().toISOString()
+                    })
+                });
+
+                if (!updateResponse.ok) {
+                    console.error('Error marking certificate as downloaded:', updateResponse.statusText);
+                }
+            } catch (err) {
+                console.error('Failed to update download status:', err);
+            }
+        }
+
+        (function autoSearchFromQuery() {
+            const params = new URLSearchParams(window.location.search);
+            const email = params.get('email') || '';
+            const regId = params.get('regId') || params.get('registrationId') || params.get('certId') || '';
+
+            if (email) document.getElementById('emailInput').value = email;
+            if (regId) document.getElementById('registrationInput').value = regId;
+
+            if (email || regId) {
+                findCertificates();
+            }
+        })();
+    </script>
+</body>
+
+</html>

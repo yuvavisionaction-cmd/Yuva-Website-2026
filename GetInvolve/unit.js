@@ -5,6 +5,7 @@ const SUPABASE_URL = 'https://jgsrsjwmywiirtibofth.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_5KtvO0cEHfnECBoyp2CQnw_RC3_x2me';
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz2uhTDSe7aaFZOkEoeXnM3DADG1ANjGob1sgx9U_ZKRehOvM8-OXHQhkkoYjK_PWTY/exec';
+const TENURE_CERT_TABLE = 'yuva_tenure_certificates';
 
 // ===== FLASH NOTIFICATION SYSTEM =====
 class FlashNotification {
@@ -3192,6 +3193,8 @@ async function loadCollegeMembers(collegeId, contextNames = {}) {
             full_name: r.applicant_name,
             course: r.created_at ? new Date(r.created_at).toLocaleDateString() : '—',
             post: r.applying_for,
+            college_id: r.college_id || null,
+            college_name: contextNames.collegeName || '',
             email: r.email || '',
             phone: r.phone || '',
             unit_name: r.unit_name || '',
@@ -3281,8 +3284,7 @@ async function loadCollegeMembers(collegeId, contextNames = {}) {
             });
 
             card.querySelector('.cd-certificate')?.addEventListener('click', () => {
-                // Certificate generation — functionality to be added
-                flashNotification.showInfo('Coming Soon', `Certificate feature for ${dispName} will be available soon.`);
+                openTenureCertificateForMember(m, contextNames);
             });
 
             // Attach listeners if the user has permission
@@ -3299,6 +3301,295 @@ async function loadCollegeMembers(collegeId, contextNames = {}) {
     } catch (e) {
         flashNotification.showError('Error', 'Failed to load members');
     }
+}
+
+async function openTenureCertificateForMember(member, contextNames = {}) {
+        try {
+        const registrationStatus = String(member.status || '').toLowerCase();
+        if (registrationStatus !== 'approved') {
+            flashNotification.showWarning('Not Available', 'Certificate is unavailable because this member is not approved.');
+            return;
+        }
+
+                const { data: cert, error } = await supabaseClient
+                        .from(TENURE_CERT_TABLE)
+                        .select('status, certificate_id, issued_at, tenure_completed_at')
+                        .eq('registration_id', member.id)
+                        .maybeSingle();
+
+                if (error) {
+                        const msg = String(error.message || '').toLowerCase();
+                        if (msg.includes('does not exist') || msg.includes('relation')) {
+                                flashNotification.showWarning('Setup Required', 'Tenure certificate table is not configured yet.');
+                                return;
+                        }
+                        throw error;
+                }
+
+                if (!cert || cert.status !== 'issued') {
+                        if (cert && cert.status === 'completed') {
+                                flashNotification.showInfo('Not Issued Yet', 'Tenure is completed, but certificate has not been issued from Advanced Admin yet.');
+                                return;
+                        }
+
+                        flashNotification.showWarning('Not Available', 'Certificate will be available after tenure completion.');
+                        return;
+                }
+
+                    let resolvedCollegeName = contextNames.collegeName || member.college_name || '';
+                    if (!resolvedCollegeName && member.college_id) {
+                        const { data: collegeData } = await supabaseClient
+                            .from('college_details')
+                            .select('college_name')
+                            .eq('id', member.college_id)
+                            .maybeSingle();
+
+                        resolvedCollegeName = collegeData?.college_name || '';
+
+                        if (!resolvedCollegeName) {
+                            const { data: legacyCollegeData } = await supabaseClient
+                                .from('colleges')
+                                .select('college_name')
+                                .eq('id', member.college_id)
+                                .maybeSingle();
+
+                            resolvedCollegeName = legacyCollegeData?.college_name || '';
+                        }
+                    }
+
+                    openTenureCertificatePrintWindow(member, cert, {
+                        ...contextNames,
+                        collegeName: resolvedCollegeName || 'N/A'
+                    });
+        } catch (err) {
+                console.error('Tenure certificate check failed:', err);
+                flashNotification.showError('Certificate Error', err?.message || 'Could not open tenure certificate.');
+        }
+}
+
+function openTenureCertificatePrintWindow(member, cert, contextNames = {}) {
+        const memberName = member.full_name || member.name || 'Member';
+        const role = member.post || 'Member';
+        const unitName = member.unit_name || 'YUVA Unit';
+        const session = member.academic_session || 'N/A';
+        const collegeName = contextNames.collegeName || member.college_name || 'N/A';
+        const issueDate = cert.issued_at ? new Date(cert.issued_at).toLocaleDateString() : new Date().toLocaleDateString();
+    const yuvaLogoSrc = `${window.location.origin}/Images/YUVA%20logo.png`;
+
+        const html = `
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Tenure Certificate - ${memberName}</title>
+    <style>
+        :root {
+            --yuva-saffron: #ff9933;
+            --yuva-navy: #000080;
+            --yuva-green: #138808;
+            --ink: #0f172a;
+        }
+        @page {
+            size: A4 landscape;
+            margin: 10mm;
+        }
+        body {
+            margin: 0;
+            padding: 14px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            background: #eef2ff;
+            color: var(--ink);
+        }
+        .sheet {
+            max-width: 1120px;
+            min-height: auto;
+            margin: 0 auto;
+            background: #ffffff;
+            border: 4px solid var(--yuva-navy);
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 12px 26px rgba(15, 23, 42, 0.18);
+        }
+        .top-strip {
+            height: 14px;
+            background: linear-gradient(90deg, var(--yuva-saffron) 0%, var(--yuva-navy) 50%, var(--yuva-green) 100%);
+        }
+        .content {
+            padding: 22px 34px 24px;
+        }
+        .top {
+            text-align: center;
+            border-bottom: 2px solid #dbeafe;
+            padding-bottom: 12px;
+            margin-bottom: 14px;
+        }
+        .logo-wrap {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+        .logo-wrap img {
+            width: 72px;
+            height: 72px;
+            object-fit: contain;
+            border-radius: 50%;
+            border: 2px solid #e2e8f0;
+            background: #ffffff;
+            padding: 6px;
+        }
+        .org {
+            font-size: 25px;
+            font-weight: 700;
+            color: var(--yuva-navy);
+            letter-spacing: 0.4px;
+            line-height: 1.25;
+        }
+        .subtitle {
+            font-size: 15px;
+            color: #374151;
+            margin-top: 6px;
+        }
+        .title {
+            text-align: center;
+            font-size: 42px;
+            color: var(--yuva-navy);
+            font-weight: 700;
+            margin: 12px 0 4px;
+        }
+        .para {
+            font-size: 26px;
+            line-height: 1.45;
+            color: #111827;
+            text-align: center;
+            margin: 6px 0;
+        }
+        .name {
+            font-size: 48px;
+            font-weight: 700;
+            color: #b45309;
+            text-align: center;
+            margin: 10px 0 6px;
+        }
+        .meta {
+            margin-top: 16px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            font-size: 18px;
+            color: #0f172a;
+            font-weight: 600;
+        }
+        .meta-right {
+            text-align: right;
+        }
+        .foot {
+            margin-top: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+        .sign {
+            text-align: center;
+            min-width: 200px;
+        }
+        .line {
+            border-top: 2px solid #334155;
+            margin-top: 20px;
+            padding-top: 8px;
+            font-size: 16px;
+            color: #0f172a;
+            font-weight: 600;
+        }
+        .cid {
+            margin-top: 14px;
+            text-align: center;
+            font-size: 14px;
+            color: #334155;
+            font-weight: 500;
+        }
+        .print-wrap {
+            text-align: center;
+            margin: 16px 0 0;
+        }
+        .print-btn {
+            background: var(--yuva-navy);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 18px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 700;
+        }
+        @media print {
+            body {
+                background: #ffffff;
+                padding: 0;
+            }
+            .sheet {
+                border-width: 3px;
+                box-shadow: none;
+                max-width: none;
+                min-height: auto;
+                page-break-inside: avoid;
+            }
+            .print-wrap {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="sheet">
+        <div class="top-strip"></div>
+        <div class="content">
+        <div class="top">
+            <div class="logo-wrap">
+                <img src="${yuvaLogoSrc}" alt="YUVA Logo">
+            </div>
+            <div class="org">Youth United for Vision and Action - YUVA</div>
+            <div class="subtitle">Certificate of Tenure Completion</div>
+        </div>
+
+        <div class="title">Certificate</div>
+        <p class="para">This is to certify that</p>
+        <div class="name">${memberName}</div>
+        <p class="para">has successfully completed the tenure as <strong>${role}</strong> in <strong>${unitName}</strong>.</p>
+        <p class="para">Academic Session: <strong>${session}</strong> | College: <strong>${collegeName}</strong></p>
+
+        <div class="meta">
+            <div><strong>Issue Date:</strong> ${issueDate}</div>
+            <div class="meta-right"><strong>Certificate ID:</strong> ${cert.certificate_id || 'N/A'}</div>
+        </div>
+
+        <div class="foot">
+            <div class="sign">
+                <div class="line">Authorized Signatory</div>
+            </div>
+            <div class="sign">
+                <div class="line">YUVA Administration</div>
+            </div>
+        </div>
+
+        <div class="cid">Verified by YUVA Tenure Certificate System</div>
+        </div>
+    </div>
+    <div class="print-wrap">
+        <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
+    </div>
+</body>
+</html>`;
+
+        const popup = window.open('', '_blank', 'width=1100,height=800');
+        if (!popup) {
+                flashNotification.showWarning('Popup Blocked', 'Please allow popups to open the certificate.');
+                return;
+        }
+
+        popup.document.open();
+        popup.document.write(html);
+        popup.document.close();
 }
 
 function setCdLoading(isLoading) {
@@ -4431,6 +4722,8 @@ async function approveRegistration(memberId, approve, collegeId) {
         const { error } = await supa.rpc('set_registration_status', { p_id: memberId, p_status: newStatus });
         if (error) throw new Error(error.message || 'RPC failed');
 
+        await syncTenureCertificateForMemberStatus(memberId, newStatus, supa);
+
         flashNotification.showSuccess('Updated', `Status set to ${newStatus}.`);
         if (collegeId === window.__yuvaActiveCollegeId) {
             await loadCollegeDashboard(collegeId);
@@ -4441,6 +4734,99 @@ async function approveRegistration(memberId, approve, collegeId) {
         }
     } catch (e) {
         flashNotification.showError('Error', e.message || 'Network error while updating status');
+    }
+}
+
+async function syncTenureCertificateForMemberStatus(memberId, newStatus, supaClient) {
+    const supa = supaClient || window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const { data: reg, error: regErr } = await supa
+        .from('registrations')
+        .select('id, applicant_name, email, college_id, zone_id, applying_for, academic_session, created_at, updated_at, approved_at')
+        .eq('id', memberId)
+        .maybeSingle();
+
+    if (regErr) throw new Error(regErr.message || 'Could not sync tenure status');
+    if (!reg) return;
+
+    // Resolve college name from available master table.
+    let collegeName = '';
+    if (reg.college_id) {
+        const { data: c1 } = await supa
+            .from('college_details')
+            .select('college_name')
+            .eq('id', reg.college_id)
+            .maybeSingle();
+        collegeName = c1?.college_name || '';
+
+        if (!collegeName) {
+            const { data: c2 } = await supa
+                .from('colleges')
+                .select('college_name')
+                .eq('id', reg.college_id)
+                .maybeSingle();
+            collegeName = c2?.college_name || '';
+        }
+    }
+
+    const { data: tenureRow } = await supa
+        .from(TENURE_CERT_TABLE)
+        .select('status, certificate_id, issued_at, revoke_reason')
+        .eq('registration_id', reg.id)
+        .maybeSingle();
+
+    if (newStatus === 'rejected') {
+        const rejectedPayload = {
+            registration_id: reg.id,
+            member_name: reg.applicant_name || '',
+            email: reg.email || '',
+            college_id: reg.college_id,
+            college_name: collegeName || 'N/A',
+            zone_id: reg.zone_id,
+            role: reg.applying_for || 'Member',
+            academic_session: reg.academic_session || '',
+            approval_date: reg.approved_at || reg.updated_at || reg.created_at || null,
+            status: 'revoked',
+            certificate_id: tenureRow?.certificate_id || null,
+            issued_at: tenureRow?.issued_at || null,
+            revoke_reason: 'Registration rejected by admin',
+            revoked_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        };
+
+        const { error: upsertErr } = await supa
+            .from(TENURE_CERT_TABLE)
+            .upsert(rejectedPayload, { onConflict: 'registration_id' });
+
+        if (upsertErr) throw new Error(upsertErr.message || 'Failed to revoke tenure certificate status');
+        return;
+    }
+
+    if (newStatus === 'approved') {
+        const wasIssued = tenureRow?.status === 'issued';
+        const pendingPayload = {
+            registration_id: reg.id,
+            member_name: reg.applicant_name || '',
+            email: reg.email || '',
+            college_id: reg.college_id,
+            college_name: collegeName || 'N/A',
+            zone_id: reg.zone_id,
+            role: reg.applying_for || 'Member',
+            academic_session: reg.academic_session || '',
+            approval_date: reg.approved_at || reg.updated_at || reg.created_at || null,
+            status: wasIssued ? 'issued' : 'pending',
+            certificate_id: wasIssued ? (tenureRow?.certificate_id || null) : null,
+            issued_at: wasIssued ? (tenureRow?.issued_at || null) : null,
+            revoke_reason: null,
+            revoked_at: null,
+            updated_at: new Date().toISOString()
+        };
+
+        const { error: upsertErr } = await supa
+            .from(TENURE_CERT_TABLE)
+            .upsert(pendingPayload, { onConflict: 'registration_id' });
+
+        if (upsertErr) throw new Error(upsertErr.message || 'Failed to sync tenure status to approved');
     }
 }
 

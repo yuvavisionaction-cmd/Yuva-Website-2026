@@ -5,43 +5,51 @@ let currentFilter = 'all';
 let currentYear = 'all';
 let isLoading = false;
 let videoData = []; // Store fetched video data
-let dataSource = 'sheets'; // 'config' or 'sheets' - shared across pages
-// Initialize from localStorage if present
-try {
-    const savedSource = localStorage.getItem('media_data_source');
-    if (savedSource === 'sheets' || savedSource === 'config') {
-        dataSource = savedSource;
+
+// Supabase REST configuration for media videos
+const SUPABASE_URL = 'https://jgsrsjwmywiirtibofth.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_5KtvO0cEHfnECBoyp2CQnw_RC3_x2me';
+const SUPABASE_VIDEO_TABLE = 'media_videos';
+
+async function fetchVideosFromSupabase() {
+    const endpoint = `${SUPABASE_URL}/rest/v1/${SUPABASE_VIDEO_TABLE}?select=id,category,year,title,description,published_at,view_count,duration,thumbnail,created_at&order=created_at.desc`;
+    const response = await fetch(endpoint, {
+        headers: {
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+        }
+    });
+
+    if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Supabase read failed (${response.status}): ${errText}`);
     }
-} catch (e) { /* ignore storage errors */ }
 
-// Google Sheets Web App URL - same as video manager
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzbDDv0SsGWRrRemZufEkUyDk1A04IsE5jiYFwSNwAwj7ZACs2buWGOYfL_Lj9pzfVK/exec';
+    const rows = await response.json();
+    if (!Array.isArray(rows)) return [];
 
-// JSONP helper to avoid CORS while getting a readable response
-function jsonpRequest(url, params = {}) {
-    return new Promise((resolve, reject) => {
-        const callbackName = `jsonp_cb_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
-        params.callback = callbackName;
-        const qs = new URLSearchParams(params).toString();
-        const script = document.createElement('script');
-        script.src = `${url}?${qs}`;
-        script.async = true;
-
-        window[callbackName] = (data) => {
-            resolve(data);
-            delete window[callbackName];
-            script.remove();
+    return rows.map((row) => {
+        const publishedAt = row.published_at || row.created_at || new Date().toISOString();
+        const publishedYear = new Date(publishedAt).getFullYear().toString();
+        const selectedYear = row.year ? String(row.year) : null;
+        const safeTitle = row.title || 'Untitled Video';
+        const safeDescription = row.description || 'No description available';
+        return {
+            id: row.id,
+            title: safeTitle,
+            description: safeDescription.length > 150 ? `${safeDescription.substring(0, 150)}...` : safeDescription,
+            thumbnail: row.thumbnail || `https://img.youtube.com/vi/${row.id}/mqdefault.jpg`,
+            publishedAt,
+            publishedYear,
+            filterYear: selectedYear || publishedYear,
+            viewCount: row.view_count || 'N/A',
+            duration: formatDuration(row.duration || 'N/A'),
+            category: row.category || 'all',
+            year: selectedYear
         };
-
-        script.onerror = () => {
-            reject(new Error('JSONP request failed'));
-            delete window[callbackName];
-            script.remove();
-        };
-
-        document.body.appendChild(script);
     });
 }
+
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', function () {
@@ -266,7 +274,7 @@ function initializeVideo() {
     setupVideoModal();
 }
 
-// ===== YOUTUBE API INTEGRATION =====
+// ===== VIDEO DATA LOADING =====
 async function loadVideoData() {
     if (isLoading) return;
 
@@ -274,152 +282,33 @@ async function loadVideoData() {
     showVideoLoadingState();
 
     try {
-        // If Sheets is selected, load Sheets first (if available)
-        const mergedVideos = [];
-        const seenIds = new Set();
-
-        if (dataSource === 'sheets') {
-            console.log('Loading videos from Google Sheets...');
-            const sheetsRaw = await jsonpRequest(WEB_APP_URL, { action: 'getVideos' });
-            const norm = normalizeSheetsData(sheetsRaw);
-            if (norm.success && norm.videos && norm.videos.length > 0) {
-                const sheetVideos = norm.videos.map(video => {
-                    const publishedYear = new Date(video.publishedAt).getFullYear().toString();
-                    const v = {
-                        id: video.id,
-                        title: video.title,
-                        description: video.description ? video.description.substring(0, 150) + '...' : 'No description available',
-                        thumbnail: video.thumbnail || `https://img.youtube.com/vi/${video.id}/mqdefault.jpg`,
-                        publishedAt: video.publishedAt,
-                        publishedYear: publishedYear,
-                        viewCount: video.viewCount || 'N/A',
-                        duration: video.duration || 'N/A',
-                        category: video.category,
-                        year: video.year
-                    };
-                    return v;
-                });
-                sheetVideos.forEach(v => { if (!seenIds.has(v.id)) { seenIds.add(v.id); mergedVideos.push(v); } });
-                console.log('Videos loaded from Google Sheets:', mergedVideos.length);
-            } else {
-                console.log('No videos in Google Sheets');
-                showFlashMessage('warning', 'No Videos', 'No videos found in Google Sheets. Showing Config videos only.');
-            }
-        }
-
-        // Always load from config for public page; then merge (avoid duplicates)
-        console.log('Loading videos from Config File...');
-
-        if (!window.YOUTUBE_CONFIG || !window.VIDEO_CONFIG) {
-            throw new Error('YouTube configuration not loaded');
-        }
-
-        const apiKey = window.YOUTUBE_CONFIG.API_KEY;
-        if (!apiKey || apiKey === 'YOUR_YOUTUBE_API_KEY_HERE') {
-            throw new Error('YouTube API key not configured');
-        }
-
-        // Get video IDs from config
-        const videoIds = window.VIDEO_CONFIG.map(video => video.id).join(',');
-
-        if (!videoIds) {
-            throw new Error('No videos configured');
-        }
-
-        // Fetch video details from YouTube API
-        const response = await fetch(
-            `${window.YOUTUBE_CONFIG.API_URL}?part=snippet,statistics,contentDetails&id=${videoIds}&key=${apiKey}`
-        );
-
-        if (!response.ok) {
-            throw new Error(`YouTube API error: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        if (data.items && data.items.length > 0) {
-            // Process and store video data
-            const configVideosProcessed = data.items.map(item => {
-                const configVideo = window.VIDEO_CONFIG.find(v => v.id === item.id);
-                const publishedYear = new Date(item.snippet.publishedAt).getFullYear().toString();
-                return {
-                    id: item.id,
-                    title: item.snippet.title,
-                    description: item.snippet.description.substring(0, 150) + '...',
-                    thumbnail: item.snippet.thumbnails.medium?.url || item.snippet.thumbnails.default?.url,
-                    publishedAt: item.snippet.publishedAt,
-                    publishedYear: publishedYear,
-                    viewCount: item.statistics?.viewCount ? formatNumber(item.statistics.viewCount) : 'N/A',
-                    duration: item.contentDetails?.duration ? formatDuration(item.contentDetails.duration) : 'N/A',
-                    category: configVideo ? configVideo.category : 'all'
-                };
-            });
-
-            // Merge config-derived videos with any sheet videos gathered earlier
-            configVideosProcessed.forEach(v => { if (!seenIds.has(v.id)) { seenIds.add(v.id); mergedVideos.push(v); } });
-            videoData = mergedVideos;
-
-            // Render videos
-            renderVideoCards();
-            showFlashMessage('success', 'Videos Loaded', `Loaded ${videoData.length} videos`, 3000);
-        } else {
-            throw new Error('No video data received from YouTube API');
-        }
+        console.log('Loading videos from Supabase...');
+        videoData = await fetchVideosFromSupabase();
+        renderVideoCards();
+        showFlashMessage('success', 'Videos Loaded', `Loaded ${videoData.length} videos`, 3000);
 
     } catch (error) {
         console.error('Error loading video data:', error);
-        showFlashMessage('error', 'API Error', 'Failed to load videos. Please add videos using the video manager.');
+        showFlashMessage('error', 'Supabase Error', 'Failed to load videos from Supabase.');
         loadFallbackVideoData();
     } finally {
         isLoading = false;
         hideVideoLoadingState();
     }
 }
-// Normalize Google Sheets responses to a consistent structure
-function normalizeSheetsData(data) {
-    try {
-        if (!data) return { success: false };
-        // Some backends wrap inside data.data or data
-        const inner = (data.data && data.data.videos !== undefined) ? data.data
-            : (data.data && data.data.data ? data.data.data : (data.videos ? data : null));
-        if (inner && Array.isArray(inner.videos)) {
-            return { success: true, videos: inner.videos, count: inner.videos.length };
-        }
-    } catch (e) {
-        console.log('normalizeSheetsData error', e);
-    }
-    return { success: false };
-}
 
 function loadFallbackVideoData() {
-    // Fallback data when API is not available
-    if (window.VIDEO_CONFIG && window.VIDEO_CONFIG.length > 0) {
-        videoData = window.VIDEO_CONFIG.map(video => ({
-            id: video.id,
-            title: video.title,
-            description: video.description,
-            thumbnail: `https://img.youtube.com/vi/${video.id}/mqdefault.jpg`,
-            publishedAt: video.publishedAt,
-            viewCount: 'N/A',
-            duration: 'N/A',
-            category: video.category
-        }));
-    } else {
-        // No videos available
-        videoData = [];
-        const videoGrid = document.querySelector('.video-grid');
-        if (videoGrid) {
-            videoGrid.innerHTML = `
-                <div class="no-videos-message">
-                    <i class="fas fa-video-slash"></i>
-                    <h3>No Videos Available</h3>
-                    <p>Please add videos using the <a href="video-manager.html">Video Manager</a></p>
-                </div>
-            `;
-        }
+    videoData = [];
+    const videoGrid = document.querySelector('.video-grid');
+    if (videoGrid) {
+        videoGrid.innerHTML = `
+            <div class="no-videos-message">
+                <i class="fas fa-video-slash"></i>
+                <h3>No Videos Available</h3>
+                <p>Please add videos using the <a href="video-manager.html">Video Manager</a></p>
+            </div>
+        `;
     }
-
-    renderVideoCards();
 }
 
 function renderVideoCards() {
@@ -448,7 +337,7 @@ function createVideoCard(video) {
     const card = document.createElement('div');
     card.className = 'video-card';
     card.setAttribute('data-category', video.category);
-    card.setAttribute('data-year', video.publishedYear);
+    card.setAttribute('data-year', video.filterYear || video.year || video.publishedYear);
 
     const publishedDate = new Date(video.publishedAt).toLocaleDateString('en-US', {
         year: 'numeric',
@@ -520,20 +409,25 @@ function formatNumber(num) {
 }
 
 function formatDuration(duration) {
-    if (duration === 'N/A') return duration;
+    if (!duration || duration === 'N/A') return 'N/A';
 
-    const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+    const raw = String(duration).trim();
+    if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(raw)) {
+        return raw;
+    }
+
+    const match = raw.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
     if (!match) return 'N/A';
 
-    const hours = parseInt(match[1] || 0);
-    const minutes = parseInt(match[2] || 0);
-    const seconds = parseInt(match[3] || 0);
+    const hours = parseInt(match[1] || 0, 10);
+    const minutes = parseInt(match[2] || 0, 10);
+    const seconds = parseInt(match[3] || 0, 10);
 
     if (hours > 0) {
         return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    } else {
-        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
     }
+
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
 function filterVideoCards() {
@@ -884,17 +778,7 @@ function showFlashMessage(type, title, message, duration = 5000) {
     }, duration);
 }
 
-// ===== DATA SOURCE MANAGEMENT =====
-function setDataSource(source) {
-    dataSource = source;
-    console.log('Data source set to:', source);
-    try { localStorage.setItem('media_data_source', dataSource); } catch (e) { }
-}
-function getDataSource() { return dataSource; }
-
 // ===== EXPORT FUNCTIONS FOR GLOBAL ACCESS =====
 window.openVideoModal = openVideoModal;
 window.closeVideoModal = closeVideoModal;
 window.showFlashMessage = showFlashMessage;
-window.setDataSource = setDataSource;
-window.getDataSource = getDataSource;

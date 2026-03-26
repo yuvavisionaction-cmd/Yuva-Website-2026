@@ -30,6 +30,86 @@ const supabase = window.supabase_client;
 // Format: https://script.google.com/macros/d/{DEPLOYMENT_ID}/usercallback
 const GAS_VERIFICATION_URL = 'https://script.google.com/macros/s/AKfycbw38yGhyQZLwuBRf2XN3MTOKER-eVH-EZlF9qxlPWIu-L9mkwd5h4LdkbJOkOvfmQMK5Q/exec';
 
+/**
+ * Calls verification backend.
+ * Primary: fetch POST (works where CORS allows)
+ * Fallback: JSONP GET (works for Apps Script from localhost/other origins)
+ */
+async function callVerificationService(payload) {
+    try {
+        const response = await fetch(GAS_VERIFICATION_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'text/plain;charset=utf-8',
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            throw new Error(`Server error: ${response.status} ${response.statusText}`);
+        }
+
+        const raw = await response.text();
+        try {
+            return JSON.parse(raw);
+        } catch {
+            throw new Error(`Invalid response from verification service: ${raw}`);
+        }
+    } catch (error) {
+        // Apps Script web apps often block cross-origin fetches in browsers.
+        // Fallback to JSONP to keep verification functional across origins.
+        return callVerificationServiceJsonp(payload);
+    }
+}
+
+function callVerificationServiceJsonp(payload) {
+    return new Promise((resolve, reject) => {
+        const callbackName = `yuvaVerifyCb_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+        const timeoutMs = 15000;
+
+        const cleanup = (scriptEl) => {
+            if (scriptEl && scriptEl.parentNode) {
+                scriptEl.parentNode.removeChild(scriptEl);
+            }
+            try {
+                delete window[callbackName];
+            } catch {
+                window[callbackName] = undefined;
+            }
+        };
+
+        const timer = setTimeout(() => {
+            cleanup(script);
+            reject(new Error('Verification service timeout'));
+        }, timeoutMs);
+
+        window[callbackName] = (result) => {
+            clearTimeout(timer);
+            cleanup(script);
+            resolve(result || { success: false, error: 'Empty response from verification service' });
+        };
+
+        const query = new URLSearchParams({
+            ...Object.fromEntries(
+                Object.entries(payload).map(([k, v]) => [k, v == null ? '' : String(v)])
+            ),
+            callback: callbackName,
+            _ts: String(Date.now())
+        });
+
+        const script = document.createElement('script');
+        script.src = `${GAS_VERIFICATION_URL}?${query.toString()}`;
+        script.async = true;
+        script.onerror = () => {
+            clearTimeout(timer);
+            cleanup(script);
+            reject(new Error('Verification service request failed'));
+        };
+
+        document.body.appendChild(script);
+    });
+}
+
 // State management
 let currentUser = {
     email: null,
@@ -391,38 +471,11 @@ async function handleEmailSubmit(e) {
         console.log('GAS URL:', GAS_VERIFICATION_URL);
         console.log('Email:', email);
 
-        // Send request to Google Apps Script
-        // IMPORTANT: Use text/plain to avoid CORS preflight (Apps Script doesn't return CORS headers)
-        const response = await fetch(GAS_VERIFICATION_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'text/plain;charset=utf-8',
-            },
-            body: JSON.stringify({
-                action: 'sendVerificationCode',
-                email: email,
-                ipAddress: clientIP
-            })
+        const result = await callVerificationService({
+            action: 'sendVerificationCode',
+            email: email,
+            ipAddress: clientIP
         });
-
-        console.log('✅ Got response from GAS:', response.status, response.statusText);
-
-        // Check if response is OK
-        if (!response.ok) {
-            throw new Error(`Server error: ${response.status} ${response.statusText}`);
-        }
-
-        const raw = await response.text();
-        console.log('📝 Raw response:', raw);
-        
-        let result;
-        try {
-            result = JSON.parse(raw);
-        } catch (parseError) {
-            console.error('❌ Failed to parse response:', parseError);
-            console.error('Raw text was:', raw);
-            throw new Error(`Invalid response from verification service: ${raw}`);
-        }
         
         console.log('✅ Parsed result:', result);
 
@@ -494,31 +547,11 @@ async function handleCodeVerification(e) {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
 
     try {
-        // Send verification request to Google Apps Script
-        // IMPORTANT: Use text/plain to avoid CORS preflight (Apps Script doesn't return CORS headers)
-        const response = await fetch(GAS_VERIFICATION_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'text/plain;charset=utf-8',
-            },
-            body: JSON.stringify({
-                action: 'verifyCode',
-                email: currentUser.email,
-                code: enteredCode
-            })
+        const result = await callVerificationService({
+            action: 'verifyCode',
+            email: currentUser.email,
+            code: enteredCode
         });
-
-        if (!response.ok) {
-            throw new Error(`Server error: ${response.status}`);
-        }
-
-        const raw = await response.text();
-        let result;
-        try {
-            result = JSON.parse(raw);
-        } catch {
-            throw new Error(`Invalid response from verification service: ${raw}`);
-        }
 
         if (result.success) {
             // Code verified successfully!
@@ -596,29 +629,11 @@ async function handleResendCode(e) {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Resending...';
     
     try {
-        const response = await fetch(GAS_VERIFICATION_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'text/plain;charset=utf-8',
-            },
-            body: JSON.stringify({
-                action: 'sendVerificationCode',
-                email: currentUser.email,
-                ipAddress: null
-            })
+        const result = await callVerificationService({
+            action: 'sendVerificationCode',
+            email: currentUser.email,
+            ipAddress: null
         });
-        
-        if (!response.ok) {
-            throw new Error(`Server error: ${response.status}`);
-        }
-        
-        const raw = await response.text();
-        let result;
-        try {
-            result = JSON.parse(raw);
-        } catch {
-            throw new Error(`Invalid response: ${raw}`);
-        }
         
         if (result.success) {
             showMessage('New verification code sent to your email', 'success');

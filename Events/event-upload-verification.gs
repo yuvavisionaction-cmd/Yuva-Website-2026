@@ -26,21 +26,7 @@ function doPost(e) {
     try {
         const payload = (e && e.postData && e.postData.contents) ? e.postData.contents : '';
         const data = JSON.parse(payload);
-
-        let result;
-        switch (data.action) {
-            case 'sendVerificationCode':
-                result = handleSendVerificationCode(data.email, data.ipAddress || e.clientAddress);
-                break;
-
-            case 'verifyCode':
-                result = handleVerifyCode(data.email, data.code);
-                break;
-
-            default:
-                result = { success: false, error: 'Invalid action', statusCode: 400 };
-                break;
-        }
+        const result = processAction(data, e);
 
         const statusCode = (result && typeof result.statusCode === 'number') ? result.statusCode : 200;
         // Always return JSON as TEXT so browsers can read it without relying on CORS headers.
@@ -56,10 +42,69 @@ function doPost(e) {
 }
 
 /**
+ * Handles GET requests for JSONP fallback.
+ * This avoids browser CORS blocking for cross-origin verification calls.
+ */
+function doGet(e) {
+    try {
+        const p = (e && e.parameter) ? e.parameter : {};
+        const data = {
+            action: p.action || '',
+            email: p.email || '',
+            ipAddress: p.ipAddress || e.clientAddress || '',
+            code: p.code || ''
+        };
+
+        const result = processAction(data, e);
+        const callback = sanitizeCallbackName(p.callback || '');
+
+        if (callback) {
+            const payload = `${callback}(${JSON.stringify(result)});`;
+            return ContentService
+                .createTextOutput(payload)
+                .setMimeType(ContentService.MimeType.JAVASCRIPT);
+        }
+
+        return createResponse(result, 200);
+    } catch (error) {
+        logError('Unexpected error in doGet', error);
+        return createResponse({
+            success: false,
+            error: 'Server error occurred',
+            statusCode: 500
+        }, 500);
+    }
+}
+
+/**
  * Handles CORS preflight requests (OPTIONS)
  */
 function doOptions(e) {
     return createResponse({ success: true }, 200);
+}
+
+/**
+ * Dispatches request action for both POST and GET(JSONP) flows.
+ */
+function processAction(data, e) {
+    switch (data.action) {
+        case 'sendVerificationCode':
+            return handleSendVerificationCode(data.email, data.ipAddress || (e ? e.clientAddress : null));
+
+        case 'verifyCode':
+            return handleVerifyCode(data.email, data.code);
+
+        default:
+            return { success: false, error: 'Invalid action', statusCode: 400 };
+    }
+}
+
+/**
+ * Allows only safe JavaScript identifiers for JSONP callback to prevent injection.
+ */
+function sanitizeCallbackName(name) {
+    if (!name) return '';
+    return /^[A-Za-z_$][0-9A-Za-z_$]*$/.test(name) ? name : '';
 }
 
 // ===== VERIFICATION CODE HANDLING =====

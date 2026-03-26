@@ -1196,9 +1196,11 @@ body.modal-open {
 }
 
 #college-dashboard .cd-member-actions {
-    margin-left: auto;
     display: flex;
-    gap: 4px;
+    flex-direction: column;
+    gap: 6px;
+    align-items: center;
+    justify-content: center;
     opacity: 0;
     transition: opacity 0.2s ease;
 }

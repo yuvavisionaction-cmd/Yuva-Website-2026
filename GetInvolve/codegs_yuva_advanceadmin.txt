@@ -1,0 +1,666 @@
+/* ============================================================ */
+/* GOOGLE APPS SCRIPT - YUVA DELHI LIVE COUNTER SYSTEM */
+/* ============================================================ */
+/* 
+   This Google Apps Script acts as middleware between your website
+   and Supabase for the live counter system.
+   
+   SETUP INSTRUCTIONS:
+   1. Create a new Google Apps Script project
+   2. Copy this entire code into the Apps Script editor
+   3. Update YOUR_SUPABASE_URL and YOUR_SUPABASE_KEY below
+   4. Deploy as web app (Deploy > New deployment > Type: Web app)
+   5. Set "Execute as" to your account, "Who has access" to "Anyone"
+   6. Copy the deployment URL and add to your frontend code
+*/
+
+// ===== CONFIGURATION =====
+// Replace these with your Supabase credentials
+const SUPABASE_URL = 'https://jgsrsjwmywiirtibofth.supabase.co';
+const SUPABASE_API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impnc3JzandteXdpaXJ0aWJvZnRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwNzY2NDgsImV4cCI6MjA3NDY1MjY0OH0.qN_GZIIOm6J1-qSY7r-HX8RLMoH7udc_0Jn7izqk8J8';
+const TABLE_NAME = 'yuva_live_counters';
+
+// ===== MAIN HANDLER =====
+/**
+ * Handle incoming requests from the frontend
+ */
+function doPost(e) {
+    try {
+        const payload = JSON.parse(e.postData.contents || '{}');
+
+        // Notification/email methods do not need counter visitor/session fields.
+        if (payload.action === 'notify') {
+            return handleNotify(payload);
+        }
+
+        // Validate counter request
+        if (!validateRequest(payload)) {
+            return createResponse(false, 'Invalid request', 400);
+        }
+
+        let result;
+
+        switch (payload.action) {
+            case 'recordRefresh':
+                result = recordPageRefresh(payload);
+                break;
+            case 'recordUniqueVisit':
+                result = recordUniqueVisitor(payload);
+                break;
+            case 'getCounters':
+                result = getCounters(payload);
+                break;
+            case 'reset':
+                result = resetCounters(payload);
+                break;
+            default:
+                return createResponse(false, 'Unknown action: ' + payload.action, 400);
+        }
+
+        return createResponse(result.success, result.message, result.statusCode || 200, result.data);
+    } catch (error) {
+        logError('doPost error: ' + error.toString());
+        return createResponse(false, 'Server error: ' + error.toString(), 500);
+    }
+}
+
+// ===== NOTIFY / EMAIL HANDLER =====
+function handleNotify(payload) {
+    try {
+        const method = String(payload.method || '').trim();
+
+        switch (method) {
+            case 'sendVimarshCertificateEmails':
+                return sendVimarshCertificateEmails(payload);
+            default:
+                return createResponse(false, 'Invalid notify method: ' + method, 400);
+        }
+    } catch (error) {
+        logError('handleNotify error: ' + error.toString());
+        return createResponse(false, 'Notify handler failed: ' + error.toString(), 500);
+    }
+}
+
+function safeHtml_(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function sendVimarshCertificateEmails(payload) {
+    try {
+        const list = Array.isArray(payload.certificates) ? payload.certificates : [];
+
+        if (!list.length) {
+            return createResponse(false, 'No certificate payload found', 400);
+        }
+
+        let sent = 0;
+        let failed = 0;
+        const failures = [];
+
+        list.forEach(function (item) {
+            try {
+                const toEmail = String(item.email || '').trim();
+                const firstName = String(item.firstName || '').trim();
+                const lastName = String(item.lastName || '').trim();
+                const fullName = (firstName + ' ' + lastName).trim() || 'Participant';
+                const certificateId = String(item.certificateId || '').trim();
+                const registrationId = String(item.registrationId || '').trim();
+                const year = String(item.year || '2026').trim();
+                const collegeName = String(item.collegeName || '').trim();
+                const downloadLink = String(item.downloadLink || '').trim();
+                const pdfBase64 = String(item.pdfBase64 || '').trim();
+                const pdfFileName = String(item.pdfFileName || (certificateId ? certificateId + '.pdf' : 'certificate.pdf')).trim();
+
+                if (!toEmail) {
+                    throw new Error('Missing recipient email');
+                }
+
+                const subject = 'Your Vimarsh ' + year + ' Participation Certificate | YUVA Certificate Portal';
+                const textBody =
+                    'Dear ' + fullName + ',\n\n' +
+                    'Your Vimarsh ' + year + ' participation certificate is ready.\n' +
+                    (pdfBase64
+                        ? 'Your certificate PDF is attached with this email.\n\nIf attachment is missing, use Certificate Finder:\n'
+                        : 'Please download from Certificate Finder using the steps below:\n') +
+                    '1) Open Vimarsh 2K26 website\n' +
+                    '2) Go to Certificate Finder page\n' +
+                    '3) Enter Registration ID or Email\n' +
+                    '4) Click Download PDF\n\n' +
+                    'Certificate ID: ' + certificateId + '\n' +
+                    'Registration ID: ' + registrationId + '\n\n' +
+                    'Regards,\nYUVA Certificate Portal';
+
+                const htmlBody =
+                    '<div style="font-family:Arial,sans-serif;max-width:680px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">' +
+                    '  <div style="background:linear-gradient(90deg,#8b0000 0%,#c20f0f 100%);padding:18px 24px;">' +
+                    '    <h2 style="margin:0;color:#fff;font-size:22px;">YUVA Certificate Portal</h2>' +
+                    '    <p style="margin:6px 0 0;color:#ffe9d1;font-size:13px;">Vimarsh ' + safeHtml_(year) + ' Participation Certificate</p>' +
+                    '  </div>' +
+                    '  <div style="padding:24px;">' +
+                    '    <p style="margin:0 0 14px;color:#111827;font-size:15px;">Dear ' + safeHtml_(fullName) + ',</p>' +
+                    '    <p style="margin:0 0 16px;color:#374151;line-height:1.7;font-size:14px;">Thank you for participating in Vimarsh ' + safeHtml_(year) + '. Your digital participation certificate is now available.</p>' +
+                    (pdfBase64
+                        ? '    <div style="margin:0 0 14px;padding:10px 12px;background:#ecfdf5;border:1px solid #bbf7d0;border-radius:8px;color:#166534;font-size:13px;font-weight:700;">Your certificate PDF is attached with this email.</div>'
+                        : '') +
+                    '    <table style="width:100%;border-collapse:collapse;margin:0 0 18px;">' +
+                    '      <tr><td style="padding:8px 10px;border:1px solid #e5e7eb;background:#f9fafb;font-size:13px;color:#374151;"><strong>Certificate ID</strong></td><td style="padding:8px 10px;border:1px solid #e5e7eb;font-size:13px;color:#111827;">' + safeHtml_(certificateId || '-') + '</td></tr>' +
+                    '      <tr><td style="padding:8px 10px;border:1px solid #e5e7eb;background:#f9fafb;font-size:13px;color:#374151;"><strong>Registration ID</strong></td><td style="padding:8px 10px;border:1px solid #e5e7eb;font-size:13px;color:#111827;">' + safeHtml_(registrationId || '-') + '</td></tr>' +
+                    '      <tr><td style="padding:8px 10px;border:1px solid #e5e7eb;background:#f9fafb;font-size:13px;color:#374151;"><strong>College</strong></td><td style="padding:8px 10px;border:1px solid #e5e7eb;font-size:13px;color:#111827;">' + safeHtml_(collegeName || '-') + '</td></tr>' +
+                    '    </table>' +
+                    '    <div style="margin:14px 0 18px;padding:14px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px;">' +
+                    '      <p style="margin:0 0 8px;color:#111827;font-size:13px;font-weight:700;">How to download your certificate:</p>' +
+                    '      <ol style="margin:0;padding-left:18px;color:#374151;font-size:13px;line-height:1.7;">' +
+                    '        <li>Open Vimarsh 2K26 website.</li>' +
+                    '        <li>Open Certificate Finder page.</li>' +
+                    '        <li>Enter your Registration ID or Email.</li>' +
+                    '        <li>Click Download PDF.</li>' +
+                    '      </ol>' +
+                    '    </div>' +
+                    '    <p style="margin:0;color:#6b7280;font-size:12px;line-height:1.6;">Certificate Finder is available from the website navigation and footer quick links.</p>' +
+                    '    <p style="margin:18px 0 0;color:#4b5563;font-size:13px;">This is a digitally generated certificate and does not require physical signatures.</p>' +
+                    '  </div>' +
+                    '  <div style="padding:14px 24px;background:#f9fafb;border-top:1px solid #e5e7eb;color:#6b7280;font-size:12px;">© ' + new Date().getFullYear() + ' YUVA India</div>' +
+                    '</div>';
+
+                const mailOptions = {
+                    htmlBody: htmlBody,
+                    name: 'YUVA Certificate Portal'
+                };
+
+                if (pdfBase64) {
+                    try {
+                        const pdfBytes = Utilities.base64Decode(pdfBase64);
+                        const pdfBlob = Utilities.newBlob(pdfBytes, 'application/pdf', pdfFileName);
+                        mailOptions.attachments = [pdfBlob];
+                    } catch (attachmentError) {
+                        throw new Error('Attachment generation failed: ' + attachmentError);
+                    }
+                }
+
+                GmailApp.sendEmail(toEmail, subject, textBody, mailOptions);
+
+                sent += 1;
+            } catch (err) {
+                failed += 1;
+                failures.push({
+                    email: String((item && item.email) || ''),
+                    error: String(err)
+                });
+            }
+        });
+
+        return createResponse(true, 'Certificate emails processed', 200, {
+            sent: sent,
+            failed: failed,
+            failures: failures
+        });
+    } catch (error) {
+        logError('sendVimarshCertificateEmails error: ' + error.toString());
+        return createResponse(false, 'Email dispatch failed: ' + error.toString(), 500);
+    }
+}
+
+/**
+ * Handle GET requests (optional - for testing)
+ */
+function doGet(e) {
+    const action = e.parameter.action;
+
+    if (action === 'getCounters') {
+        const result = getCounters({ visitorId: 'api_test' });
+        return HtmlService.createHtmlOutput(JSON.stringify(result));
+    }
+
+    return HtmlService.createHtmlOutput(JSON.stringify({
+        success: false,
+        message: 'Invalid GET request. Use POST for API calls.'
+    }));
+}
+
+// ===== REQUEST VALIDATION =====
+/**
+ * Validate incoming request
+ */
+function validateRequest(payload) {
+    // Check required fields
+    if (!payload.action || !payload.visitorId || !payload.sessionToken) {
+        return false;
+    }
+
+    // Check if visitor ID format is valid
+    if (!payload.visitorId.toString().startsWith('visitor_')) {
+        return false;
+    }
+
+    // Check if session token format is valid
+    if (!payload.sessionToken.toString().startsWith('session_')) {
+        return false;
+    }
+
+    return true;
+}
+
+// ===== COUNTER OPERATIONS =====
+/**
+ * Record page refresh
+ */
+function recordPageRefresh(payload) {
+    try {
+        // Get or create counter record
+        let counterData = getCounterRecord();
+
+        // Increment refresh count
+        counterData.refresh_count = (counterData.refresh_count || 0) + 1;
+        counterData.last_refresh_time = new Date().toISOString();
+
+        // Update record
+        const updateResult = updateCounterRecord(counterData);
+
+        // Log the action
+        logCounterAction(payload, 'refresh');
+
+        return {
+            success: updateResult.success,
+            message: updateResult.success ? 'Refresh recorded' : 'Failed to update refresh count',
+            statusCode: updateResult.success ? 200 : 500
+        };
+    } catch (error) {
+        logError('recordPageRefresh error: ' + error.toString());
+        return {
+            success: false,
+            message: 'Error recording refresh: ' + error.toString(),
+            statusCode: 500
+        };
+    }
+}
+
+/**
+ * Record unique visitor
+ */
+function recordUniqueVisitor(payload) {
+    try {
+        // Check if visitor already recorded today
+        const existingVisit = checkExistingVisit(payload.visitorId);
+
+        if (existingVisit) {
+            return {
+                success: false,
+                message: 'Visitor already counted in this period',
+                statusCode: 200
+            };
+        }
+
+        // Get or create counter record
+        let counterData = getCounterRecord();
+
+        // Increment unique count
+        counterData.unique_count = (counterData.unique_count || 0) + 1;
+        counterData.last_unique_time = new Date().toISOString();
+
+        // Update record
+        const updateResult = updateCounterRecord(counterData);
+
+        // Log the visitor
+        logUniqueVisitor(payload.visitorId);
+
+        // Log the action
+        logCounterAction(payload, 'unique_visit');
+
+        return {
+            success: updateResult.success,
+            message: updateResult.success ? 'Unique visitor recorded' : 'Failed to update unique count',
+            statusCode: updateResult.success ? 200 : 500
+        };
+    } catch (error) {
+        logError('recordUniqueVisitor error: ' + error.toString());
+        return {
+            success: false,
+            message: 'Error recording unique visitor: ' + error.toString(),
+            statusCode: 500
+        };
+    }
+}
+
+/**
+ * Get current counter values
+ */
+function getCounters(payload) {
+    try {
+        const counterData = getCounterRecord();
+
+        return {
+            success: true,
+            message: 'Counters retrieved',
+            statusCode: 200,
+            data: {
+                refreshCount: counterData.refresh_count || 0,
+                uniqueCount: counterData.unique_count || 0,
+                lastUpdate: counterData.updated_at
+            }
+        };
+    } catch (error) {
+        logError('getCounters error: ' + error.toString());
+        return {
+            success: false,
+            message: 'Error retrieving counters: ' + error.toString(),
+            statusCode: 500
+        };
+    }
+}
+
+/**
+ * Reset counters (admin only)
+ */
+function resetCounters(payload) {
+    try {
+        // Additional security check for reset
+        if (payload.adminKey !== 'YOUR_ADMIN_KEY_HERE') {
+            logError('Unauthorized reset attempt from: ' + payload.visitorId);
+            return {
+                success: false,
+                message: 'Unauthorized',
+                statusCode: 403
+            };
+        }
+
+        let counterData = getCounterRecord();
+        counterData.refresh_count = 0;
+        counterData.unique_count = 0;
+        counterData.reset_time = new Date().toISOString();
+
+        const updateResult = updateCounterRecord(counterData);
+
+        logCounterAction(payload, 'admin_reset');
+
+        return {
+            success: updateResult.success,
+            message: updateResult.success ? 'Counters reset' : 'Failed to reset',
+            statusCode: updateResult.success ? 200 : 500
+        };
+    } catch (error) {
+        logError('resetCounters error: ' + error.toString());
+        return {
+            success: false,
+            message: 'Error resetting counters: ' + error.toString(),
+            statusCode: 500
+        };
+    }
+}
+
+// ===== DATABASE OPERATIONS =====
+/**
+ * Get the main counter record from Supabase
+ */
+function getCounterRecord() {
+    const url = `${SUPABASE_URL}/rest/v1/${TABLE_NAME}?id=eq.1`;
+
+    const options = {
+        method: 'get',
+        headers: {
+            'apikey': SUPABASE_API_KEY,
+            'Authorization': 'Bearer ' + SUPABASE_API_KEY,
+            'Content-Type': 'application/json'
+        },
+        muteHttpExceptions: true
+    };
+
+    try {
+        const response = UrlFetchApp.fetch(url, options);
+        const data = JSON.parse(response.getContentText());
+
+        if (Array.isArray(data) && data.length > 0) {
+            return data[0];
+        }
+
+        // Create new record if doesn't exist
+        return createCounterRecord();
+    } catch (error) {
+        logError('getCounterRecord error: ' + error.toString());
+        throw error;
+    }
+}
+
+/**
+ * Create initial counter record
+ */
+function createCounterRecord() {
+    const url = `${SUPABASE_URL}/rest/v1/${TABLE_NAME}`;
+    const now = new Date().toISOString();
+
+    const payload = {
+        id: 1,
+        refresh_count: 0,
+        unique_count: 0,
+        created_at: now,
+        updated_at: now
+    };
+
+    const options = {
+        method: 'post',
+        headers: {
+            'apikey': SUPABASE_API_KEY,
+            'Authorization': 'Bearer ' + SUPABASE_API_KEY,
+            'Content-Type': 'application/json'
+        },
+        payload: JSON.stringify(payload),
+        muteHttpExceptions: true
+    };
+
+    try {
+        UrlFetchApp.fetch(url, options);
+        return payload;
+    } catch (error) {
+        logError('createCounterRecord error: ' + error.toString());
+        throw error;
+    }
+}
+
+/**
+ * Update counter record in Supabase
+ */
+function updateCounterRecord(data) {
+    const url = `${SUPABASE_URL}/rest/v1/${TABLE_NAME}?id=eq.1`;
+
+    data.updated_at = new Date().toISOString();
+
+    const options = {
+        method: 'patch',
+        headers: {
+            'apikey': SUPABASE_API_KEY,
+            'Authorization': 'Bearer ' + SUPABASE_API_KEY,
+            'Content-Type': 'application/json'
+        },
+        payload: JSON.stringify(data),
+        muteHttpExceptions: true
+    };
+
+    try {
+        const response = UrlFetchApp.fetch(url, options);
+        return {
+            success: response.getResponseCode() >= 200 && response.getResponseCode() < 300,
+            statusCode: response.getResponseCode()
+        };
+    } catch (error) {
+        logError('updateCounterRecord error: ' + error.toString());
+        return { success: false, statusCode: 500 };
+    }
+}
+
+/**
+ * Check if visitor already has a record within 24 hours
+ */
+function checkExistingVisit(visitorId) {
+    const today = getTodayDateISO();
+    const encodedVisitorId = encodeURIComponent(visitorId);
+    const url = `${SUPABASE_URL}/rest/v1/${TABLE_NAME}_visitor_log?visitor_id=eq.${encodedVisitorId}&visit_date=eq.${today}`;
+
+    const options = {
+        method: 'get',
+        headers: {
+            'apikey': SUPABASE_API_KEY,
+            'Authorization': 'Bearer ' + SUPABASE_API_KEY,
+            'Content-Type': 'application/json'
+        },
+        muteHttpExceptions: true
+    };
+
+    try {
+        const response = UrlFetchApp.fetch(url, options);
+        const data = JSON.parse(response.getContentText());
+        return Array.isArray(data) && data.length > 0;
+    } catch (error) {
+        logError('checkExistingVisit error: ' + error.toString());
+        // Fail open - don't record if check fails
+        return false;
+    }
+}
+
+/**
+ * Log unique visitor to visitor tracking table
+ */
+function logUniqueVisitor(visitorId) {
+    const url = `${SUPABASE_URL}/rest/v1/${TABLE_NAME}_visitor_log`;
+    const now = new Date().toISOString();
+    const today = getTodayDateISO();
+
+    const payload = {
+        visitor_id: visitorId,
+        created_at: now,
+        visit_date: today
+    };
+
+    const options = {
+        method: 'post',
+        headers: {
+            'apikey': SUPABASE_API_KEY,
+            'Authorization': 'Bearer ' + SUPABASE_API_KEY,
+            'Content-Type': 'application/json'
+        },
+        payload: JSON.stringify(payload),
+        muteHttpExceptions: true
+    };
+
+    try {
+        UrlFetchApp.fetch(url, options);
+    } catch (error) {
+        logError('logUniqueVisitor error: ' + error.toString());
+    }
+}
+
+/**
+ * Log counter actions for auditing
+ */
+function logCounterAction(payload, actionType) {
+    // No-log mode: keep this hook as a no-op so calls remain backward compatible.
+    return;
+}
+
+// ===== UTILITY FUNCTIONS =====
+/**
+ * Log errors to Supabase for debugging
+ */
+function logError(message) {
+    const url = `${SUPABASE_URL}/rest/v1/gas_error_logs`;
+    const now = new Date().toISOString();
+
+    const payload = {
+        error_message: message,
+        timestamp: now
+    };
+
+    const options = {
+        method: 'post',
+        headers: {
+            'apikey': SUPABASE_API_KEY,
+            'Authorization': 'Bearer ' + SUPABASE_API_KEY,
+            'Content-Type': 'application/json'
+        },
+        payload: JSON.stringify(payload),
+        muteHttpExceptions: true
+    };
+
+    try {
+        UrlFetchApp.fetch(url, options);
+    } catch (e) {
+        // Silently fail if logging fails
+    }
+
+    // Also log to Apps Script console
+    Logger.log('[ERROR] ' + message);
+}
+
+/**
+ * Get ISO date string for 24 hours ago
+ */
+function get24HoursAgoISO() {
+    const now = new Date();
+    const hours24ago = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+    return hours24ago.toISOString();
+}
+
+/**
+ * Get today's date (UTC) as YYYY-MM-DD
+ */
+function getTodayDateISO() {
+    return new Date().toISOString().slice(0, 10);
+}
+
+/**
+ * Create JSON response
+ */
+function createResponse(success, message, statusCode, data) {
+    const response = ContentService.createTextOutput(JSON.stringify({
+        success: success,
+        message: message,
+        data: data || null
+    }));
+
+    response.setMimeType(ContentService.MimeType.JSON);
+    return response;
+}
+
+// ===== TESTING FUNCTIONS =====
+/**
+ * Test counter increment (run from Apps Script editor)
+ */
+function testRecordRefresh() {
+    const testPayload = {
+        action: 'recordRefresh',
+        visitorId: 'visitor_' + Date.now() + '_test',
+        sessionToken: 'session_' + Date.now() + '_test',
+        userAgent: 'Mozilla/5.0 (Test)'
+    };
+
+    const result = recordPageRefresh(testPayload);
+    Logger.log(JSON.stringify(result));
+}
+
+/**
+ * Test get counters
+ */
+function testGetCounters() {
+    const testPayload = {
+        action: 'getCounters',
+        visitorId: 'visitor_test',
+        sessionToken: 'session_test'
+    };
+
+    const result = getCounters(testPayload);
+    Logger.log(JSON.stringify(result));
+}
+
+/**
+ * View current counters
+ */
+function viewCurrentCounters() {
+    const data = getCounterRecord();
+    Logger.log('Current Counters:');
+    Logger.log('Refresh Count: ' + (data.refresh_count || 0));
+    Logger.log('Unique Count: ' + (data.unique_count || 0));
+    Logger.log('Last Update: ' + (data.updated_at || 'Never'));
+}

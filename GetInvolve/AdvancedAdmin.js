@@ -51,6 +51,169 @@ const Toast = {
     }
 };
 
+// --- CUSTOM DIALOG SYSTEM (replaces browser alert/confirm/prompt in certificate flow) ---
+const CustomDialog = {
+    ensure() {
+        if (document.getElementById('custom-dialog-overlay')) return;
+
+        const overlay = document.createElement('div');
+        overlay.id = 'custom-dialog-overlay';
+        overlay.className = 'modal-overlay hidden';
+        overlay.innerHTML = `
+            <div class="modal-content" style="width: 520px; max-width: 92%;">
+                <div class="modal-header">
+                    <h3 id="custom-dialog-title">Notice</h3>
+                    <button class="modal-close" id="custom-dialog-close" aria-label="Close"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="modal-body">
+                    <p id="custom-dialog-message" style="white-space: pre-line; margin: 0 0 14px;"></p>
+                    <div id="custom-dialog-input-wrap" style="display:none;">
+                        <input id="custom-dialog-input" class="form-control" type="text" style="width:100%;" />
+                    </div>
+                </div>
+                <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:10px;">
+                    <button id="custom-dialog-cancel" class="btn secondary">Cancel</button>
+                    <button id="custom-dialog-ok" class="btn primary">OK</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+    },
+
+    async alert(message, title = 'Notice') {
+        this.ensure();
+        return new Promise(resolve => {
+            const overlay = document.getElementById('custom-dialog-overlay');
+            const titleEl = document.getElementById('custom-dialog-title');
+            const messageEl = document.getElementById('custom-dialog-message');
+            const inputWrap = document.getElementById('custom-dialog-input-wrap');
+            const cancelBtn = document.getElementById('custom-dialog-cancel');
+            const okBtn = document.getElementById('custom-dialog-ok');
+            const closeBtn = document.getElementById('custom-dialog-close');
+
+            titleEl.textContent = title;
+            messageEl.textContent = message;
+            inputWrap.style.display = 'none';
+            cancelBtn.style.display = 'none';
+            okBtn.textContent = 'OK';
+
+            const cleanup = () => {
+                overlay.classList.add('hidden');
+                okBtn.onclick = null;
+                closeBtn.onclick = null;
+            };
+
+            okBtn.onclick = () => {
+                cleanup();
+                resolve(true);
+            };
+
+            closeBtn.onclick = () => {
+                cleanup();
+                resolve(true);
+            };
+
+            overlay.classList.remove('hidden');
+            okBtn.focus();
+        });
+    },
+
+    async confirm(message, title = 'Please Confirm', okText = 'OK', cancelText = 'Cancel') {
+        this.ensure();
+        return new Promise(resolve => {
+            const overlay = document.getElementById('custom-dialog-overlay');
+            const titleEl = document.getElementById('custom-dialog-title');
+            const messageEl = document.getElementById('custom-dialog-message');
+            const inputWrap = document.getElementById('custom-dialog-input-wrap');
+            const cancelBtn = document.getElementById('custom-dialog-cancel');
+            const okBtn = document.getElementById('custom-dialog-ok');
+            const closeBtn = document.getElementById('custom-dialog-close');
+
+            titleEl.textContent = title;
+            messageEl.textContent = message;
+            inputWrap.style.display = 'none';
+            cancelBtn.style.display = '';
+            cancelBtn.textContent = cancelText;
+            okBtn.textContent = okText;
+
+            const cleanup = () => {
+                overlay.classList.add('hidden');
+                okBtn.onclick = null;
+                cancelBtn.onclick = null;
+                closeBtn.onclick = null;
+            };
+
+            okBtn.onclick = () => {
+                cleanup();
+                resolve(true);
+            };
+
+            const cancelHandler = () => {
+                cleanup();
+                resolve(false);
+            };
+
+            cancelBtn.onclick = cancelHandler;
+            closeBtn.onclick = cancelHandler;
+
+            overlay.classList.remove('hidden');
+            okBtn.focus();
+        });
+    },
+
+    async prompt(message, title = 'Input Required', placeholder = '', defaultValue = '') {
+        this.ensure();
+        return new Promise(resolve => {
+            const overlay = document.getElementById('custom-dialog-overlay');
+            const titleEl = document.getElementById('custom-dialog-title');
+            const messageEl = document.getElementById('custom-dialog-message');
+            const inputWrap = document.getElementById('custom-dialog-input-wrap');
+            const inputEl = document.getElementById('custom-dialog-input');
+            const cancelBtn = document.getElementById('custom-dialog-cancel');
+            const okBtn = document.getElementById('custom-dialog-ok');
+            const closeBtn = document.getElementById('custom-dialog-close');
+
+            titleEl.textContent = title;
+            messageEl.textContent = message;
+            inputWrap.style.display = '';
+            cancelBtn.style.display = '';
+            cancelBtn.textContent = 'Cancel';
+            okBtn.textContent = 'Submit';
+            inputEl.placeholder = placeholder;
+            inputEl.value = defaultValue;
+
+            const cleanup = () => {
+                overlay.classList.add('hidden');
+                okBtn.onclick = null;
+                cancelBtn.onclick = null;
+                closeBtn.onclick = null;
+                inputEl.onkeydown = null;
+            };
+
+            okBtn.onclick = () => {
+                const value = inputEl.value;
+                cleanup();
+                resolve(value);
+            };
+
+            const cancelHandler = () => {
+                cleanup();
+                resolve(null);
+            };
+
+            cancelBtn.onclick = cancelHandler;
+            closeBtn.onclick = cancelHandler;
+            inputEl.onkeydown = (e) => {
+                if (e.key === 'Enter') okBtn.click();
+            };
+
+            overlay.classList.remove('hidden');
+            inputEl.focus();
+        });
+    }
+};
+
 const VERTICAL_STORAGE_BUCKET = 'vertical_images';
 const KNOWN_STORAGE_BUCKETS = ['vertical_images', 'gallery_photos', 'event-banners', 'alumni-images', 'executive_team'];
 let verticalImageRecords = [];
@@ -186,6 +349,9 @@ window.showSection = function (sectionId) {
         'verticals-manager': 'Verticals Management',
         'storage-manager': 'Supabase Storage Manager',
         'executive-manager': 'Executive Team Members',
+        'counter-admin': 'Live Counter',
+        'certificates': 'Certificates',
+        'vimarsh-certificates': 'Vimarsh Certificates'
     };
     const pageTitle = document.getElementById('page-title');
     if (pageTitle) pageTitle.textContent = titleMap[sectionId] || 'Dashboard';
@@ -200,6 +366,8 @@ window.showSection = function (sectionId) {
     const collegesView = document.getElementById('colleges-manager-view');
     const executiveView = document.getElementById('executive-manager-view');
     const counterView = document.getElementById('counter-admin-view');
+    const certificatesView = document.getElementById('certificates-view');
+    const certificatesSelectorView = document.getElementById('certificates-selector-view');
     if (messagesView) messagesView.style.display = 'none';
     if (eventsView) eventsView.style.display = 'none';
     if (verticalsView) verticalsView.style.display = 'none';
@@ -207,6 +375,7 @@ window.showSection = function (sectionId) {
     if (collegesView) collegesView.classList.add('hidden');
     if (executiveView) executiveView.style.display = 'none';
     if (counterView) counterView.style.display = 'none';
+    if (certificatesView) certificatesView.style.display = 'none';
 
     if (sectionId === 'dashboard') {
         document.getElementById('dashboard-view').classList.remove('hidden');
@@ -222,7 +391,7 @@ window.showSection = function (sectionId) {
         loadColleges();
     } else if (sectionId === 'events-manager') {
         if (eventsView) eventsView.style.display = 'block';
-        loadEvents();
+        refreshEventsManagerData();
     } else if (sectionId === 'verticals-manager') {
         if (verticalsView) verticalsView.style.display = 'block';
         loadVerticalAccessUsers();
@@ -236,6 +405,33 @@ window.showSection = function (sectionId) {
     } else if (sectionId === 'counter-admin') {
         if (counterView) counterView.style.display = 'block';
         loadCounterData();
+    } else if (sectionId === 'certificates') {
+        if (certificatesView) certificatesView.style.display = 'block';
+        if (certificatesSelectorView) certificatesSelectorView.style.display = 'grid';
+        document.getElementById('vimarsh-certificates-view').style.display = 'none';
+        document.getElementById('tenure-certificates-view').style.display = 'none';
+    }
+};
+
+// Show specific certificate type (Vimarsh or Tenure)
+window.showCertificateType = function (type) {
+    const selectorView = document.getElementById('certificates-selector-view');
+    const vimarshView = document.getElementById('vimarsh-certificates-view');
+    const tenureView = document.getElementById('tenure-certificates-view');
+
+    // Hide selector
+    if (selectorView) selectorView.style.display = 'none';
+
+    if (type === 'vimarsh') {
+        if (vimarshView) vimarshView.style.display = 'block';
+        if (tenureView) tenureView.style.display = 'none';
+        initCertificateFilterCustomDropdowns();
+        loadCertificates();
+    } else if (type === 'tenure') {
+        if (vimarshView) vimarshView.style.display = 'none';
+        if (tenureView) tenureView.style.display = 'block';
+        initCertificateFilterCustomDropdowns();
+        loadTenureCertificates();
     }
 };
 
@@ -702,7 +898,7 @@ window.loadMessages = async function () {
     }
 
     // Render messages
-    let html = '<div style="display: flex; flex-direction: column; gap: 15px; padding: 20px;">';
+    let html = '<div class="messages-stack">';
     messages.forEach(msg => {
         const statusColors = {
             'unread': '#FF9933',
@@ -715,47 +911,46 @@ window.loadMessages = async function () {
             'resources': '#FF9933',
             'other': '#64748B'
         };
+        const statusColor = statusColors[msg.status] || '#64748B';
+        const categoryColor = categoryColors[msg.category] || '#64748B';
+        const safeCategory = (msg.category || 'other').toUpperCase();
+        const safeStatus = (msg.status || 'read').toUpperCase();
+        const createdAtLabel = msg.created_at ? new Date(msg.created_at).toLocaleString() : 'N/A';
 
         html += `
-            <div class="message-card" style="background: white; border-left: 4px solid ${statusColors[msg.status]}; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
-                    <div>
-                        <h3 style="margin: 0 0 8px 0; color: #333; font-size: 18px;">${msg.subject}</h3>
-                        <div style="display: flex; gap: 10px; align-items: center;">
-                            <span style="background: ${categoryColors[msg.category]}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">
-                                ${msg.category.toUpperCase()}
-                            </span>
-                            <span style="background: ${statusColors[msg.status]}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">
-                                ${msg.status.toUpperCase()}
-                            </span>
+            <article class="message-card" style="--message-status-color:${statusColor}">
+                <div class="message-card-head">
+                    <div class="message-card-head-main">
+                        <h3 class="message-title">${msg.subject}</h3>
+                        <div class="message-meta">
+                            <span class="message-pill" style="--pill-bg:${categoryColor};">${safeCategory}</span>
+                            <span class="message-pill" style="--pill-bg:${statusColor};">${safeStatus}</span>
                         </div>
                     </div>
-                    <div style="text-align: right;">
-                        <div style="font-size: 12px; color: #777;">${new Date(msg.created_at).toLocaleString()}</div>
-                    </div>
+                    <div class="message-time">${createdAtLabel}</div>
                 </div>
-                
-                <div style="background: #f9f9f9; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
-                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; font-size: 14px;">
-                        <div><strong>From:</strong> ${msg.sender_name}</div>
-                        <div><strong>Email:</strong> ${msg.sender_email}</div>
+
+                <div class="message-info-box">
+                    <div class="message-info-grid">
+                        <div><strong>From:</strong> ${msg.sender_name || 'N/A'}</div>
+                        <div><strong>Email:</strong> ${msg.sender_email || 'N/A'}</div>
                         <div><strong>Zone:</strong> ${msg.zone_name || 'N/A'}</div>
-                        <div><strong>Role:</strong> ${msg.sender_role}</div>
+                        <div><strong>Role:</strong> ${msg.sender_role || 'N/A'}</div>
                     </div>
                 </div>
-                
-                <div style="margin-bottom: 15px;">
-                    <strong style="color: #000080;">Message:</strong>
-                    <p style="margin: 8px 0 0 0; line-height: 1.6; white-space: pre-wrap;">${msg.message}</p>
+
+                <div class="message-body">
+                    <strong class="message-label">Message:</strong>
+                    <p class="message-text">${msg.message || ''}</p>
                 </div>
-                
-                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+
+                <div class="message-actions">
                     ${msg.status === 'unread' ? `<button class="btn primary" data-action="mark-read" data-msg-id="${msg.id}"><i class="fas fa-check"></i> Mark as Read</button>` : ''}
                     ${msg.status === 'read' ? `<button class="btn primary" data-action="mark-resolved" data-msg-id="${msg.id}"><i class="fas fa-check-double"></i> Mark as Resolved</button>` : ''}
                     ${msg.status === 'resolved' ? `<button class="btn secondary" data-action="reopen" data-msg-id="${msg.id}"><i class="fas fa-undo"></i> Reopen</button>` : ''}
                     <button class="btn secondary" data-action="reply" data-msg-id="${msg.id}" data-email="${msg.sender_email}" data-subject="${msg.subject.replace(/"/g, '&quot;')}" data-name="${msg.sender_name.replace(/"/g, '&quot;')}"><i class="fas fa-reply"></i> Reply via Email</button>
                 </div>
-            </div>
+            </article>
         `;
     });
     html += '</div>';
@@ -953,7 +1148,7 @@ window.refreshCurrentView = function () {
     } else {
         const eventsView = document.getElementById('events-manager-view');
         if (eventsView && eventsView.style.display !== 'none') {
-            loadEvents().finally(stopRefreshAnimation);
+            refreshEventsManagerData().finally(stopRefreshAnimation);
         } else {
             const verticalsView = document.getElementById('verticals-manager-view');
             if (verticalsView && verticalsView.style.display !== 'none') {
@@ -1894,8 +2089,8 @@ function formatBytes(bytes) {
                 select.dispatchEvent(new Event('change'));
 
                 // Update UI
-                document.querySelector('.custom-dropdown-text').textContent = this.textContent;
-                document.querySelectorAll('.custom-dropdown-option').forEach(opt => {
+                trigger.querySelector('.custom-dropdown-text').textContent = this.textContent;
+                menu.querySelectorAll('.custom-dropdown-option').forEach(opt => {
                     opt.classList.remove('selected');
                 });
                 this.classList.add('selected');
@@ -1961,10 +2156,19 @@ function formatBytes(bytes) {
 
 // ===== EVENT MANAGEMENT SECTION =====
 
+window.refreshEventsManagerData = async function () {
+    await Promise.all([
+        loadEvents(),
+        loadEventUploaders(),
+        loadEventPublications()
+    ]);
+};
+
 // Load events from database
 async function loadEvents() {
     try {
         const statusFilter = document.getElementById('event-status-filter').value;
+        const displayFilter = document.getElementById('event-display-filter')?.value || 'all';
 
         // Use published_events view which already has mode and capacity
         let query = supabaseClient.from('published_events').select('*');
@@ -1972,6 +2176,15 @@ async function loadEvents() {
         // Apply status filter
         if (statusFilter !== 'all') {
             query = query.eq('status', statusFilter);
+        }
+
+        // Apply event_publications display filter
+        if (displayFilter === 'home') {
+            query = query.eq('display_on_home', true);
+        } else if (displayFilter === 'upcoming') {
+            query = query.eq('display_on_upcoming', true);
+        } else if (displayFilter === 'past') {
+            query = query.eq('display_on_past', true);
         }
 
         const { data: events, error } = await query.order('start_at', { ascending: false });
@@ -1985,6 +2198,80 @@ async function loadEvents() {
     } catch (error) {
         console.error('Error loading events:', error);
         Toast.show('error', 'Load Failed', error.message);
+    }
+}
+
+async function loadEventUploaders() {
+    const tbody = document.querySelector('#event-uploaders-table tbody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;"><i class="fas fa-spinner fa-spin"></i> Loading uploaders...</td></tr>';
+
+    try {
+        const { data, error } = await supabaseClient
+            .from('event_uploaders')
+            .select('email, verified_at, total_uploads, last_upload_at, is_active')
+            .order('verified_at', { ascending: false })
+            .limit(200);
+
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#777;">No event uploaders found.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = data.map((row) => `
+            <tr>
+                <td>${escapeHtml(row.email || '-')}</td>
+                <td>${row.verified_at ? formatDateTime(row.verified_at) : '-'}</td>
+                <td><strong>${Number(row.total_uploads || 0)}</strong></td>
+                <td>${row.last_upload_at ? formatDateTime(row.last_upload_at) : '-'}</td>
+                <td><span class="badge ${row.is_active ? 'badge-success' : 'badge-warning'}">${row.is_active ? 'ACTIVE' : 'INACTIVE'}</span></td>
+            </tr>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading event uploaders:', error);
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px; color:#c62828;">Failed to load uploaders: ${escapeHtml(error.message || 'Unknown error')}</td></tr>`;
+    }
+}
+
+async function loadEventPublications() {
+    const tbody = document.querySelector('#event-publications-table tbody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;"><i class="fas fa-spinner fa-spin"></i> Loading publication controls...</td></tr>';
+
+    try {
+        const { data, error } = await supabaseClient
+            .from('published_events')
+            .select('id, title, status, display_on_home, display_on_upcoming, display_on_past')
+            .order('start_at', { ascending: false })
+            .limit(200);
+
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#777;">No publication rows found.</td></tr>';
+            return;
+        }
+
+        const yesNo = (flag) => flag
+            ? '<span class="badge badge-success">YES</span>'
+            : '<span class="badge badge-warning">NO</span>';
+
+        tbody.innerHTML = data.map((row) => `
+            <tr>
+                <td><strong>${escapeHtml(row.title || '-')}</strong></td>
+                <td>${escapeHtml(row.status || '-')}</td>
+                <td>${yesNo(!!row.display_on_home)}</td>
+                <td>${yesNo(!!row.display_on_upcoming)}</td>
+                <td>${yesNo(!!row.display_on_past)}</td>
+            </tr>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading event publications:', error);
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px; color:#c62828;">Failed to load publication controls: ${escapeHtml(error.message || 'Unknown error')}</td></tr>`;
     }
 }
 
@@ -2140,6 +2427,31 @@ async function saveEvent() {
             return;
         }
 
+        // Home section only shows active statuses; prevent misleading selection.
+        if (publicationData.display_on_home && ['cancelled', 'completed'].includes(String(eventData.status || '').toLowerCase())) {
+            publicationData.display_on_home = false;
+            const homeCheckbox = document.getElementById('event-display-home');
+            if (homeCheckbox) homeCheckbox.checked = false;
+            Toast.show('warning', 'Home Visibility Updated', 'Home display was disabled because the event is cancelled or completed.');
+        }
+
+        // UI rule: Past display is only valid after event end time has passed.
+        const endAt = new Date(eventData.end_at);
+        const now = new Date();
+        if (publicationData.display_on_past && endAt > now) {
+            publicationData.display_on_past = false;
+            if (!publicationData.display_on_upcoming) {
+                publicationData.display_on_upcoming = true;
+            }
+
+            const pastCheckbox = document.getElementById('event-display-past');
+            const upcomingCheckbox = document.getElementById('event-display-upcoming');
+            if (pastCheckbox) pastCheckbox.checked = false;
+            if (upcomingCheckbox) upcomingCheckbox.checked = publicationData.display_on_upcoming;
+
+            Toast.show('warning', 'Invalid Selection', 'Past event not selected because end date has not passed yet.');
+        }
+
         let result;
         if (eventId) {
             // Update existing event
@@ -2186,7 +2498,7 @@ async function saveEvent() {
 
         Toast.show('success', 'Success', eventId ? 'Event updated successfully' : 'Event created successfully');
         closeEventModal();
-        loadEvents();
+        refreshEventsManagerData();
     } catch (error) {
         console.error('Error saving event:', error);
         Toast.show('error', 'Save Failed', error.message);
@@ -2206,7 +2518,7 @@ async function deleteEvent(eventId) {
         if (error) throw error;
 
         Toast.show('success', 'Deleted', 'Event deleted successfully');
-        loadEvents();
+        refreshEventsManagerData();
     } catch (error) {
         console.error('Error deleting event:', error);
         Toast.show('error', 'Delete Failed', error.message);
@@ -2258,6 +2570,40 @@ document.addEventListener('DOMContentLoaded', function () {
     const eventStatusFilter = document.getElementById('event-status-filter');
     if (eventStatusFilter) {
         eventStatusFilter.addEventListener('change', loadEvents);
+    }
+
+    const eventDisplayFilter = document.getElementById('event-display-filter');
+    if (eventDisplayFilter) {
+        eventDisplayFilter.addEventListener('change', loadEvents);
+    }
+
+    const eventPastCheckbox = document.getElementById('event-display-past');
+    const eventUpcomingCheckbox = document.getElementById('event-display-upcoming');
+    const eventEndInput = document.getElementById('event-end');
+
+    const enforcePastDateRule = () => {
+        if (!eventPastCheckbox || !eventEndInput) return;
+        if (!eventPastCheckbox.checked) return;
+
+        const endValue = eventEndInput.value;
+        if (!endValue) return;
+
+        const endAt = new Date(endValue);
+        const now = new Date();
+        if (endAt > now) {
+            eventPastCheckbox.checked = false;
+            if (eventUpcomingCheckbox && !eventUpcomingCheckbox.checked) {
+                eventUpcomingCheckbox.checked = true;
+            }
+            Toast.show('warning', 'Invalid Selection', 'Past event not selected because end date has not passed yet.');
+        }
+    };
+
+    if (eventPastCheckbox) {
+        eventPastCheckbox.addEventListener('change', enforcePastDateRule);
+    }
+    if (eventEndInput) {
+        eventEndInput.addEventListener('change', enforcePastDateRule);
     }
 
     const registrationSearch = document.getElementById('registration-search');
@@ -2563,8 +2909,1870 @@ window.confirmCounterReset = async function () {
         }
     } catch (error) {
         console.error('Error resetting counters:', error);
-        Toast.show('error', 'Request Error', error.message || 'Failed to reset counters');
+        Toast.show('error', 'Error', 'Failed to reset counters: ' + error.message);
     }
+};
+
+// ============================================================================
+// VIMARSH CERTIFICATES MODULE
+// ============================================================================
+
+const VIMARSH_CERT_TABLE = 'vim_cert_vimarsh_certificates';
+// Generic table name - works for all years (2025, 2026, etc.)
+const VIMARSH_CERT_DIRECTOR_NAME = 'Dr. Kavindra Taliyan';
+const VIMARSH_CERT_COORDINATOR_NAME = 'Dr. Meenu Rani';
+const VIMARSH_EVENT_YEAR = 2026;
+// Update only these two paths if you want to change certificate logos.
+const VIMARSH_CERT_YUVA_LOGO_SRC = '/Images/YUVA logo.png';
+const VIMARSH_CERT_VIMARSH_LOGO_SRC = '/Images/Vimarsh2025_logo.jpg';
+const EVENT_START_DATE = '2026-01-10';
+const EVENT_END_DATE = '2026-01-12';
+const VIMARSH_REG_TABLE = 'vim26_registrations';
+const PAID_PAYMENT_STATUSES = ['completed', 'paid', 'success', 'captured'];
+const VIMARSH_CERT_BATCH_TABLE = 'vim_cert_batch_generation';
+const ADV_TENURE_CERT_TABLE = 'yuva_tenure_certificates';
+const UNIT_REGISTRATION_TABLE = 'registrations';
+const VIMARSH_CERTIFICATE_FINDER_URL = window.VIMARSH_CERTIFICATE_FINDER_URL || 'https://yuva.ind.in/Our.Initiative/Vimarsh/certificate-finder.html';
+const VIMARSH_CERT_EMAIL_GAS_URL = window.VIMARSH_CERT_EMAIL_GAS_URL || window.YUVA_GAS_COUNTER_URL || COUNTER_GAS_URL || (typeof GAS_WEB_APP_URL !== 'undefined' ? GAS_WEB_APP_URL : '');
+
+let certificatesData = [];
+let filteredCertificates = [];
+let tenureMembersData = [];
+let filteredTenureMembers = [];
+
+async function getCurrentAdminUserId() {
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session?.user?.id) return session.user.id;
+    } catch (error) {
+        console.warn('Could not read Supabase session for logging:', error);
+    }
+
+    try {
+        const localSession = localStorage.getItem('yuva_user');
+        if (!localSession) return null;
+
+        let parsed = JSON.parse(localSession);
+        if (typeof parsed === 'string') {
+            parsed = JSON.parse(parsed);
+        }
+
+        return parsed?.id || parsed?.user?.id || null;
+    } catch (error) {
+        console.warn('Could not parse local session for logging:', error);
+        return null;
+    }
+}
+
+async function logCertificateBatchGeneration({
+    adminUserId,
+    totalCount,
+    successCount,
+    failedCount,
+    status,
+    includeNonAttended,
+    note
+}) {
+    if (!adminUserId) return;
+
+    const payload = {
+        batch_name: `Vimarsh-${VIMARSH_EVENT_YEAR}-${new Date().toISOString()}`,
+        total_count: Number(totalCount || 0),
+        success_count: Number(successCount || 0),
+        failed_count: Number(failedCount || 0),
+        status,
+        filters: {
+            include_non_attended: Boolean(includeNonAttended),
+            event_year: VIMARSH_EVENT_YEAR
+        },
+        error_log: note ? [{ note, timestamp: new Date().toISOString() }] : [],
+        completed_at: new Date().toISOString(),
+        created_by: adminUserId
+    };
+
+    const { error } = await supabaseClient
+        .from(VIMARSH_CERT_BATCH_TABLE)
+        .insert([payload]);
+
+    if (error) {
+        console.warn('Batch logging skipped due to table/schema mismatch:', error);
+    }
+}
+
+// Load all certificates
+window.loadCertificates = async function () {
+    try {
+        // Fetch certificates from Supabase
+        const { data, error } = await supabaseClient
+            .from(VIMARSH_CERT_TABLE)
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        certificatesData = data || [];
+        filteredCertificates = [...certificatesData];
+
+        // Update stats
+        updateCertificateStats();
+
+        // Populate filters
+        await populateCertificateFilters();
+
+        // Display certificates
+        displayCertificates(filteredCertificates);
+
+        Toast.show('success', 'Success', `Loaded ${certificatesData.length} certificates`);
+    } catch (error) {
+        console.error('Error loading certificates:', error);
+        Toast.show('error', 'Load Error', 'Failed to load certificates');
+    }
+};
+
+// Update certificate statistics
+function updateCertificateStats() {
+    const totalEl = document.getElementById('cert-total');
+    const issuedEl = document.getElementById('cert-issued');
+    const downloadedEl = document.getElementById('cert-downloaded');
+    const revokedEl = document.getElementById('cert-revoked');
+
+    if (totalEl) totalEl.textContent = certificatesData.length;
+    if (issuedEl) issuedEl.textContent = certificatesData.filter(c => c.status === 'issued').length;
+    if (downloadedEl) downloadedEl.textContent = certificatesData.filter(c => c.downloaded === true).length;
+    if (revokedEl) revokedEl.textContent = certificatesData.filter(c => c.status === 'revoked').length;
+}
+
+// Populate filter dropdowns
+async function populateCertificateFilters() {
+    const collegeFilter = document.getElementById('cert-college-filter');
+    if (!collegeFilter) return;
+
+    // Reset options first to prevent duplicates after repeated reloads.
+    collegeFilter.innerHTML = '<option value="">All Colleges</option>';
+
+    // Build unique college list using normalized keys (trim + lowercase).
+    const collegeMap = new Map();
+    certificatesData.forEach(cert => {
+        const rawCollege = String(cert.college_name || '').trim();
+        if (!rawCollege) return;
+
+        const key = rawCollege.toLowerCase();
+        if (!collegeMap.has(key)) {
+            collegeMap.set(key, rawCollege);
+        }
+    });
+
+    const colleges = Array.from(collegeMap.values()).sort((a, b) => a.localeCompare(b));
+
+    colleges.forEach(college => {
+        const option = document.createElement('option');
+        option.value = college;
+        option.textContent = college;
+        collegeFilter.appendChild(option);
+    });
+
+    // Keep custom dropdown UI synced with updated select options.
+    initCertificateFilterCustomDropdowns();
+}
+
+function initCustomDropdownForSelect(selectId) {
+    const select = document.getElementById(selectId);
+    if (!select || !select.parentNode) return;
+
+    const parent = select.parentNode;
+    let wrapper = parent.querySelector(`.custom-dropdown[data-select-id="${selectId}"]`);
+    let trigger;
+    let menu;
+
+    if (!wrapper) {
+        wrapper = document.createElement('div');
+        wrapper.className = 'custom-dropdown custom-dropdown-filter';
+        wrapper.dataset.selectId = selectId;
+
+        trigger = document.createElement('div');
+        trigger.className = 'custom-dropdown-trigger';
+        trigger.innerHTML = `
+            <span class="custom-dropdown-text"></span>
+            <i class="fas fa-chevron-down custom-dropdown-arrow"></i>
+        `;
+
+        menu = document.createElement('div');
+        menu.className = 'custom-dropdown-menu';
+
+        wrapper.appendChild(trigger);
+        wrapper.appendChild(menu);
+        parent.insertBefore(wrapper, select);
+
+        trigger.addEventListener('click', function (e) {
+            e.stopPropagation();
+            const isActive = trigger.classList.contains('active');
+
+            document.querySelectorAll('.custom-dropdown-trigger.active').forEach(t => {
+                t.classList.remove('active');
+            });
+            document.querySelectorAll('.custom-dropdown-menu.active').forEach(m => {
+                m.classList.remove('active');
+            });
+
+            if (!isActive) {
+                trigger.classList.add('active');
+                menu.classList.add('active');
+            }
+        });
+
+        select.classList.add('custom-select-hidden');
+    } else {
+        trigger = wrapper.querySelector('.custom-dropdown-trigger');
+        menu = wrapper.querySelector('.custom-dropdown-menu');
+        menu.innerHTML = '';
+    }
+
+    const selectedOption = select.options[select.selectedIndex] || select.options[0];
+    const triggerText = trigger.querySelector('.custom-dropdown-text');
+    if (triggerText) {
+        triggerText.textContent = selectedOption ? selectedOption.text : 'Select';
+    }
+
+    Array.from(select.options).forEach((option, index) => {
+        const optionEl = document.createElement('div');
+        optionEl.className = 'custom-dropdown-option';
+        if (index === select.selectedIndex) {
+            optionEl.classList.add('selected');
+        }
+
+        optionEl.textContent = option.text;
+        optionEl.dataset.index = String(index);
+
+        optionEl.addEventListener('click', function () {
+            select.selectedIndex = parseInt(this.dataset.index, 10);
+            select.dispatchEvent(new Event('change'));
+
+            const localTriggerText = trigger.querySelector('.custom-dropdown-text');
+            if (localTriggerText) {
+                localTriggerText.textContent = this.textContent;
+            }
+
+            menu.querySelectorAll('.custom-dropdown-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            this.classList.add('selected');
+
+            trigger.classList.remove('active');
+            menu.classList.remove('active');
+        });
+
+        menu.appendChild(optionEl);
+    });
+}
+
+function initCertificateFilterCustomDropdowns() {
+    ['cert-college-filter', 'cert-status-filter', 'cert-downloaded-filter', 'tenure-college-filter', 'tenure-status-filter'].forEach(initCustomDropdownForSelect);
+}
+
+function generateTenureCertificateId() {
+    const year = new Date().getFullYear();
+    const seed = `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '');
+    const suffix = (seed + '000000').slice(0, 6);
+    return `TN-${year}-${suffix}`;
+}
+
+function getTenureStatusLabel(status) {
+    const normalized = String(status || 'pending').toLowerCase();
+    if (normalized === 'completed') return 'Completed';
+    if (normalized === 'issued') return 'Issued';
+    if (normalized === 'revoked') return 'Revoked';
+    return 'Pending';
+}
+
+function toDisplayDate(value) {
+    if (!value) return 'N/A';
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? 'N/A' : parsed.toLocaleDateString();
+}
+
+function getCurrentAdminRole() {
+    try {
+        if (window.authManager?.currentUser?.role) {
+            return String(window.authManager.currentUser.role).toLowerCase();
+        }
+
+        const localSession = localStorage.getItem('yuva_user');
+        if (!localSession) return '';
+
+        let parsed = JSON.parse(localSession);
+        if (typeof parsed === 'string') parsed = JSON.parse(parsed);
+        return String(parsed?.role || parsed?.user?.role || '').toLowerCase();
+    } catch (_) {
+        return '';
+    }
+}
+
+function calculateTenureCompletionDate(approvalDate) {
+    if (!approvalDate) return null;
+    const start = new Date(approvalDate);
+    if (Number.isNaN(start.getTime())) return null;
+    const completionDate = new Date(start);
+    completionDate.setFullYear(completionDate.getFullYear() + 1);
+    return completionDate;
+}
+
+async function fetchApprovedMembersForTenure() {
+    // Preferred query: uses dedicated approved_at for accurate tenure start.
+    const withApprovedAt = await supabaseClient
+        .from(UNIT_REGISTRATION_TABLE)
+        .select('id, applicant_name, email, applying_for, unit_name, academic_session, status, college_id, zone_id, created_at, updated_at, approved_at')
+        .eq('status', 'approved')
+        .order('applicant_name', { ascending: true });
+
+    if (!withApprovedAt.error) {
+        return withApprovedAt;
+    }
+
+    const errorMsg = String(withApprovedAt.error.message || '').toLowerCase();
+    const approvedAtMissing = errorMsg.includes('approved_at') && (errorMsg.includes('column') || errorMsg.includes('does not exist'));
+
+    if (!approvedAtMissing) {
+        return withApprovedAt;
+    }
+
+    // Fallback for environments where approved_at migration is not yet applied.
+    const fallback = await supabaseClient
+        .from(UNIT_REGISTRATION_TABLE)
+        .select('id, applicant_name, email, applying_for, unit_name, academic_session, status, college_id, zone_id, created_at, updated_at')
+        .eq('status', 'approved')
+        .order('applicant_name', { ascending: true });
+
+    if (!fallback.error) {
+        fallback.data = (fallback.data || []).map(row => ({ ...row, approved_at: null }));
+    }
+
+    return fallback;
+}
+
+async function resolveCollegeNameById(collegeId, fallbackName = '') {
+    if (!collegeId) return fallbackName || '';
+
+    try {
+        const { data: collegeDetails } = await supabaseClient
+            .from('college_details')
+            .select('college_name')
+            .eq('id', collegeId)
+            .maybeSingle();
+
+        if (collegeDetails?.college_name) return collegeDetails.college_name;
+    } catch (_) {
+        // Ignore and try legacy table.
+    }
+
+    try {
+        const { data: legacyCollege } = await supabaseClient
+            .from('colleges')
+            .select('college_name')
+            .eq('id', collegeId)
+            .maybeSingle();
+
+        if (legacyCollege?.college_name) return legacyCollege.college_name;
+    } catch (_) {
+        // Ignore and use fallback.
+    }
+
+    return fallbackName || '';
+}
+
+window.loadTenureCertificates = async function () {
+    try {
+        const [membersResult, collegesResult, legacyCollegesResult, tenureResult] = await Promise.all([
+            fetchApprovedMembersForTenure(),
+            supabaseClient
+                .from('college_details')
+                .select('id, college_name'),
+            supabaseClient
+                .from('colleges')
+                .select('id, college_name'),
+            supabaseClient
+                .from(ADV_TENURE_CERT_TABLE)
+                .select('*')
+        ]);
+
+        if (membersResult.error) throw membersResult.error;
+        if (collegesResult.error) throw collegesResult.error;
+
+        let tenureRows = [];
+        if (tenureResult.error) {
+            const errorMessage = String(tenureResult.error.message || '').toLowerCase();
+            if (errorMessage.includes('does not exist') || errorMessage.includes('relation')) {
+                Toast.show('warning', 'Table Missing', 'Create table yuva_tenure_certificates to enable tenure issuance.');
+            } else {
+                throw tenureResult.error;
+            }
+        } else {
+            tenureRows = tenureResult.data || [];
+        }
+
+        const collegeMap = new Map();
+        (legacyCollegesResult.data || []).forEach(c => {
+            if (!collegeMap.has(String(c.id)) && c.college_name) {
+                collegeMap.set(String(c.id), c.college_name);
+            }
+        });
+        (collegesResult.data || []).forEach(c => {
+            if (c.college_name) {
+                collegeMap.set(String(c.id), c.college_name);
+            }
+        });
+        const tenureMap = new Map((tenureRows || []).map(r => [String(r.registration_id), r]));
+        const now = new Date();
+
+        tenureMembersData = (membersResult.data || []).map(member => {
+            const tenure = tenureMap.get(String(member.id)) || {};
+            const persistedStatus = String(tenure.status || 'pending').toLowerCase();
+            const approvalDate = tenure.approval_date || member.approved_at || member.updated_at || member.created_at || null;
+            const autoCompletionDate = calculateTenureCompletionDate(approvalDate);
+            const isAutoCompleted = autoCompletionDate ? now >= autoCompletionDate : false;
+
+            let status = 'pending';
+            if (persistedStatus === 'issued') {
+                status = 'issued';
+            } else if (persistedStatus === 'revoked') {
+                status = 'revoked';
+            } else if (persistedStatus === 'completed' || isAutoCompleted) {
+                status = 'completed';
+            }
+
+            return {
+                registration_id: member.id,
+                member_name: member.applicant_name || 'N/A',
+                email: member.email || '',
+                role: member.applying_for || 'Member',
+                unit_name: member.unit_name || '',
+                academic_session: member.academic_session || '',
+                college_id: member.college_id,
+                college_name: tenure.college_name || collegeMap.get(String(member.college_id)) || 'Unknown College',
+                zone_id: member.zone_id,
+                status,
+                certificate_id: tenure.certificate_id || '',
+                approval_date: approvalDate,
+                tenure_completed_at: tenure.tenure_completed_at || (isAutoCompleted ? autoCompletionDate?.toISOString() : null),
+                tenure_due_at: autoCompletionDate ? autoCompletionDate.toISOString() : null,
+                issued_at: tenure.issued_at || null,
+                revoked_at: tenure.revoked_at || null
+            };
+        });
+
+        filteredTenureMembers = [...tenureMembersData];
+        updateTenureStats();
+        populateTenureFilters();
+        displayTenureCertificates(filteredTenureMembers);
+    } catch (error) {
+        console.error('Error loading tenure certificates:', error);
+        Toast.show('error', 'Load Error', 'Failed to load tenure certificate data');
+    }
+};
+
+function updateTenureStats() {
+    const totalEl = document.getElementById('tenure-total');
+    const completedEl = document.getElementById('tenure-completed');
+    const issuedEl = document.getElementById('tenure-issued');
+    const revokedEl = document.getElementById('tenure-revoked');
+
+    if (totalEl) totalEl.textContent = String(tenureMembersData.length);
+    if (completedEl) completedEl.textContent = String(tenureMembersData.filter(m => m.status === 'completed').length);
+    if (issuedEl) issuedEl.textContent = String(tenureMembersData.filter(m => m.status === 'issued').length);
+    if (revokedEl) revokedEl.textContent = String(tenureMembersData.filter(m => m.status === 'revoked').length);
+}
+
+function populateTenureFilters() {
+    const collegeFilter = document.getElementById('tenure-college-filter');
+    if (!collegeFilter) return;
+
+    collegeFilter.innerHTML = '<option value="">All Colleges</option>';
+    const colleges = [...new Set(tenureMembersData.map(m => m.college_name).filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b));
+
+    colleges.forEach(college => {
+        const option = document.createElement('option');
+        option.value = college;
+        option.textContent = college;
+        collegeFilter.appendChild(option);
+    });
+
+    initCertificateFilterCustomDropdowns();
+}
+
+window.filterTenureCertificates = function () {
+    const searchTerm = (document.getElementById('tenure-search')?.value || '').toLowerCase();
+    const collegeFilter = document.getElementById('tenure-college-filter')?.value || '';
+    const statusFilter = document.getElementById('tenure-status-filter')?.value || '';
+
+    filteredTenureMembers = tenureMembersData.filter(member => {
+        const matchesSearch = !searchTerm ||
+            String(member.member_name || '').toLowerCase().includes(searchTerm) ||
+            String(member.email || '').toLowerCase().includes(searchTerm);
+
+        const matchesCollege = !collegeFilter || member.college_name === collegeFilter;
+        const matchesStatus = !statusFilter || member.status === statusFilter;
+
+        return matchesSearch && matchesCollege && matchesStatus;
+    });
+
+    displayTenureCertificates(filteredTenureMembers);
+};
+
+function displayTenureCertificates(rows) {
+    const tbody = document.querySelector('#tenure-certificates-table tbody');
+    if (!tbody) return;
+    const isSuperAdmin = getCurrentAdminRole() === 'super_admin';
+
+    if (!rows || rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:30px;">No tenure members found</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = rows.map(member => {
+        const canIssue = member.status === 'completed' || member.status === 'pending' || (member.status === 'revoked' && isSuperAdmin);
+        const canRevoke = member.status === 'issued';
+        const issueTitle = member.status === 'revoked'
+            ? 'Re-Issue (Super Admin Only)'
+            : (member.status === 'completed' ? 'Issue Certificate' : 'Issue Early (Super Admin Only)');
+
+        return `
+            <tr>
+                <td>${member.registration_id}</td>
+                <td>${member.member_name}</td>
+                <td>${member.email || 'N/A'}</td>
+                <td>${member.role || 'Member'}${member.unit_name ? `<br><small>${member.unit_name}</small>` : ''}</td>
+                <td>${member.college_name || 'N/A'}</td>
+                <td>${member.academic_session || 'N/A'}</td>
+                <td>
+                    <span class="certificate-status-badge ${member.status}">${getTenureStatusLabel(member.status)}</span>
+                    ${member.status === 'pending' && member.tenure_due_at ? `<div class="tenure-due-text">Due: ${toDisplayDate(member.tenure_due_at)}</div>` : ''}
+                </td>
+                <td>${member.certificate_id || 'Not Issued'}</td>
+                <td>${toDisplayDate(member.issued_at)}</td>
+                <td>
+                    <div class="tenure-action-group">
+                        <button class="tenure-action-btn issue" title="${issueTitle}" onclick="issueTenureCertificate('${member.registration_id}')" ${canIssue ? '' : 'disabled'}>
+                            Issue
+                        </button>
+                        <button class="tenure-action-btn revoke" title="Revoke Certificate" onclick="revokeTenureCertificate('${member.registration_id}')" ${canRevoke ? '' : 'disabled'}>
+                            Revoke
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+window.issueTenureCertificate = async function (registrationId) {
+    const member = tenureMembersData.find(m => String(m.registration_id) === String(registrationId));
+    if (!member) return;
+
+    const role = getCurrentAdminRole();
+    const isSuperAdmin = role === 'super_admin';
+    const isCompleted = member.status === 'completed';
+    const isRevoked = member.status === 'revoked';
+
+    if (isRevoked && !isSuperAdmin) {
+        Toast.show('warning', 'Restricted', 'Only Super Admin can re-issue a revoked certificate.');
+        return;
+    }
+
+    if (isRevoked && isSuperAdmin) {
+        const reissueConfirmed = await CustomDialog.confirm(
+            `Certificate for ${member.member_name} is revoked.\n\nRe-issue this certificate now?`,
+            'Re-Issue Revoked Certificate',
+            'Re-Issue',
+            'Cancel'
+        );
+
+        if (!reissueConfirmed) return;
+    }
+
+    if (!isCompleted && !isRevoked && !isSuperAdmin) {
+        Toast.show('warning', 'Not Eligible', 'One-year tenure is not completed yet. Only Super Admin can issue early.');
+        return;
+    }
+
+    if (!isCompleted && !isRevoked && isSuperAdmin) {
+        const earlyConfirmed = await CustomDialog.confirm(
+            `Tenure year is not complete for ${member.member_name}.\n\nIssue certificate early as Super Admin override?`,
+            'Early Issue Override',
+            'Issue Early',
+            'Cancel'
+        );
+
+        if (!earlyConfirmed) return;
+    }
+
+    const confirmed = await CustomDialog.confirm(
+        `Issue tenure certificate for ${member.member_name}?`,
+        'Issue Tenure Certificate',
+        'Issue',
+        'Cancel'
+    );
+
+    if (!confirmed) return;
+
+    try {
+        const resolvedCollegeName = await resolveCollegeNameById(member.college_id, member.college_name);
+
+        const payload = {
+            registration_id: member.registration_id,
+            member_name: member.member_name,
+            email: member.email,
+            college_id: member.college_id,
+            college_name: resolvedCollegeName || member.college_name || 'N/A',
+            zone_id: member.zone_id,
+            role: member.role,
+            academic_session: member.academic_session,
+            approval_date: member.approval_date,
+            status: 'issued',
+            certificate_id: member.certificate_id || generateTenureCertificateId(),
+            tenure_completed_at: member.tenure_completed_at,
+            issued_at: new Date().toISOString(),
+            revoked_at: null,
+            revoke_reason: null,
+            updated_at: new Date().toISOString()
+        };
+
+        const { error } = await supabaseClient
+            .from(ADV_TENURE_CERT_TABLE)
+            .upsert(payload, { onConflict: 'registration_id' });
+
+        if (error) throw error;
+
+        Toast.show('success', 'Issued', 'Tenure certificate issued successfully.');
+        await loadTenureCertificates();
+    } catch (error) {
+        console.error('Error issuing tenure certificate:', error);
+        Toast.show('error', 'Issue Failed', error.message || 'Could not issue tenure certificate');
+    }
+};
+
+window.revokeTenureCertificate = async function (registrationId) {
+    const member = tenureMembersData.find(m => String(m.registration_id) === String(registrationId));
+    if (!member) return;
+
+    if (member.status !== 'issued') {
+        Toast.show('warning', 'Invalid Status', 'Only issued certificates can be revoked.');
+        return;
+    }
+
+    const reason = await CustomDialog.prompt(
+        `Revoke certificate for ${member.member_name}?\n\nEnter reason:`,
+        'Revoke Tenure Certificate',
+        'Reason'
+    );
+
+    if (!reason || !reason.trim()) return;
+
+    try {
+        const { error } = await supabaseClient
+            .from(ADV_TENURE_CERT_TABLE)
+            .update({
+                status: 'revoked',
+                revoke_reason: reason.trim(),
+                revoked_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            })
+            .eq('registration_id', registrationId);
+
+        if (error) throw error;
+
+        Toast.show('success', 'Revoked', 'Tenure certificate revoked.');
+        await loadTenureCertificates();
+    } catch (error) {
+        console.error('Error revoking tenure certificate:', error);
+        Toast.show('error', 'Revoke Failed', error.message || 'Could not revoke certificate');
+    }
+};
+
+// Filter certificates by criteria
+window.filterCertificates = function () {
+    const searchTerm = (document.getElementById('cert-search')?.value || '').toLowerCase();
+    const collegeFilter = document.getElementById('cert-college-filter')?.value || '';
+    const statusFilter = document.getElementById('cert-status-filter')?.value || '';
+    const downloadedFilter = document.getElementById('cert-downloaded-filter')?.value || '';
+
+    filteredCertificates = certificatesData.filter(cert => {
+        // Search filter (name or email)
+        const matchesSearch = !searchTerm ||
+            cert.first_name.toLowerCase().includes(searchTerm) ||
+            cert.last_name?.toLowerCase().includes(searchTerm) ||
+            cert.email.toLowerCase().includes(searchTerm);
+
+        // College filter
+        const matchesCollege = !collegeFilter || cert.college_name === collegeFilter;
+
+        // Status filter
+        const matchesStatus = !statusFilter || cert.status === statusFilter;
+
+        // Downloaded filter
+        const matchesDownloaded = !downloadedFilter ||
+            (downloadedFilter === 'yes' && cert.downloaded) ||
+            (downloadedFilter === 'no' && !cert.downloaded);
+
+        return matchesSearch && matchesCollege && matchesStatus && matchesDownloaded;
+    });
+
+    displayCertificates(filteredCertificates);
+};
+
+// Display certificates in table
+function displayCertificates(certificates) {
+    const tbody = document.querySelector('#certificates-table tbody');
+    if (!tbody) return;
+
+    if (certificates.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:30px;">No certificates found</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = certificates.map(cert => `
+        <tr>
+            <td><strong>${cert.certificate_id}</strong></td>
+            <td>${cert.registration_id || 'N/A'}</td>
+            <td>${cert.first_name} ${cert.last_name || ''}</td>
+            <td>${cert.college_name}</td>
+            <td>${cert.email}</td>
+            <td>${cert.category}</td>
+            <td>${cert.issued_date ? new Date(cert.issued_date).toLocaleDateString() : 'N/A'}</td>
+            <td>
+                <span class="certificate-status-badge ${cert.status}">
+                    ${cert.status.charAt(0).toUpperCase() + cert.status.slice(1)}
+                </span>
+            </td>
+            <td>${cert.downloaded ? '<i class="fas fa-check" style="color:green;"></i> Yes' : 'No'}</td>
+            <td>${cert.email_sent_at ? '<i class="fas fa-check" style="color:blue;"></i> Yes' : 'No'}</td>
+            <td>
+                <div class="cert-action-cell">
+                    <button class="cert-action-icon-btn download" title="Download PDF" 
+                            onclick="downloadCertificatePDF('${cert.id}')" 
+                            ${cert.status !== 'issued' ? 'disabled' : ''}>
+                        <i class="fas fa-download"></i>
+                    </button>
+                    <button class="cert-action-icon-btn email" title="Send Email" 
+                            onclick="sendIndividualCertificateEmail('${cert.id}')" 
+                            ${cert.status !== 'issued' || cert.email_sent_at ? 'disabled' : ''}>
+                        <i class="fas fa-envelope"></i>
+                    </button>
+                    ${cert.status === 'revoked'
+            ? `<button class="cert-action-icon-btn reissue" title="Re-Issue Certificate" onclick="openReissueModal('${cert.id}')"><i class="fas fa-rotate-left"></i></button>`
+            : `<button class="cert-action-icon-btn revoke" title="Revoke Certificate" onclick="openRevokeModal('${cert.id}')"><i class="fas fa-ban"></i></button>`}
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// View certificate modal
+window.viewCertificateModal = function (certId) {
+    const cert = certificatesData.find(c => c.id === certId);
+    if (!cert) return;
+
+    // For now, just show download option
+    CustomDialog.alert(
+        `Certificate: ${cert.certificate_id}\nParticipant: ${cert.first_name} ${cert.last_name || ''}`,
+        'Certificate Details'
+    );
+};
+
+async function loadExternalScript(url) {
+    return new Promise((resolve, reject) => {
+        const existing = document.querySelector(`script[src="${url}"]`);
+        if (existing) {
+            if (existing.dataset.loaded === 'true') {
+                resolve();
+                return;
+            }
+            existing.addEventListener('load', () => resolve(), { once: true });
+            existing.addEventListener('error', () => reject(new Error(`Failed to load script: ${url}`)), { once: true });
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = url;
+        script.async = true;
+        script.onload = () => {
+            script.dataset.loaded = 'true';
+            resolve();
+        };
+        script.onerror = () => reject(new Error(`Failed to load script: ${url}`));
+        document.head.appendChild(script);
+    });
+}
+
+function getJsPdfConstructor() {
+    return (window.jspdf && window.jspdf.jsPDF) || window.jsPDF || null;
+}
+
+async function ensurePdfLibraries() {
+    if (window.html2canvas && getJsPdfConstructor()) return true;
+
+    const html2canvasSources = [
+        'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
+        'https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js',
+        'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'
+    ];
+
+    const jsPdfSources = [
+        'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',
+        'https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js',
+        'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
+    ];
+
+    if (!window.html2canvas) {
+        for (const src of html2canvasSources) {
+            try {
+                await loadExternalScript(src);
+                if (window.html2canvas) break;
+            } catch (_) {
+                // Try next source.
+            }
+        }
+    }
+
+    if (!getJsPdfConstructor()) {
+        for (const src of jsPdfSources) {
+            try {
+                await loadExternalScript(src);
+                if (getJsPdfConstructor()) break;
+            } catch (_) {
+                // Try next source.
+            }
+        }
+    }
+
+    return Boolean(window.html2canvas && getJsPdfConstructor());
+}
+
+// Download certificate PDF
+window.downloadCertificatePDF = async function (certId) {
+    const cert = certificatesData.find(c => c.id === certId);
+    if (!cert) {
+        Toast.show('error', 'Error', 'Certificate not found');
+        return;
+    }
+
+    let certElement = null;
+    try {
+        const libsReady = await ensurePdfLibraries();
+        if (!libsReady) {
+            Toast.show('error', 'Download Error', 'PDF libraries blocked by browser/network. Please allow CDN scripts and retry.');
+            return;
+        }
+
+        // Create certificate HTML element
+        certElement = generateCertificateHTML(cert);
+
+        // Wait a moment for fonts/layout to settle before capturing
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        // Capture the inner cert div (not the offscreen wrapper)
+        const certInner = certElement.querySelector('.cert-capture');
+        const canvas = await window.html2canvas(certInner, {
+            scale: 1,
+            backgroundColor: '#f5f0e8',
+            useCORS: true,
+            logging: false,
+            imageTimeout: 0
+        });
+        const imgData = canvas.toDataURL('image/jpeg', 0.75);
+        const JsPdfCtor = getJsPdfConstructor();
+        const pdf = new JsPdfCtor({
+            orientation: 'landscape',
+            unit: 'mm',
+            format: 'a4'
+        });
+
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const margin = 6;
+        const maxWidth = pageWidth - (margin * 2);
+        const maxHeight = pageHeight - (margin * 2);
+
+        const scaleFit = Math.min(maxWidth / canvas.width, maxHeight / canvas.height);
+        const imgWidth = canvas.width * scaleFit;
+        const imgHeight = canvas.height * scaleFit;
+        const x = (pageWidth - imgWidth) / 2;
+        const y = (pageHeight - imgHeight) / 2;
+
+        pdf.addImage(imgData, 'JPEG', x, y, imgWidth, imgHeight);
+        pdf.save(`${cert.certificate_id}.pdf`);
+
+        // Note: This is admin download for testing/viewing only.
+        // Do NOT mark as downloaded. User downloads are tracked only from Certificate Finder.
+        Toast.show('success', 'Success', 'Certificate downloaded successfully');
+    } catch (error) {
+        console.error('Error downloading certificate:', error);
+        Toast.show('error', 'Download Error', 'Failed to download certificate: ' + (error.message || 'Unknown error'));
+    } finally {
+        if (certElement && certElement.parentNode) {
+            certElement.parentNode.removeChild(certElement);
+        }
+    }
+};
+
+async function generateCertificatePdfAttachmentPayload(cert) {
+    let certElement = null;
+
+    const libsReady = await ensurePdfLibraries();
+    if (!libsReady) {
+        throw new Error('PDF libraries blocked by browser/network. Please allow CDN scripts and retry.');
+    }
+
+    try {
+        certElement = generateCertificateHTML(cert);
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        const certInner = certElement.querySelector('.cert-capture');
+        const canvas = await window.html2canvas(certInner, {
+            scale: 1,
+            backgroundColor: '#f5f0e8',
+            useCORS: true,
+            logging: false,
+            imageTimeout: 0
+        });
+
+        const imgData = canvas.toDataURL('image/jpeg', 0.75);
+        const JsPdfCtor = getJsPdfConstructor();
+        const pdf = new JsPdfCtor({
+            orientation: 'landscape',
+            unit: 'mm',
+            format: 'a4'
+        });
+
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const margin = 6;
+        const maxWidth = pageWidth - (margin * 2);
+        const maxHeight = pageHeight - (margin * 2);
+
+        const scaleFit = Math.min(maxWidth / canvas.width, maxHeight / canvas.height);
+        const imgWidth = canvas.width * scaleFit;
+        const imgHeight = canvas.height * scaleFit;
+        const x = (pageWidth - imgWidth) / 2;
+        const y = (pageHeight - imgHeight) / 2;
+
+        pdf.addImage(imgData, 'JPEG', x, y, imgWidth, imgHeight);
+
+        const dataUri = pdf.output('datauristring');
+        const pdfBase64 = (dataUri.split(',')[1] || '').trim();
+
+        if (!pdfBase64) {
+            throw new Error('Failed to generate PDF attachment data.');
+        }
+
+        return {
+            pdfBase64,
+            pdfFileName: `${cert.certificate_id || 'vimarsh-certificate'}.pdf`
+        };
+    } finally {
+        if (certElement && certElement.parentNode) {
+            certElement.parentNode.removeChild(certElement);
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Generate certificate HTML — VIMARSH design:
+//   • Cream background (#f5f0e8), rounded gold/amber outer border
+//   • Thick red stripe top & bottom
+//   • Header row: big YUVA logo (left) | "Youth United..." text (centre) | big Vimarsh logo (right)
+//   • Certificate title, participant name, college, body text, signatures, ref ID
+// ─────────────────────────────────────────────────────────────────────────────
+function generateCertificateHTML(cert) {
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'position:fixed; left:-99999px; top:0; z-index:-1;';
+
+    const certYear = cert.year || VIMARSH_EVENT_YEAR;
+    const participantName = `${cert.first_name || ''} ${cert.last_name || ''}`.trim();
+    const collegeName = cert.college_name || 'College Name';
+    const refId = cert.registration_id || cert.certificate_id;
+
+    // 1122 × 794 px = exact A4 landscape at 96 dpi
+    wrapper.innerHTML = `
+        <div class="cert-capture" style="
+            width: 1122px;
+            height: 794px;
+            box-sizing: border-box;
+            background: #f5f0e8;
+            border-radius: 16px;
+            border: 7px solid #d4850a;
+            position: relative;
+            font-family: Georgia, 'Times New Roman', serif;
+            color: #111;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        ">
+            <!-- ── Top red stripe ── -->
+            <div style="width:100%; height:20px; background:#c20f0f; flex-shrink:0;"></div>
+ 
+            <!-- ── Main content ── -->
+            <div style="
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: space-between;
+                padding: 20px 60px 16px;
+                box-sizing: border-box;
+            ">
+ 
+                <!-- ── Header row: YUVA logo | title text | Vimarsh logo ── -->
+                <div style="
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    width: 100%;
+                ">
+                    <!-- Left: YUVA logo (circular) -->
+                    <img
+                        src="${VIMARSH_CERT_YUVA_LOGO_SRC}"
+                        alt="YUVA Logo"
+                        style="height:120px; width:120px; object-fit:contain; flex-shrink:0; border-radius:50%; background:#fff; padding:8px; border:2px solid #d4850a;"
+                        onerror="this.style.visibility='hidden'"
+                    >
+ 
+                    <!-- Centre: organisation name -->
+                    <div style="flex:1; text-align:center; padding:0 16px;">
+                        <div style="font-size:30px; font-weight:400; line-height:1.35; font-family:Georgia,serif; color:#111;">
+                            Youth United for Vision and Action
+                        </div>
+                        <div style="font-size:28px; font-weight:400; line-height:1.35; font-family:Georgia,serif; color:#111;">
+                            (YUVA)
+                        </div>
+                    </div>
+ 
+                    <!-- Right: Vimarsh logo (circular) -->
+                    <img
+                        src="${VIMARSH_CERT_VIMARSH_LOGO_SRC}"
+                        alt="Vimarsh Logo"
+                        style="height:120px; width:120px; object-fit:contain; flex-shrink:0; border-radius:50%; background:#fff; padding:8px; border:2px solid #d4850a;"
+                        onerror="this.style.visibility='hidden'"
+                    >
+                </div>
+ 
+                <!-- Certificate title -->
+                <div style="
+                    font-size:44px;
+                    font-weight:900;
+                    font-family:Georgia,serif;
+                    color:#111;
+                    text-align:center;
+                    letter-spacing:0.4px;
+                    line-height:1.1;
+                ">Certificate for Participation</div>
+ 
+                <!-- Participant name -->
+                <div style="
+                    font-size:58px;
+                    font-weight:900;
+                    font-family:Arial,sans-serif;
+                    color:#111;
+                    text-align:center;
+                    line-height:1.1;
+                ">${participantName}</div>
+ 
+                <!-- College name -->
+                <div style="
+                    font-size:28px;
+                    font-weight:400;
+                    font-family:Arial,sans-serif;
+                    color:#555;
+                    text-align:center;
+                    line-height:1.2;
+                ">${collegeName}</div>
+ 
+                <!-- Body paragraph -->
+                <div style="
+                    font-family:Arial,sans-serif;
+                    font-size:18px;
+                    line-height:1.7;
+                    text-align:center;
+                    color:#222;
+                    max-width:800px;
+                ">
+                    This Certificate is awarded for Participating &nbsp;at VIMARSH ${certYear},<br>
+                    the three-day annual conclave of Youth United for Vision &amp; Action (YUVA).<br>
+                    We appreciate your commitment and dedication towards the conclave.
+                </div>
+ 
+                <!-- Signatures row -->
+                <div style="
+                    display:flex;
+                    justify-content:space-between;
+                    align-items:flex-end;
+                    width:90%;
+                ">
+                    <!-- Left signature -->
+                    <div style="text-align:left; font-family:Arial,sans-serif;">
+                        <div style="font-size:18px; color:#444; margin-bottom:3px; letter-spacing:3px;">_______________</div>
+                        <div style="font-size:21px; font-weight:700; color:#111;">${VIMARSH_CERT_DIRECTOR_NAME}</div>
+                        <div style="font-size:17px; color:#555;">Convener, YUVA</div>
+                        <div style="font-size:13px; color:#0a7a33; font-weight:700; margin-top:4px;">Digitally Signed</div>
+                    </div>
+ 
+                    <!-- Reference ID — centred between signatures -->
+                    <div style="
+                        font-family:Arial,sans-serif;
+                        font-size:15px;
+                        font-weight:700;
+                        color:#c20f0f;
+                        text-align:center;
+                        letter-spacing:0.5px;
+                        padding-bottom:2px;
+                    ">${refId}</div>
+ 
+                    <!-- Right signature -->
+                    <div style="text-align:right; font-family:Arial,sans-serif;">
+                        <div style="font-size:18px; color:#444; margin-bottom:3px; letter-spacing:3px;">_______________</div>
+                        <div style="font-size:21px; font-weight:700; color:#111;">${VIMARSH_CERT_COORDINATOR_NAME}</div>
+                        <div style="font-size:17px; color:#555;">Convener, Vimarsh ${certYear}</div>
+                        <div style="font-size:13px; color:#0a7a33; font-weight:700; margin-top:4px;">Digitally Signed</div>
+                    </div>
+                </div>
+
+                <!-- Digital certificate verification note -->
+                <div style="
+                    font-family:Arial,sans-serif;
+                    font-size:13px;
+                    color:#444;
+                    text-align:center;
+                    margin-top:6px;
+                    letter-spacing:0.2px;
+                ">
+                    This is a digitally generated certificate and does not require physical signatures.
+                </div>
+ 
+            </div>
+ 
+            <!-- ── Bottom red stripe ── -->
+            <div style="width:100%; height:20px; background:#c20f0f; flex-shrink:0;"></div>
+        </div>
+    `;
+
+    document.body.appendChild(wrapper);
+    return wrapper;
+}
+
+// Update certificate download count
+async function updateCertificateDownload(certId) {
+    try {
+        const cert = certificatesData.find(c => c.id === certId);
+        if (!cert) return;
+
+        const { error } = await supabaseClient
+            .from(VIMARSH_CERT_TABLE)
+            .update({
+                downloaded: true,
+                download_count: (cert.download_count || 0) + 1,
+                last_download_at: new Date().toISOString()
+            })
+            .eq('id', certId);
+
+        if (error) throw error;
+
+        // Update local data
+        cert.downloaded = true;
+        cert.download_count = (cert.download_count || 0) + 1;
+    } catch (error) {
+        console.error('Error updating download:', error);
+    }
+}
+
+// Open revoke modal
+window.openRevokeModal = async function (certId) {
+    const cert = certificatesData.find(c => c.id === certId);
+    if (!cert) return;
+
+    const reason = await CustomDialog.prompt(
+        `Revoke certificate for ${cert.first_name} ${cert.last_name || ''}?\n\nEnter revocation reason:`,
+        'Revoke Certificate',
+        'Enter reason'
+    );
+    if (reason && reason.trim()) {
+        revokeCertificate(cert.id, reason.trim());
+    }
+};
+
+// Revoke certificate
+async function revokeCertificate(certId, reason) {
+    try {
+        const { error } = await supabaseClient
+            .from(VIMARSH_CERT_TABLE)
+            .update({
+                status: 'revoked',
+                revoke_reason: reason,
+                revoked_at: new Date().toISOString()
+            })
+            .eq('id', certId);
+
+        if (error) throw error;
+
+        Toast.show('success', 'Success', 'Certificate revoked successfully');
+        loadCertificates();
+    } catch (error) {
+        console.error('Error revoking certificate:', error);
+        Toast.show('error', 'Error', 'Failed to revoke certificate');
+    }
+}
+
+// Open re-issue modal for revoked certificates
+window.openReissueModal = async function (certId) {
+    const cert = certificatesData.find(c => c.id === certId);
+    if (!cert) return;
+
+    if (cert.status !== 'revoked') {
+        Toast.show('warning', 'Invalid Status', 'Only revoked certificates can be re-issued.');
+        return;
+    }
+
+    const confirmed = await CustomDialog.confirm(
+        `Re-issue certificate for ${cert.first_name} ${cert.last_name || ''}?\n\nThis will set status back to Issued and clear revocation fields.`,
+        'Re-Issue Certificate',
+        'Re-Issue',
+        'Cancel'
+    );
+
+    if (!confirmed) return;
+    await reissueCertificate(cert.id);
+};
+
+// Re-issue certificate (reversal of revoked status)
+async function reissueCertificate(certId) {
+    try {
+        const { error } = await supabaseClient
+            .from(VIMARSH_CERT_TABLE)
+            .update({
+                status: 'issued',
+                revoke_reason: null,
+                revoked_at: null,
+                issued_date: new Date().toISOString(),
+                downloaded: false,
+                download_count: 0,
+                last_download_at: null,
+                is_verified: true
+            })
+            .eq('id', certId);
+
+        if (error) throw error;
+
+        Toast.show('success', 'Re-Issued', 'Certificate has been re-issued successfully.');
+        await loadCertificates();
+    } catch (error) {
+        console.error('Error re-issuing certificate:', error);
+        Toast.show('error', 'Re-Issue Failed', 'Could not re-issue certificate: ' + (error.message || 'Unknown error'));
+    }
+}
+
+// Open generate certificate modal
+window.openGenerateCertificateModal = async function () {
+    const identifierRaw = await CustomDialog.prompt(
+        'Enter Registration ID or Email to generate one certificate.',
+        'Generate Single Certificate',
+        'e.g. VIM2026-... or name@email.com'
+    );
+
+    if (!identifierRaw || !identifierRaw.trim()) return;
+
+    const identifier = identifierRaw.trim();
+    const isEmail = identifier.includes('@');
+
+    try {
+        let query = supabaseClient
+            .from(VIMARSH_REG_TABLE)
+            .select('*')
+            .in('payment_status', PAID_PAYMENT_STATUSES)
+            .order('created_at', { ascending: false });
+
+        if (isEmail) {
+            query = query.ilike('email', identifier.toLowerCase());
+        } else {
+            query = query.eq('registration_id', identifier);
+        }
+
+        const { data: registrations, error: regError } = await query;
+        if (regError) throw regError;
+
+        if (!registrations || registrations.length === 0) {
+            Toast.show('warning', 'Not Found', 'No paid registration found for this Registration ID/Email.');
+            return;
+        }
+
+        const registration = registrations[0];
+
+        // Keep attendance rule aligned with bulk generation default behavior.
+        if (!registration.checked_in) {
+            const includeNonAttended = await CustomDialog.confirm(
+                `${registration.first_name || ''} ${registration.last_name || ''} is not marked as checked-in.\n\nGenerate certificate anyway?`,
+                'Attendance Check',
+                'Generate Anyway',
+                'Cancel'
+            );
+
+            if (!includeNonAttended) return;
+        }
+
+        const emailKey = String(registration.email || '').toLowerCase();
+        const { data: existingCerts, error: certError } = await supabaseClient
+            .from(VIMARSH_CERT_TABLE)
+            .select('id, certificate_id')
+            .eq('year', VIMARSH_EVENT_YEAR)
+            .ilike('email', emailKey)
+            .limit(1);
+
+        if (certError) throw certError;
+
+        if (existingCerts && existingCerts.length > 0) {
+            Toast.show('info', 'Already Generated', `Certificate already exists: ${existingCerts[0].certificate_id}`);
+            return;
+        }
+
+        const certificateRecord = {
+            certificate_id: generateCertificateId(VIMARSH_EVENT_YEAR, registration.zone_name, registration.college_name, 1),
+            registration_id: registration.registration_id || null,
+            year: VIMARSH_EVENT_YEAR,
+            first_name: registration.first_name,
+            last_name: registration.last_name || '',
+            email: registration.email,
+            mobile: registration.mobile,
+            college_name: registration.college_name,
+            college_id: registration.college_id,
+            zone: registration.zone_name,
+            state: registration.state,
+            age_group: registration.age_group,
+            category: registration.payment_category,
+            event_start_date: EVENT_START_DATE,
+            issued_date: new Date().toISOString(),
+            certificate_template_version: '1.0',
+            signature_director_name: VIMARSH_CERT_DIRECTOR_NAME,
+            signature_coordinator_name: VIMARSH_CERT_COORDINATOR_NAME,
+            status: 'issued',
+            is_verified: true,
+            created_at: new Date().toISOString()
+        };
+
+        const { error: insertError } = await supabaseClient
+            .from(VIMARSH_CERT_TABLE)
+            .insert([certificateRecord]);
+
+        if (insertError) throw insertError;
+
+        Toast.show('success', 'Certificate Generated', `Generated certificate ${certificateRecord.certificate_id} for ${registration.first_name} ${registration.last_name || ''}`);
+        await loadCertificates();
+    } catch (error) {
+        console.error('Error generating single certificate:', error);
+        Toast.show('error', 'Generation Error', 'Failed to generate certificate: ' + (error.message || 'Unknown error'));
+    }
+};
+
+// Open bulk generate modal
+window.openBulkGenerateModal = async function () {
+    const stats = await getRegistrationStatsForBulkGeneration();
+    const count = stats.total;
+    const confirmed = await CustomDialog.confirm(
+        `Found ${count} paid registrations for Vimarsh ${VIMARSH_EVENT_YEAR}.\n` +
+        `Participants (checked-in): ${stats.participants}\n` +
+        `Not attended: ${stats.nonParticipants}\n\n` +
+        `Continue to generation options?`,
+        'Bulk Certificate Generation',
+        'Continue',
+        'Cancel'
+    );
+
+    if (!confirmed) return;
+
+    const includeNonAttended = await CustomDialog.confirm(
+        `Include non-attended registrations also?\n\n` +
+        `Include All = Include attended + non-attended\n` +
+        `Attended Only = Generate only for checked-in participants`,
+        'Attendance Rule',
+        'Include All',
+        'Attended Only'
+    );
+
+    const finalConfirmed = await CustomDialog.confirm(
+        includeNonAttended
+            ? `Generate certificates for ALL paid registrations (${stats.total})?`
+            : `Generate certificates for ONLY attended participants (${stats.participants})?`,
+        'Final Confirmation',
+        'Generate',
+        'Cancel'
+    );
+
+    if (finalConfirmed) {
+        await generateBulkCertificatesFromRegistrations({ includeNonAttended });
+    }
+};
+
+// Get registration summary for bulk generation options
+async function getRegistrationStatsForBulkGeneration() {
+    try {
+        const { data, error } = await supabaseClient
+            .from(VIMARSH_REG_TABLE)
+            .select('checked_in,payment_status');
+
+        if (error) throw error;
+
+        const rows = data || [];
+        const paidRows = rows.filter(row => {
+            const status = String(row.payment_status || '').toLowerCase();
+            return PAID_PAYMENT_STATUSES.includes(status);
+        });
+
+        const participants = paidRows.filter(row => row.checked_in === true).length;
+        const total = paidRows.length;
+        const nonParticipants = total - participants;
+
+        return { total, participants, nonParticipants };
+    } catch (error) {
+        console.error('Error fetching registration stats:', error);
+        Toast.show('error', 'Registration Query Error', 'Could not read vim26 registrations. Please check table name/RLS policy.');
+        return { total: 0, participants: 0, nonParticipants: 0 };
+    }
+}
+
+// Backward-compatible helper retained for any existing call sites
+async function getRegistrationCountForBulkGeneration() {
+    const stats = await getRegistrationStatsForBulkGeneration();
+    return stats.total;
+}
+
+// Generate bulk certificates from registrations
+async function generateBulkCertificatesFromRegistrations(options = {}) {
+    const includeNonAttended = Boolean(options.includeNonAttended);
+    const adminUserId = await getCurrentAdminUserId();
+
+    try {
+        Toast.show('info', 'Processing', 'Generating certificates... This may take a moment');
+
+        // Fetch completed registrations; restrict to checked-in unless explicitly included.
+        let query = supabaseClient
+            .from(VIMARSH_REG_TABLE)
+            .select('*')
+            .in('payment_status', PAID_PAYMENT_STATUSES)
+            .order('created_at', { ascending: false });
+
+        if (!includeNonAttended) {
+            query = query.eq('checked_in', true);
+        }
+
+        const { data: registrations, error: regError } = await query;
+
+        if (regError) throw regError;
+        if (!registrations || registrations.length === 0) {
+            Toast.show('warning', 'No Data', includeNonAttended
+                ? 'No completed registrations found'
+                : 'No checked-in participants found');
+            return;
+        }
+
+        // Fetch existing certificates to avoid duplicates
+        const { data: existingCerts, error: certError } = await supabaseClient
+            .from(VIMARSH_CERT_TABLE)
+            .select('email, year');
+
+        if (certError) throw certError;
+        const existingKeys = new Set(
+            (existingCerts || []).map(c => `${String(c.email || '').toLowerCase()}::${c.year}`)
+        );
+
+        // Filter out registrations that already have certificates for the current year.
+        const newRegistrations = registrations.filter(reg => {
+            const email = String(reg.email || '').toLowerCase();
+            return !existingKeys.has(`${email}::${VIMARSH_EVENT_YEAR}`);
+        });
+
+        if (newRegistrations.length === 0) {
+            await logCertificateBatchGeneration({
+                adminUserId,
+                totalCount: registrations.length,
+                successCount: 0,
+                failedCount: registrations.length,
+                status: 'completed',
+                includeNonAttended,
+                note: `No new certificates generated. All eligible registrations already had certificates for ${VIMARSH_EVENT_YEAR}.`
+            });
+
+            Toast.show('info', 'Info', `All eligible registrations already have certificates for ${VIMARSH_EVENT_YEAR}`);
+            return;
+        }
+
+        // Generate certificate records
+        const certificateRecords = newRegistrations.map((reg, index) => ({
+            certificate_id: generateCertificateId(VIMARSH_EVENT_YEAR, reg.zone_name, reg.college_name, index + 1),
+            registration_id: reg.registration_id || null,
+            year: VIMARSH_EVENT_YEAR,
+            first_name: reg.first_name,
+            last_name: reg.last_name || '',
+            email: reg.email,
+            mobile: reg.mobile,
+            college_name: reg.college_name,
+            college_id: reg.college_id,
+            zone: reg.zone_name,
+            state: reg.state,
+            age_group: reg.age_group,
+            category: reg.payment_category,
+            event_start_date: EVENT_START_DATE,
+            issued_date: new Date().toISOString(),
+            certificate_template_version: '1.0',
+            signature_director_name: VIMARSH_CERT_DIRECTOR_NAME,
+            signature_coordinator_name: VIMARSH_CERT_COORDINATOR_NAME,
+            status: 'issued',
+            is_verified: true,
+            created_at: new Date().toISOString()
+        }));
+
+        // Batch insert certificates
+        const batchSize = 50;
+        for (let i = 0; i < certificateRecords.length; i += batchSize) {
+            const batch = certificateRecords.slice(i, i + batchSize);
+            const { error: insertError } = await supabaseClient
+                .from(VIMARSH_CERT_TABLE)
+                .insert(batch);
+
+            if (insertError) throw insertError;
+        }
+
+        await logCertificateBatchGeneration({
+            adminUserId,
+            totalCount: registrations.length,
+            successCount: certificateRecords.length,
+            failedCount: registrations.length - certificateRecords.length,
+            status: 'completed',
+            includeNonAttended,
+            note: `Generated ${certificateRecords.length} certificates for Vimarsh ${VIMARSH_EVENT_YEAR}.`
+        });
+
+        // Generate summary report by college
+        const summary = {};
+        certificateRecords.forEach(cert => {
+            if (!summary[cert.college_name]) {
+                summary[cert.college_name] = 0;
+            }
+            summary[cert.college_name]++;
+        });
+
+        // Build detailed message
+        const skipCount = registrations.length - newRegistrations.length;
+        const summaryText = Object.entries(summary)
+            .map(([college, count]) => `${college}: ${count}`)
+            .join('\n');
+
+        const fullMessage = `✅ Generated ${certificateRecords.length} certificates\n\n` +
+            `Mode: ${includeNonAttended ? 'Attended + Non-attended' : 'Attended Only'}\n\n` +
+            `Breakdown by College:\n${summaryText}\n\n` +
+            (skipCount > 0 ? `⚠️ Skipped ${skipCount} registrations (already have certificates)\n\n` : '') +
+            `Click elsewhere to dismiss this message.`;
+
+        Toast.show('success', 'Bulk Generation Complete', fullMessage, 8000);
+
+        // Reload certificates view
+        await loadCertificates();
+
+    } catch (error) {
+        console.error('Error generating bulk certificates:', error);
+        await logCertificateBatchGeneration({
+            adminUserId,
+            totalCount: 0,
+            successCount: 0,
+            failedCount: 0,
+            status: 'failed',
+            includeNonAttended,
+            note: error.message || 'Bulk generation failed'
+        });
+        Toast.show('error', 'Generation Error',
+            'Failed to generate certificates: ' + error.message);
+    }
+}
+
+function buildCertificateFinderLink(cert) {
+    const url = new URL(VIMARSH_CERTIFICATE_FINDER_URL, window.location.origin);
+
+    if (cert.email) url.searchParams.set('email', String(cert.email));
+    if (cert.registration_id) url.searchParams.set('regId', String(cert.registration_id));
+    if (cert.certificate_id) url.searchParams.set('certId', String(cert.certificate_id));
+
+    return url.toString();
+}
+
+// Send individual certificate email
+window.sendIndividualCertificateEmail = async function (certId) {
+    const cert = certificatesData.find(c => c.id === certId);
+    if (!cert) {
+        Toast.show('error', 'Error', 'Certificate not found');
+        return;
+    }
+
+    if (cert.status !== 'issued') {
+        Toast.show('warning', 'Cannot Send', 'Only issued certificates can be emailed');
+        return;
+    }
+
+    if (!cert.email) {
+        Toast.show('error', 'Missing Email', 'This certificate has no recipient email address');
+        return;
+    }
+
+    if (cert.email_sent_at) {
+        Toast.show('warning', 'Already Sent', `Email already sent to ${cert.email} on ${new Date(cert.email_sent_at).toLocaleString()}`);
+        return;
+    }
+
+    if (!VIMARSH_CERT_EMAIL_GAS_URL) {
+        Toast.show('error', 'Configuration Error', 'Certificate email GAS URL is not configured.');
+        return;
+    }
+
+    const confirmed = await CustomDialog.confirm(
+        `Send certificate email to ${cert.first_name || ''} ${cert.last_name || ''} (${cert.email})?`,
+        'Send Certificate Email',
+        'Send',
+        'Cancel'
+    );
+
+    if (!confirmed) return;
+
+    try {
+        let attachmentPayload = null;
+        try {
+            attachmentPayload = await generateCertificatePdfAttachmentPayload(cert);
+        } catch (pdfError) {
+            console.warn('PDF attachment generation failed, sending without attachment:', pdfError);
+        }
+
+        const payloadItem = {
+            email: cert.email,
+            firstName: cert.first_name || '',
+            lastName: cert.last_name || '',
+            certificateId: cert.certificate_id || '',
+            registrationId: cert.registration_id || '',
+            year: cert.year || VIMARSH_EVENT_YEAR,
+            collegeName: cert.college_name || '',
+            downloadLink: buildCertificateFinderLink(cert),
+            pdfBase64: attachmentPayload ? attachmentPayload.pdfBase64 : '',
+            pdfFileName: attachmentPayload ? attachmentPayload.pdfFileName : ''
+        };
+
+        const response = await fetch(VIMARSH_CERT_EMAIL_GAS_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'text/plain;charset=utf-8'
+            },
+            body: JSON.stringify({
+                action: 'notify',
+                method: 'sendVimarshCertificateEmails',
+                certificates: [payloadItem]
+            })
+        });
+
+        const raw = await response.text();
+        let parsed = {};
+        try {
+            parsed = raw ? JSON.parse(raw) : {};
+        } catch (_) {
+            parsed = {};
+        }
+
+        if (!response.ok || parsed.success === false) {
+            throw new Error(parsed.error || `HTTP ${response.status}`);
+        }
+
+        // Mark certificate as emailed in database
+        if (parsed.success) {
+            await markCertificateAsEmailed(cert.id);
+            cert.email_sent_at = new Date().toISOString();
+        }
+
+        Toast.show('success', 'Email Sent', `Certificate email sent to ${cert.email}`);
+        
+        // Refresh table to show updated "Emailed" status
+        await loadCertificates();
+    } catch (error) {
+        console.error('Individual certificate email send failed:', error);
+        Toast.show('error', 'Email Send Failed', 'Could not send certificate email: ' + (error.message || 'Unknown error'));
+    }
+};
+
+window.bulkSendCertificateEmails = async function () {
+    const targets = (filteredCertificates || []).filter(cert =>
+        cert &&
+        cert.status === 'issued' &&
+        cert.email &&
+        cert.certificate_id &&
+        !cert.email_sent_at  // Skip already emailed certificates
+    );
+
+    if (targets.length === 0) {
+        Toast.show('warning', 'No Eligible Certificates', 'No new issued certificates with email were found. All matching certificates have already been emailed.');
+        return;
+    }
+
+    if (!VIMARSH_CERT_EMAIL_GAS_URL) {
+        Toast.show('error', 'Configuration Error', 'Certificate email GAS URL is not configured. Set window.VIMARSH_CERT_EMAIL_GAS_URL or window.YUVA_GAS_COUNTER_URL.');
+        return;
+    }
+
+    const confirmed = await CustomDialog.confirm(
+        `Send certificate email to ${targets.length} participant(s) from current filtered list?`,
+        'Bulk Certificate Email',
+        'Send Emails',
+        'Cancel'
+    );
+
+    if (!confirmed) return;
+
+    const sendBtn = document.querySelector('button[onclick="bulkSendCertificateEmails()"]');
+    const originalHtml = sendBtn ? sendBtn.innerHTML : '';
+
+    if (sendBtn) {
+        sendBtn.disabled = true;
+        sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+    }
+
+    try {
+        let sent = 0;
+        let failed = 0;
+
+        for (const cert of targets) {
+            let attachmentPayload = null;
+            try {
+                attachmentPayload = await generateCertificatePdfAttachmentPayload(cert);
+            } catch (pdfError) {
+                console.warn('PDF attachment generation failed, sending without attachment for:', cert.certificate_id, pdfError);
+            }
+
+            const payloadItem = {
+                email: cert.email,
+                firstName: cert.first_name || '',
+                lastName: cert.last_name || '',
+                certificateId: cert.certificate_id || '',
+                registrationId: cert.registration_id || '',
+                year: cert.year || VIMARSH_EVENT_YEAR,
+                collegeName: cert.college_name || '',
+                downloadLink: buildCertificateFinderLink(cert),
+                pdfBase64: attachmentPayload ? attachmentPayload.pdfBase64 : '',
+                pdfFileName: attachmentPayload ? attachmentPayload.pdfFileName : ''
+            };
+
+            const response = await fetch(VIMARSH_CERT_EMAIL_GAS_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'text/plain;charset=utf-8'
+                },
+                body: JSON.stringify({
+                    action: 'notify',
+                    method: 'sendVimarshCertificateEmails',
+                    certificates: [payloadItem]
+                })
+            });
+
+            const raw = await response.text();
+            let parsed = {};
+            try {
+                parsed = raw ? JSON.parse(raw) : {};
+            } catch (_) {
+                parsed = {};
+            }
+
+            if (!response.ok || parsed.success === false) {
+                throw new Error(parsed.error || `HTTP ${response.status}`);
+            }
+
+            // Mark certificate as emailed in database
+            if (parsed.success) {
+                await markCertificateAsEmailed(cert.id);
+                cert.email_sent_at = new Date().toISOString();
+            }
+
+            sent += Number(parsed.sent || 1);
+            failed += Number(parsed.failed || 0);
+        }
+
+        Toast.show('success', 'Email Dispatch Complete', `Sent: ${sent}, Failed: ${failed}`);
+        
+        // Refresh table to show updated "Emailed" status
+        await loadCertificates();
+    } catch (error) {
+        console.error('Bulk certificate email send failed:', error);
+        Toast.show('error', 'Email Send Failed', 'Could not send bulk certificate emails: ' + (error.message || 'Unknown error'));
+    } finally {
+        if (sendBtn) {
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = originalHtml;
+        }
+    }
+};
+
+// Mark certificate as emailed
+async function markCertificateAsEmailed(certId) {
+    try {
+        const { error } = await supabaseClient
+            .from(VIMARSH_CERT_TABLE)
+            .update({
+                email_sent: true,
+                email_sent_at: new Date().toISOString()
+            })
+            .eq('id', certId);
+
+        if (error) {
+            console.error('Error marking certificate as emailed:', error);
+        }
+    } catch (err) {
+        console.error('Failed to mark certificate as emailed:', err);
+    }
+}
+
+// Generate unique certificate ID
+function generateCertificateId(year, zone, college, sequence) {
+    // Must match DB constraint: ^VM-[0-9]{4}-[A-Z0-9]{5}$
+    const seed = `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}${(sequence || 0).toString(36)}`
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '');
+    const suffix = (seed + '00000').slice(0, 5);
+
+    return `VM-${year}-${suffix}`;
+}
+
+// Export certificates CSV
+window.exportCertificatesCSV = function () {
+    if (filteredCertificates.length === 0) {
+        Toast.show('warning', 'Warning', 'No certificates to export');
+        return;
+    }
+
+    const headers = ['Certificate ID', 'Registration ID', 'Name', 'Email', 'College', 'Zone', 'Category', 'Status', 'Issued Date', 'Downloaded'];
+    const data = filteredCertificates.map(cert => [
+        cert.certificate_id,
+        cert.registration_id || 'N/A',
+        `${cert.first_name} ${cert.last_name || ''}`,
+        cert.email,
+        cert.college_name,
+        cert.zone,
+        cert.category,
+        cert.status,
+        cert.issued_date ? new Date(cert.issued_date).toLocaleDateString() : 'N/A',
+        cert.downloaded ? 'Yes' : 'No'
+    ]);
+
+    const csv = [headers, ...data]
+        .map(row => row.map(cell => `"${cell}"`).join(','))
+        .join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `vimarsh-certificates-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+
+    Toast.show('success', 'Success', 'Certificates exported to CSV');
 };
 
 window.refreshCurrentView = function () {
@@ -3041,6 +5249,19 @@ window.toggleSidebar = function () {
     document.querySelector('.sidebar').classList.toggle('open');
     document.body.classList.toggle('sidebar-open');
 };
+
+// Close sidebar when menu item is clicked (mobile only)
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.menu-item').forEach(item => {
+        item.addEventListener('click', function () {
+            if (document.body.classList.contains('sidebar-open')) {
+                document.querySelector('.sidebar').classList.remove('open');
+                document.body.classList.remove('sidebar-open');
+            }
+        });
+    });
+});
+
 document.addEventListener('click', function (e) {
     if (document.body.classList.contains('sidebar-open') &&
         !e.target.closest('.sidebar') &&

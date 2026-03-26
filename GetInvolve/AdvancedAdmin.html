@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -71,6 +71,9 @@
                 </a>
                 <a href="#" class="menu-item" onclick="showSection('counter-admin')">
                     <i class="fas fa-chart-line"></i> Live Counter
+                </a>
+                <a href="#" class="menu-item" onclick="showSection('certificates')">
+                    <i class="fas fa-certificate"></i> Certificates
                 </a>
                 <a href="#" class="menu-item" onclick="alert('Coming Soon')">
                     <i class="fas fa-bullhorn"></i> Broadcasts
@@ -184,6 +187,19 @@
                             <h3>Data Export</h3>
                             <p>Download master CSVs for all verticals.</p>
                             <button class="btn-modern">View Data</button>
+                        </div>
+                    </div>
+
+                    <div class="systems-hub-card">
+                        <div class="systems-hub-head">
+                            <h3>Operations Gateway</h3>
+                            <p>Quick access to upload and admin systems across the project.</p>
+                        </div>
+                        <div class="systems-pill-wrap">
+                            <a class="system-pill" href="/Events/EventUpload.html">Event Upload Portal</a>
+                            <a class="system-pill" href="/Gallary/photo-admin.html">Photo Admin</a>
+                            <a class="system-pill" href="/OurVerticals/photo-upload.html">Vertical Photo Upload</a>
+                            <a class="system-pill" href="/Media/video-manager.html">Video Manager</a>
                         </div>
                     </div>
                 </div>
@@ -305,6 +321,16 @@
                         </div>
                     </div>
 
+                    <div class="event-cms-info-card">
+                        <h4><i class="fas fa-circle-info"></i> How to Show Events on Different Pages</h4>
+                        <ul>
+                            <li><strong>Home Page:</strong> Mark "YES" to show event on the main homepage. Event will NOT show if it's cancelled or completed.</li>
+                            <li><strong>Upcoming Page:</strong> Mark "YES" to show event in the "Upcoming Events" list. Use this for events that haven't started yet.</li>
+                            <li><strong>Past Page:</strong> Mark "YES" to show event in the "Past Events" section. The system automatically moves completed events here once the date has passed.</li>
+                            <li>Check the "Event Publication Controls" table below to see which pages each event is set to appear on.</li>
+                        </ul>
+                    </div>
+
                     <!-- Events Table -->
                     <div class="table-card" style="margin-top: 30px;">
                         <div class="table-header">
@@ -317,10 +343,16 @@
                                     <option value="completed">Completed</option>
                                     <option value="cancelled">Cancelled</option>
                                 </select>
+                                <select id="event-display-filter" class="form-control" style="width: 190px;">
+                                    <option value="all">All Display Targets</option>
+                                    <option value="home">Home Page</option>
+                                    <option value="upcoming">Upcoming Page</option>
+                                    <option value="past">Past Page</option>
+                                </select>
                                 <button class="btn primary" onclick="openNewEventModal()">
                                     <i class="fas fa-plus"></i> New Event
                                 </button>
-                                <button class="btn secondary" onclick="loadEvents()">
+                                <button class="btn secondary" onclick="refreshEventsManagerData()">
                                     <i class="fas fa-sync"></i> Refresh
                                 </button>
                             </div>
@@ -342,6 +374,56 @@
                                 <tbody>
                                     <tr>
                                         <td colspan="7" style="text-align:center; padding:30px;">Loading events...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Event Upload System Tables -->
+                    <div class="table-card" style="margin-top: 30px;">
+                        <div class="table-header">
+                            <div class="table-title">Event Uploaders</div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="modern-table" id="event-uploaders-table">
+                                <thead>
+                                    <tr>
+                                        <th>Email</th>
+                                        <th>Verified At</th>
+                                        <th>Total Uploads</th>
+                                        <th>Last Upload</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td colspan="5" style="text-align:center; padding:30px;">Loading event uploaders...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="table-card" style="margin-top: 30px;">
+                        <div class="table-header">
+                            <div class="table-title">Event Publication Controls</div>
+                            <div style="color:#6b7280; font-size: 13px;">Manage Home, Upcoming, and Past visibility using event_publications flags.</div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="modern-table" id="event-publications-table">
+                                <thead>
+                                    <tr>
+                                        <th>Event</th>
+                                        <th>Status</th>
+                                        <th>Home</th>
+                                        <th>Upcoming</th>
+                                        <th>Past</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td colspan="5" style="text-align:center; padding:30px;">Loading publication controls...</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -423,7 +505,7 @@
                     <div class="table-card">
                         <div class="table-header">
                             <div class="table-title">Supabase Storage Browser</div>
-                            <div
+                            <div class="storage-controls-row"
                                 style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
                                 <select id="storage-bucket-select" class="form-control storage-native-select"
                                     style="width: 220px;">
@@ -445,7 +527,7 @@
                                 </button>
                             </div>
                         </div>
-                        <div
+                        <div class="storage-path-row"
                             style="padding: 18px 24px; border-bottom:1px solid #eee; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                             <span style="font-weight:600; color:#333;">Current Path:</span>
                             <span id="storage-current-path"
@@ -486,7 +568,7 @@
                     <div class="table-card">
                         <div class="table-header">
                             <div class="table-title">Executive Team Members</div>
-                            <div
+                            <div class="executive-controls-row"
                                 style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
                                 <input type="text" id="executive-search" class="form-control" style="width: 280px;"
                                     placeholder="Search by name, designation...">
@@ -508,12 +590,13 @@
                                         <th>Role</th>
                                         <th>Email</th>
                                         <th>Display Order</th>
+                                        <th>Order</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr>
-                                        <td colspan="7" style="text-align:center; padding:30px;">Loading executive
+                                        <td colspan="8" style="text-align:center; padding:30px;">Loading executive
                                             members...</td>
                                     </tr>
                                 </tbody>
@@ -524,8 +607,8 @@
 
                 <!-- COUNTER ADMIN VIEW -->
                 <div id="counter-admin-view" style="display:none;">
-                    <div class="stats-grid" style="margin-bottom:30px;">
-                        <div class="modern-card">
+                    <div class="stats-grid counter-stats-grid" style="margin-bottom:30px;">
+                        <div class="modern-card counter-stat-card">
                             <div class="card-icon icon-blue"><i class="fas fa-redo"></i></div>
                             <div>
                                 <h3 style="margin-bottom:5px;">Page Refreshes</h3>
@@ -534,7 +617,7 @@
                                 <p style="color:#999; margin:5px 0 0; font-size:13px;">Total page loads</p>
                             </div>
                         </div>
-                        <div class="modern-card">
+                        <div class="modern-card counter-stat-card">
                             <div class="card-icon icon-green"><i class="fas fa-users"></i></div>
                             <div>
                                 <h3 style="margin-bottom:5px;">Unique Visitors (24h)</h3>
@@ -548,7 +631,7 @@
                     <div class="table-card">
                         <div class="table-header">
                             <div class="table-title">Counter Management</div>
-                            <div style="display:flex; gap:10px;">
+                            <div class="counter-controls-row" style="display:flex; gap:10px;">
                                 <button class="btn secondary" onclick="loadCounterData()">
                                     <i class="fas fa-sync"></i> Refresh Data
                                 </button>
@@ -557,30 +640,30 @@
                                 </button>
                             </div>
                         </div>
-                        <div style="padding:24px;">
-                            <div class="form-row">
+                        <div class="counter-content" style="padding:24px;">
+                            <div class="form-row counter-row">
                                 <div class="form-group" style="flex:1;">
                                     <label>Page Refresh Count</label>
-                                    <div style="display:flex; gap:10px; align-items:center;">
+                                    <div class="counter-input-inline" style="display:flex; gap:10px; align-items:center;">
                                         <input type="number" id="counter-refresh-input" class="form-control" readonly
                                             style="background:#f3f4f6;">
-                                        <span style="color:#999; font-size:13px;">Real-time auto-updates every 5
+                                        <span class="counter-hint" style="color:#999; font-size:13px;">Real-time auto-updates every 5
                                             seconds</span>
                                     </div>
                                 </div>
                             </div>
-                            <div class="form-row" style="margin-top:20px;">
+                            <div class="form-row counter-row" style="margin-top:20px;">
                                 <div class="form-group" style="flex:1;">
                                     <label>Unique Visitors (24h Window)</label>
-                                    <div style="display:flex; gap:10px; align-items:center;">
+                                    <div class="counter-input-inline" style="display:flex; gap:10px; align-items:center;">
                                         <input type="number" id="counter-unique-input" class="form-control" readonly
                                             style="background:#f3f4f6;">
-                                        <span style="color:#999; font-size:13px;">Uses localStorage + visitor ID
+                                        <span class="counter-hint" style="color:#999; font-size:13px;">Uses localStorage + visitor ID
                                             tracking</span>
                                     </div>
                                 </div>
                             </div>
-                            <div
+                            <div class="counter-info-box"
                                 style="margin-top:24px; padding:16px; background:#ecfdf5; border-left:4px solid #10b981; border-radius:6px;">
                                 <p style="margin:0; color:#065f46; font-size:13px;">
                                     <i class="fas fa-info-circle"></i> <strong>Auto-Refresh Enabled:</strong> Counter
@@ -592,9 +675,269 @@
                     </div>
 
                 </div>
-            </div>
-        </main>
-    </div>
+
+                <!-- CERTIFICATES SELECTOR VIEW -->
+                <div id="certificates-view" style="display:none;">
+                    <!-- Selector Dashboard -->
+                    <div id="certificates-selector-view" style="display:none;">
+                        <div class="certificates-selector-shell" style="max-width:1200px; margin:0 auto;">
+                            <h2 class="certificates-selector-title" style="margin-bottom:40px; font-size:28px; font-weight:700;">Select Certificate Type</h2>
+                            <div class="certificate-selector-grid">
+                                <!-- Vimarsh Option -->
+                                <div class="modern-card cert-selector-card" style="cursor:pointer; transition:all 0.3s;"
+                                     onclick="showCertificateType('vimarsh')">
+                                    <div class="card-icon icon-purple"><i class="fas fa-certificate"></i></div>
+                                    <h3>Vimarsh Certificates</h3>
+                                    <p style="color:#666; margin:15px 0; font-size:14px;">Manage Vimarsh 2026 event participation certificates</p>
+                                    <button class="btn primary" style="width:100%; margin-top:15px;">
+                                        <i class="fas fa-arrow-right"></i> Open
+                                    </button>
+                                </div>
+                                <!-- Tenure Option -->
+                                  <div class="modern-card cert-selector-card" style="cursor:pointer; transition:all 0.3s;"
+                                     onclick="showCertificateType('tenure')">
+                                    <div class="card-icon icon-green"><i class="fas fa-briefcase"></i></div>
+                                    <h3>Tenure Certificates</h3>
+                                    <p style="color:#666; margin:15px 0; font-size:14px;">Manage member tenure and service certificates</p>
+                                    <button class="btn primary" style="width:100%; margin-top:15px;">
+                                        <i class="fas fa-arrow-right"></i> Open
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- VIMARSH CERTIFICATES MANAGEMENT -->
+                    <div id="vimarsh-certificates-view" style="display:none;">
+                        <div style="margin-bottom:20px;">
+                            <button class="btn secondary" onclick="showSection('certificates'); document.getElementById('certificates-selector-view').style.display='grid'; document.getElementById('vimarsh-certificates-view').style.display='none';">
+                                <i class="fas fa-arrow-left"></i> Back to Certificate Types
+                            </button>
+                        </div>
+                    <!-- Stats Row -->
+                    <div class="stats-grid" style="margin-bottom:30px;">
+                        <div class="modern-card">
+                            <div class="card-icon icon-purple"><i class="fas fa-certificate"></i></div>
+                            <h3>Total Certificates</h3>
+                            <p style="font-size:32px; font-weight:700; color:#1f2937; margin:10px 0;"
+                                id="cert-total">0</p>
+                            <p style="color:#999; margin:5px 0 0; font-size:13px;">All time issued</p>
+                        </div>
+                        <div class="modern-card">
+                            <div class="card-icon icon-green"><i class="fas fa-check-circle"></i></div>
+                            <h3>Issued</h3>
+                            <p style="font-size:32px; font-weight:700; color:#1f2937; margin:10px 0;"
+                                id="cert-issued">0</p>
+                            <p style="color:#999; margin:5px 0 0; font-size:13px;">Ready for download</p>
+                        </div>
+                        <div class="modern-card">
+                            <div class="card-icon icon-orange"><i class="fas fa-file-pdf"></i></div>
+                            <h3>Downloaded</h3>
+                            <p style="font-size:32px; font-weight:700; color:#1f2937; margin:10px 0;"
+                                id="cert-downloaded">0</p>
+                            <p style="color:#999; margin:5px 0 0; font-size:13px;">Downloaded by users</p>
+                        </div>
+                        <div class="modern-card">
+                            <div class="card-icon icon-red"><i class="fas fa-ban"></i></div>
+                            <h3>Revoked</h3>
+                            <p style="font-size:32px; font-weight:700; color:#1f2937; margin:10px 0;"
+                                id="cert-revoked">0</p>
+                            <p style="color:#999; margin:5px 0 0; font-size:13px;">Cancelled</p>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="table-card" style="margin-bottom:30px;">
+                        <div class="table-header">
+                            <div class="table-title">Certificate Actions</div>
+                            <div class="cert-actions-row" style="display:flex; gap:10px; flex-wrap:wrap;">
+                                <button class="btn primary" onclick="openGenerateCertificateModal()">
+                                    <i class="fas fa-plus"></i> Generate New
+                                </button>
+                                <button class="btn primary" onclick="openBulkGenerateModal()">
+                                    <i class="fas fa-layer-group"></i> Bulk Generate
+                                </button>
+                                <button class="btn primary" onclick="bulkSendCertificateEmails()">
+                                    <i class="fas fa-paper-plane"></i> Bulk Email Send
+                                </button>
+                                <button class="btn secondary" onclick="exportCertificatesCSV()">
+                                    <i class="fas fa-download"></i> Export CSV
+                                </button>
+                                <button class="btn secondary" onclick="loadCertificates()">
+                                    <i class="fas fa-sync"></i> Refresh
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Filters -->
+                    <div class="table-card cert-filters-card" style="margin-bottom:20px;">
+                        <div class="table-header">
+                            <div class="table-title">Filters & Search</div>
+                        </div>
+                        <div class="cert-filters-grid" style="padding:20px; display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap:15px;">
+                            <div class="form-group">
+                                <label>College</label>
+                                <select id="cert-college-filter" class="form-control" onchange="filterCertificates()">
+                                    <option value="">All Colleges</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Status</label>
+                                <select id="cert-status-filter" class="form-control" onchange="filterCertificates()">
+                                    <option value="">All Status</option>
+                                    <option value="issued">Issued</option>
+                                    <option value="draft">Draft</option>
+                                    <option value="revoked">Revoked</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Downloaded</label>
+                                <select id="cert-downloaded-filter" class="form-control" onchange="filterCertificates()">
+                                    <option value="">All</option>
+                                    <option value="yes">Downloaded</option>
+                                    <option value="no">Not Downloaded</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Search (Name/Email)</label>
+                                <input type="text" id="cert-search" class="form-control" placeholder="Search..."
+                                    onkeyup="filterCertificates()" style="width:100%;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Certificates Table -->
+                    <div class="table-card">
+                        <div class="table-responsive">
+                            <table class="modern-table" id="certificates-table">
+                                <thead>
+                                    <tr>
+                                        <th>Certificate ID</th>
+                                        <th>Registration ID</th>
+                                        <th>Participant Name</th>
+                                        <th>College</th>
+                                        <th>Email</th>
+                                        <th>Category</th>
+                                        <th>Issued Date</th>
+                                        <th>Status</th>
+                                        <th>Downloaded</th>
+                                        <th>Emailed</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td colspan="11" style="text-align:center; padding:30px;">Loading certificates...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    </div>
+
+                    <!-- TENURE CERTIFICATES VIEW -->
+                    <div id="tenure-certificates-view" style="display:none;">
+                        <div class="tenure-back-row" style="margin-bottom:20px;">
+                            <button class="btn secondary" onclick="showSection('certificates'); document.getElementById('certificates-selector-view').style.display='grid'; document.getElementById('tenure-certificates-view').style.display='none';">
+                                <i class="fas fa-arrow-left"></i> Back to Certificate Types
+                            </button>
+                        </div>
+
+                        <div class="table-card" style="margin-bottom:20px;">
+                            <div class="table-header">
+                                <div class="table-title">Tenure Certificate Overview</div>
+                                <div class="tenure-overview-controls" style="display:flex; gap:10px; flex-wrap:wrap;">
+                                    <button class="btn secondary" onclick="loadTenureCertificates()">
+                                        <i class="fas fa-sync"></i> Refresh
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="stats-grid counter-stats-grid tenure-stats-grid" style="padding:20px; margin-bottom:0;">
+                                <div class="modern-card" style="min-height:0; padding:16px;">
+                                    <h3 style="margin:0 0 6px; font-size:14px;">Eligible Members</h3>
+                                    <p id="tenure-total" style="margin:0; font-size:24px; font-weight:700;">0</p>
+                                </div>
+                                <div class="modern-card" style="min-height:0; padding:16px;">
+                                    <h3 style="margin:0 0 6px; font-size:14px;">Tenure Completed</h3>
+                                    <p id="tenure-completed" style="margin:0; font-size:24px; font-weight:700;">0</p>
+                                </div>
+                                <div class="modern-card" style="min-height:0; padding:16px;">
+                                    <h3 style="margin:0 0 6px; font-size:14px;">Certificates Issued</h3>
+                                    <p id="tenure-issued" style="margin:0; font-size:24px; font-weight:700;">0</p>
+                                </div>
+                                <div class="modern-card" style="min-height:0; padding:16px;">
+                                    <h3 style="margin:0 0 6px; font-size:14px;">Revoked</h3>
+                                    <p id="tenure-revoked" style="margin:0; font-size:24px; font-weight:700;">0</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tenure-rule-info-card">
+                            <h4><i class="fas fa-circle-info"></i> Tenure Issuance Rules</h4>
+                            <ul>
+                                <li>Tenure completion is auto-calculated as approval date + 1 year.</li>
+                                <li>When one year is complete, status becomes Completed and certificate can be issued.</li>
+                                <li>Before one year, early issue is allowed only for Super Admin with confirmation.</li>
+                                <li>If certificate is revoked, member cannot use it until re-issued.</li>
+                            </ul>
+                        </div>
+
+                        <div class="table-card cert-filters-card" style="margin-bottom:20px;">
+                            <div class="table-header">
+                                <div class="table-title">Tenure Filters & Search</div>
+                            </div>
+                            <div class="tenure-filters-grid" style="padding:20px; display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap:15px;">
+                                <div class="form-group">
+                                    <label>College</label>
+                                    <select id="tenure-college-filter" class="form-control" onchange="filterTenureCertificates()">
+                                        <option value="">All Colleges</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Tenure Status</label>
+                                    <select id="tenure-status-filter" class="form-control" onchange="filterTenureCertificates()">
+                                        <option value="">All Status</option>
+                                        <option value="pending">Pending</option>
+                                        <option value="completed">Completed</option>
+                                        <option value="issued">Issued</option>
+                                        <option value="revoked">Revoked</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Search (Name/Email)</label>
+                                    <input type="text" id="tenure-search" class="form-control" placeholder="Search..." onkeyup="filterTenureCertificates()">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="table-card">
+                            <div class="table-responsive">
+                                <table class="modern-table" id="tenure-certificates-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Registration ID</th>
+                                            <th>Member Name</th>
+                                            <th>Email</th>
+                                            <th>Role</th>
+                                            <th>College</th>
+                                            <th>Session</th>
+                                            <th>Tenure Status</th>
+                                            <th>Certificate ID</th>
+                                            <th>Issued On</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td colspan="10" style="text-align:center; padding:30px;">Loading tenure members...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
     <!-- COUNTER RESET MODAL -->
     <div id="counter-reset-modal" class="modal-overlay hidden">
@@ -738,19 +1081,22 @@
                         </select>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="event-display-upcoming"> Display on Upcoming Page
+                <div class="form-group event-display-toggle">
+                    <label for="event-display-upcoming">
+                        <input type="checkbox" id="event-display-upcoming">
+                        <span>Display on Upcoming Page</span>
                     </label>
                 </div>
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="event-display-home"> Display on Home Page
+                <div class="form-group event-display-toggle">
+                    <label for="event-display-home">
+                        <input type="checkbox" id="event-display-home">
+                        <span>Display on Home Page</span>
                     </label>
                 </div>
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="event-display-past"> Display on Past Page
+                <div class="form-group event-display-toggle">
+                    <label for="event-display-past">
+                        <input type="checkbox" id="event-display-past">
+                        <span>Display on Past Page</span>
                     </label>
                 </div>
             </div>
@@ -1073,6 +1419,27 @@
     <!-- TOAST CONTAINER (Already generated by JS, but placeholder safely here or handled by JS) -->
 
     <script src="unit.js"></script>
+    <script>
+        (function () {
+            function applyDesktopPillTargets() {
+                var desktop = window.matchMedia('(min-width: 769px)').matches;
+                var pills = document.querySelectorAll('.systems-pill-wrap .system-pill');
+
+                pills.forEach(function (pill) {
+                    if (desktop) {
+                        pill.setAttribute('target', '_blank');
+                        pill.setAttribute('rel', 'noopener noreferrer');
+                    } else {
+                        pill.removeAttribute('target');
+                        pill.removeAttribute('rel');
+                    }
+                });
+            }
+
+            document.addEventListener('DOMContentLoaded', applyDesktopPillTargets);
+            window.addEventListener('resize', applyDesktopPillTargets);
+        })();
+    </script>
     <script src="AdvancedAdmin.js?v=20260318j"></script>
 </body>
 

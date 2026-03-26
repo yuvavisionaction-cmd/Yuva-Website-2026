@@ -627,6 +627,26 @@ ALTER TABLE VIM26_registrations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE VIM26_check_in_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE VIM26_email_failures ENABLE ROW LEVEL SECURITY;
 ALTER TABLE VIM26_audit_discrepancies ENABLE ROW LEVEL SECURITY;
+
+-- Helper functions to avoid recursive policy evaluation on VIM26_admin_users
+CREATE OR REPLACE FUNCTION public.vim26_is_active_admin() RETURNS BOOLEAN AS $$
+SELECT EXISTS (
+        SELECT 1
+        FROM VIM26_admin_users
+        WHERE id = auth.uid()
+            AND active = TRUE
+);
+$$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public;
+
+CREATE OR REPLACE FUNCTION public.vim26_has_role(_roles TEXT[]) RETURNS BOOLEAN AS $$
+SELECT EXISTS (
+        SELECT 1
+        FROM VIM26_admin_users
+        WHERE id = auth.uid()
+            AND active = TRUE
+            AND role = ANY(_roles)
+);
+$$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public;
 -- ----------------------------------------------------------------------------
 -- RLS Policies: colleges / zones (External)
 -- ----------------------------------------------------------------------------
@@ -642,26 +662,10 @@ SELECT TO authenticated USING (id = auth.uid());
 -- Tech Heads can view all admins
 DROP POLICY IF EXISTS vim26_admin_tech_head_view ON VIM26_admin_users;
 CREATE POLICY vim26_admin_tech_head_view ON VIM26_admin_users FOR
-SELECT TO authenticated USING (
-        EXISTS (
-            SELECT 1
-            FROM VIM26_admin_users
-            WHERE id = auth.uid()
-                AND role IN ('tech_head', 'super_admin')
-                AND active = TRUE
-        )
-    );
+SELECT TO authenticated USING (public.vim26_has_role(ARRAY['tech_head', 'super_admin']));
 -- Only Super Admins can modify admin users
 DROP POLICY IF EXISTS vim26_admin_super_modify ON VIM26_admin_users;
-CREATE POLICY vim26_admin_super_modify ON VIM26_admin_users FOR ALL TO authenticated USING (
-    EXISTS (
-        SELECT 1
-        FROM VIM26_admin_users
-        WHERE id = auth.uid()
-            AND role = 'super_admin'
-            AND active = TRUE
-    )
-);
+CREATE POLICY vim26_admin_super_modify ON VIM26_admin_users FOR ALL TO authenticated USING (public.vim26_has_role(ARRAY['super_admin'])) WITH CHECK (public.vim26_has_role(ARRAY['super_admin']));
 -- ----------------------------------------------------------------------------
 -- RLS Policies: VIM26_registrations
 -- ----------------------------------------------------------------------------
@@ -677,39 +681,15 @@ UPDATE TO anon,
     authenticated USING (payment_status = 'pending');
 -- Tech Heads: Full access to all registrations
 DROP POLICY IF EXISTS vim26_reg_tech_head_all ON VIM26_registrations;
-CREATE POLICY vim26_reg_tech_head_all ON VIM26_registrations FOR ALL TO authenticated USING (
-    EXISTS (
-        SELECT 1
-        FROM VIM26_admin_users
-        WHERE id = auth.uid()
-            AND role IN ('tech_head', 'super_admin')
-            AND active = TRUE
-    )
-);
+CREATE POLICY vim26_reg_tech_head_all ON VIM26_registrations FOR ALL TO authenticated USING (public.vim26_has_role(ARRAY['tech_head', 'super_admin'])) WITH CHECK (public.vim26_has_role(ARRAY['tech_head', 'super_admin']));
 -- Members: Read access for check-in
 DROP POLICY IF EXISTS vim26_reg_member_read ON VIM26_registrations;
 CREATE POLICY vim26_reg_member_read ON VIM26_registrations FOR
-SELECT TO authenticated USING (
-        EXISTS (
-            SELECT 1
-            FROM VIM26_admin_users
-            WHERE id = auth.uid()
-                AND role = 'member'
-                AND active = TRUE
-        )
-    );
+SELECT TO authenticated USING (public.vim26_has_role(ARRAY['member']));
 -- Members: Update check-in fields only
 DROP POLICY IF EXISTS vim26_reg_member_checkin ON VIM26_registrations;
 CREATE POLICY vim26_reg_member_checkin ON VIM26_registrations FOR
-UPDATE TO authenticated USING (
-        EXISTS (
-            SELECT 1
-            FROM VIM26_admin_users
-            WHERE id = auth.uid()
-                AND role = 'member'
-                AND active = TRUE
-        )
-    );
+UPDATE TO authenticated USING (public.vim26_has_role(ARRAY['member'])) WITH CHECK (public.vim26_has_role(ARRAY['member']));
 -- ----------------------------------------------------------------------------
 -- RLS Policies: VIM26_check_in_logs
 -- ----------------------------------------------------------------------------
@@ -718,66 +698,31 @@ DROP POLICY IF EXISTS vim26_checkin_log_insert ON VIM26_check_in_logs;
 CREATE POLICY vim26_checkin_log_insert ON VIM26_check_in_logs FOR
 INSERT TO authenticated WITH CHECK (
         admin_id = auth.uid()
-        AND EXISTS (
-            SELECT 1
-            FROM VIM26_admin_users
-            WHERE id = auth.uid()
-                AND active = TRUE
-        )
+    AND public.vim26_is_active_admin()
     );
 -- Tech Heads can view all logs
 DROP POLICY IF EXISTS vim26_checkin_log_tech_head_view ON VIM26_check_in_logs;
 CREATE POLICY vim26_checkin_log_tech_head_view ON VIM26_check_in_logs FOR
-SELECT TO authenticated USING (
-        EXISTS (
-            SELECT 1
-            FROM VIM26_admin_users
-            WHERE id = auth.uid()
-                AND role IN ('tech_head', 'super_admin')
-                AND active = TRUE
-        )
-    );
+SELECT TO authenticated USING (public.vim26_has_role(ARRAY['tech_head', 'super_admin']));
 -- Members can view their own logs
 DROP POLICY IF EXISTS vim26_checkin_log_member_view ON VIM26_check_in_logs;
 CREATE POLICY vim26_checkin_log_member_view ON VIM26_check_in_logs FOR
 SELECT TO authenticated USING (
         admin_id = auth.uid()
-        AND EXISTS (
-            SELECT 1
-            FROM VIM26_admin_users
-            WHERE id = auth.uid()
-                AND role = 'member'
-                AND active = TRUE
-        )
+    AND public.vim26_has_role(ARRAY['member'])
     );
 -- ----------------------------------------------------------------------------
 -- RLS Policies: VIM26_email_failures
 -- ----------------------------------------------------------------------------
 -- Only Tech Heads and Super Admins can access
 DROP POLICY IF EXISTS vim26_email_fail_admin_only ON VIM26_email_failures;
-CREATE POLICY vim26_email_fail_admin_only ON VIM26_email_failures FOR ALL TO authenticated USING (
-    EXISTS (
-        SELECT 1
-        FROM VIM26_admin_users
-        WHERE id = auth.uid()
-            AND role IN ('tech_head', 'super_admin')
-            AND active = TRUE
-    )
-);
+CREATE POLICY vim26_email_fail_admin_only ON VIM26_email_failures FOR ALL TO authenticated USING (public.vim26_has_role(ARRAY['tech_head', 'super_admin'])) WITH CHECK (public.vim26_has_role(ARRAY['tech_head', 'super_admin']));
 -- ----------------------------------------------------------------------------
 -- RLS Policies: VIM26_audit_discrepancies
 -- ----------------------------------------------------------------------------
 -- Only Tech Heads and Super Admins can access
 DROP POLICY IF EXISTS vim26_audit_admin_only ON VIM26_audit_discrepancies;
-CREATE POLICY vim26_audit_admin_only ON VIM26_audit_discrepancies FOR ALL TO authenticated USING (
-    EXISTS (
-        SELECT 1
-        FROM VIM26_admin_users
-        WHERE id = auth.uid()
-            AND role IN ('tech_head', 'super_admin')
-            AND active = TRUE
-    )
-);
+CREATE POLICY vim26_audit_admin_only ON VIM26_audit_discrepancies FOR ALL TO authenticated USING (public.vim26_has_role(ARRAY['tech_head', 'super_admin'])) WITH CHECK (public.vim26_has_role(ARRAY['tech_head', 'super_admin']));
 -- ============================================================================
 -- SECTION 6: REALTIME SUBSCRIPTIONS
 -- ============================================================================
