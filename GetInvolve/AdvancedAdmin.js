@@ -4965,6 +4965,32 @@ window.closeExecutiveMemberModal = function () {
     if (modal) modal.classList.add('hidden');
 };
 
+// Validation helper for Executive Member fields
+function validateExecutiveMemberFields(name, designation, role, email) {
+    // Name, Designation, Role: Allow alphanumeric + special characters (no restrictions)
+    if (!name || name.length === 0) {
+        Toast.show('warning', 'Validation', 'Member Name is required');
+        return false;
+    }
+    if (!designation || designation.length === 0) {
+        Toast.show('warning', 'Validation', 'Designation is required');
+        return false;
+    }
+    if (!role || role.length === 0) {
+        Toast.show('warning', 'Validation', 'Role is required');
+        return false;
+    }
+    // Email: Optional but if provided must be valid email format
+    if (email && email.length > 0) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            Toast.show('warning', 'Validation', 'Please enter a valid email address');
+            return false;
+        }
+    }
+    return true;
+}
+
 window.saveExecutiveMember = async function () {
     const memberId = document.getElementById('executive-id').value;
     const memberName = document.getElementById('executive-name').value.trim();
@@ -4975,9 +5001,8 @@ window.saveExecutiveMember = async function () {
     const displayOrder = parseInt(document.getElementById('executive-display-order').value) || 0;
     const photoInput = document.getElementById('executive-photo-input');
 
-    // Validation
-    if (!memberName || !designation || !role) {
-        Toast.show('warning', 'Missing Fields', 'Please fill in Name, Designation, and Role');
+    // Validation: Name, Designation, Role are required; Email optional but must be valid format if provided
+    if (!validateExecutiveMemberFields(memberName, designation, role, email)) {
         return;
     }
 
