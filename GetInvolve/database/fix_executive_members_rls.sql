@@ -41,7 +41,7 @@ with check (
     select 1
     from public.admin_users au
     where lower(au.email) = lower(coalesce(auth.jwt() ->> 'email', ''))
-      and au.role = 'super_admin'
+      and lower(au.role) = 'super_admin'
   )
 );
 
@@ -55,7 +55,7 @@ using (
     select 1
     from public.admin_users au
     where lower(au.email) = lower(coalesce(auth.jwt() ->> 'email', ''))
-      and au.role = 'super_admin'
+      and lower(au.role) = 'super_admin'
   )
 )
 with check (
@@ -63,7 +63,7 @@ with check (
     select 1
     from public.admin_users au
     where lower(au.email) = lower(coalesce(auth.jwt() ->> 'email', ''))
-      and au.role = 'super_admin'
+      and lower(au.role) = 'super_admin'
   )
 );
 
@@ -77,7 +77,7 @@ using (
     select 1
     from public.admin_users au
     where lower(au.email) = lower(coalesce(auth.jwt() ->> 'email', ''))
-      and au.role = 'super_admin'
+      and lower(au.role) = 'super_admin'
   )
 );
 
@@ -132,7 +132,7 @@ with check (
     select 1
     from public.admin_users au
     where lower(au.email) = lower(coalesce(auth.jwt() ->> 'email', ''))
-      and au.role = 'super_admin'
+      and lower(au.role) = 'super_admin'
   )
 );
 
@@ -147,7 +147,7 @@ using (
     select 1
     from public.admin_users au
     where lower(au.email) = lower(coalesce(auth.jwt() ->> 'email', ''))
-      and au.role = 'super_admin'
+      and lower(au.role) = 'super_admin'
   )
 )
 with check (
@@ -156,7 +156,7 @@ with check (
     select 1
     from public.admin_users au
     where lower(au.email) = lower(coalesce(auth.jwt() ->> 'email', ''))
-      and au.role = 'super_admin'
+      and lower(au.role) = 'super_admin'
   )
 );
 
@@ -171,7 +171,7 @@ using (
     select 1
     from public.admin_users au
     where lower(au.email) = lower(coalesce(auth.jwt() ->> 'email', ''))
-      and au.role = 'super_admin'
+      and lower(au.role) = 'super_admin'
   )
 );
 
@@ -199,3 +199,21 @@ order by policyname;
 -- select id, email, role
 -- from public.admin_users
 -- where lower(email) = lower('your_admin_email@example.com');
+
+-- ---------- 5) CREATE PUBLIC VIEW FOR "WHO IS WHO" PAGE ----------
+-- This view allows the public page to safely query the executive members 
+-- without needing 'authenticated' role permissions on the exact table.
+create or replace view public.vw_executive_members as
+select 
+  id, 
+  member_name, 
+  designation, 
+  role, 
+  photo_url, 
+  contact_email, 
+  description, 
+  display_order
+from public.executive_members;
+
+-- Grant select permission to anon/public on the view
+grant select on public.vw_executive_members to anon, authenticated;

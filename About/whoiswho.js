@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!supabase) throw new Error("Supabase not initialized");
 
         const { data, error } = await supabase
-            .from('executive_members')
+            .from('vw_executive_members')
             .select('id, member_name, designation, role, photo_url, contact_email, description')
             .order('display_order', { ascending: true });
 
