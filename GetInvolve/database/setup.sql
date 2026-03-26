@@ -97,7 +97,9 @@ CREATE TABLE IF NOT EXISTS registrations (
     zone_id INTEGER REFERENCES zones(id),
     applying_for VARCHAR(30) NOT NULL,
     unit_name VARCHAR(100) NOT NULL,
+    date_of_birth DATE,
     academic_session VARCHAR(20),
+    student_year VARCHAR(10),
     unit_description TEXT,
     documents JSONB,
     status VARCHAR(20) DEFAULT 'pending',
@@ -374,8 +376,10 @@ CREATE OR REPLACE FUNCTION update_registration_fields(
   p_zone_id int,
   p_applying_for text,
   p_unit_name text,
+  p_date_of_birth date,
   p_academic_session text,
-  p_status text
+  p_status text,
+  p_student_year text DEFAULT NULL
 )
 RETURNS void AS $$
 BEGIN
@@ -387,14 +391,16 @@ BEGIN
     zone_id = COALESCE(p_zone_id, zone_id),
     applying_for = COALESCE(NULLIF(TRIM(p_applying_for), ''), applying_for),
     unit_name = COALESCE(NULLIF(TRIM(p_unit_name), ''), unit_name),
+    date_of_birth = COALESCE(p_date_of_birth, date_of_birth),
     academic_session = COALESCE(NULLIF(TRIM(p_academic_session), ''), academic_session),
     status = COALESCE(NULLIF(TRIM(p_status), ''), status),
+    student_year = COALESCE(NULLIF(TRIM(p_student_year), ''), student_year),
     updated_at = NOW()
   WHERE id = p_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path=public;
 
-GRANT EXECUTE ON FUNCTION update_registration_fields(int, text, text, text, int, int, text, text, text, text) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION update_registration_fields(int, text, text, text, int, int, text, text, date, text, text, text) TO anon, authenticated;
 
 -- Safely delete a college (blocked if any registrations exist)
 CREATE OR REPLACE FUNCTION delete_college(p_id int)
@@ -419,14 +425,16 @@ CREATE OR REPLACE FUNCTION create_registration(
   p_zone_id int,
   p_applying_for text,
   p_unit_name text,
+  p_date_of_birth date DEFAULT NULL,
   p_academic_session text DEFAULT NULL,
-  p_status text DEFAULT 'pending'
+  p_status text DEFAULT 'pending',
+  p_student_year text DEFAULT NULL
 )
 RETURNS TABLE (id int) AS $$
 DECLARE new_id int;
 BEGIN
-  INSERT INTO registrations(applicant_name,email,phone,college_id,zone_id,applying_for,unit_name,academic_session,status)
-  VALUES (p_applicant_name,p_email,p_phone,p_college_id,p_zone_id,p_applying_for,p_unit_name,p_academic_session,COALESCE(p_status,'pending'))
+  INSERT INTO registrations(applicant_name,email,phone,college_id,zone_id,applying_for,unit_name,date_of_birth,academic_session,status,student_year)
+  VALUES (p_applicant_name,p_email,p_phone,p_college_id,p_zone_id,p_applying_for,p_unit_name,p_date_of_birth,p_academic_session,COALESCE(p_status,'pending'),p_student_year)
   RETURNING registrations.id INTO new_id;
   RETURN QUERY SELECT new_id;
 END;
@@ -670,14 +678,16 @@ CREATE OR REPLACE FUNCTION create_registration(
   p_zone_id int,
   p_applying_for text,
   p_unit_name text,
+  p_date_of_birth date DEFAULT NULL,
   p_academic_session text DEFAULT NULL,
-  p_status text DEFAULT 'pending'
+  p_status text DEFAULT 'pending',
+  p_student_year text DEFAULT NULL
 )
 RETURNS TABLE (id int) AS $$
 DECLARE new_id int;
 BEGIN
-  INSERT INTO registrations(applicant_name,email,phone,college_id,zone_id,applying_for,unit_name,academic_session,status)
-  VALUES (p_applicant_name,p_email,p_phone,p_college_id,p_zone_id,p_applying_for,p_unit_name,p_academic_session,COALESCE(p_status,'pending'))
+  INSERT INTO registrations(applicant_name,email,phone,college_id,zone_id,applying_for,unit_name,date_of_birth,academic_session,status,student_year)
+  VALUES (p_applicant_name,p_email,p_phone,p_college_id,p_zone_id,p_applying_for,p_unit_name,p_date_of_birth,p_academic_session,COALESCE(p_status,'pending'),p_student_year)
   RETURNING registrations.id INTO new_id;
   RETURN QUERY SELECT new_id;
 END;
@@ -751,36 +761,6 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path=public;
 GRANT EXECUTE ON FUNCTION set_registration_status(int, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION delete_registration(int) TO anon, authenticated;
 
-
-
-CREATE OR REPLACE FUNCTION update_registration_fields(
-  p_id int,
-  p_applicant_name text,
-  p_email text,
-  p_phone text,
-  p_college_id int,
-  p_zone_id int,
-  p_applying_for text,
-  p_unit_name text,
-  p_status text
-)
-RETURNS void AS $$
-BEGIN
-  UPDATE registrations SET
-    applicant_name = COALESCE(NULLIF(TRIM(p_applicant_name), ''), applicant_name),
-    email = COALESCE(NULLIF(TRIM(p_email), ''), email),
-    phone = COALESCE(NULLIF(TRIM(p_phone), ''), phone),
-    college_id = COALESCE(p_college_id, college_id),
-    zone_id = COALESCE(p_zone_id, zone_id),
-    applying_for = COALESCE(NULLIF(TRIM(p_applying_for), ''), applying_for),
-    unit_name = COALESCE(NULLIF(TRIM(p_unit_name), ''), unit_name),
-    status = COALESCE(NULLIF(TRIM(p_status), ''), status),
-    updated_at = NOW()
-  WHERE id = p_id;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path=public;
-
-GRANT EXECUTE ON FUNCTION update_registration_fields(int, text, text, text, int, int, text, text, text) TO anon, authenticated;
 
 
 

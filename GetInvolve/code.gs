@@ -595,6 +595,7 @@ function registerUser(e) {
   const role = (e.parameter.role || 'member').trim();
   const zone = (e.parameter.zone || '').trim();
   const college_id = e.parameter.college_id;
+  const program_type = (e.parameter.program_type || '').trim();
   const origin = e.parameter.origin || 'https://yuva.ind.in';
 
   // 1. Input Validation
@@ -604,12 +605,25 @@ function registerUser(e) {
   if (!/^\S+@\S+\.\S+$/.test(email)) {
     return createResponse({ error: 'Please provide a valid email address' }, 400);
   }
-  const allowedRoles = ['super_admin', 'zone_convener', 'mentor'];
+  const allowedRoles = ['super_admin', 'zone_convener', 'mentor', 'yuva_student_program'];
   if (allowedRoles.indexOf(role) === -1) {
     return createResponse({ error: 'Invalid role selected' }, 400);
   }
-  if (role !== 'super_admin' && !zone) {
-    return createResponse({ error: 'Zone is required for this role' }, 400);
+  
+  // Role-specific validation
+  if (role === 'zone_convener' && !zone) {
+    return createResponse({ error: 'Zone is required for Zone Conveners' }, 400);
+  }
+  if (role === 'mentor' && !college_id) {
+    return createResponse({ error: 'College ID is required for Mentors' }, 400);
+  }
+  if (role === 'yuva_student_program' && !program_type) {
+    return createResponse({ error: 'Program Type is required for YUVA Student Program' }, 400);
+  }
+  
+  const allowedPrograms = ['NCWEB', 'DUSOL', 'IGNOU'];
+  if (role === 'yuva_student_program' && allowedPrograms.indexOf(program_type) === -1) {
+    return createResponse({ error: 'Invalid Program Type selected' }, 400);
   }
 
   // Check super admin limit - only 2 allowed
@@ -637,7 +651,8 @@ function registerUser(e) {
       full_name: full_name,
       role: role,
       zone: zone || null,
-      college_id: college_id ? Number(college_id) : null
+      college_id: college_id ? Number(college_id) : null,
+      program_type: program_type || null
     };
     
     const result = makeSupabaseRequest('admin_users', 'POST', adminRecord, true);
@@ -1429,7 +1444,9 @@ function createRegistration(e) {
     p_zone_id: Number(readField(e, body, 'zone_id')),
     p_applying_for: String(readField(e, body, 'applying_for')),
     p_unit_name: String(readField(e, body, 'unit_name')),
-    p_academic_session: String(readField(e, body, 'academic_session')), // <-- ADDED THIS LINE
+    p_date_of_birth: String(readField(e, body, 'date_of_birth') || null),
+    p_academic_session: String(readField(e, body, 'academic_session') || null),
+    p_student_year: String(readField(e, body, 'student_year') || null),
     p_status: String(readField(e, body, 'status') || 'pending')
   };
   const res = callSupabaseRpc('create_registration', payload);
@@ -1442,7 +1459,7 @@ function updateRegistration(e) {
   const id = Number(readField(e, body, 'id'));
   if (!id) return createResponse({ success: false, error: 'id required' }, 400);
   const data = {};
-  ['applicant_name', 'email', 'phone', 'college_id', 'zone_id', 'applying_for', 'unit_name', 'academic_session', 'status'].forEach(k => { const v = readField(e, body, k); if (v !== '') data[k] = v; });
+  ['applicant_name', 'email', 'phone', 'college_id', 'zone_id', 'applying_for', 'unit_name', 'date_of_birth', 'academic_session', 'student_year', 'status'].forEach(k => { const v = readField(e, body, k); if (v !== '') data[k] = v; });
   const res = updateSupabaseData('registrations', id, data);
   if (!res.success) return createResponse({ success: false, error: res.error || 'Update failed', status: res.status || null }, 500);
   return createResponse({ success: true });
