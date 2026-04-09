@@ -343,7 +343,13 @@
                         <div id="colleges-grid" class="card-grid"></div>
                     </div>
                     <div id="level-members" class="level-container">
-                        <h3 class="level-title">Team Members</h3>
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; flex-wrap: wrap;">
+                            <h3 class="level-title" style="margin: 0;">Team Members</h3>
+                            <div id="approved-members-notice" style="display: none; background: linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%); border: 1px solid #6EE7B7; border-radius: 12px; padding: 10px 16px; font-size: 13px; font-weight: 600; color: #065F46; align-items: center; gap: 8px; white-space: nowrap;">
+                                <i class="fas fa-check-circle"></i>
+                                <span>Approved Members Only</span>
+                            </div>
+                        </div>
                         <div id="members-grid" class="card-grid member-grid"></div>
                     </div>
                     <div id="loading-indicator" class="loading-indicator" style="display: none;">

@@ -605,6 +605,11 @@ document.addEventListener('DOMContentLoaded', () => {
         Object.keys(grids).forEach(key => {
             if (grids[key]) grids[key].style.display = (key === levelToShow) ? 'grid' : 'none';
         });
+        // Show "Approved Members Only" notice when viewing members
+        const approvedNotice = document.getElementById('approved-members-notice');
+        if (approvedNotice) {
+            approvedNotice.style.display = (levelToShow === 'members') ? 'flex' : 'none';
+        }
         // Hide loading indicator when showing a level
         showLoading(false);
     }

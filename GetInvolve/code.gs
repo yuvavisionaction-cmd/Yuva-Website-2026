@@ -2575,13 +2575,23 @@ function generateCollegeReport(e) {
 
     const members = (membersResult.success && membersResult.data) ? membersResult.data : [];
 
+    // Fetch mentors for this college from admin_users table
+    const mentorsResult = makeSupabaseRequest(
+      `admin_users?college_id=eq.${collegeId}&role=eq.mentor&select=id`,
+      'GET',
+      null,
+      true
+    );
+
+    const mentorCount = (mentorsResult.success && mentorsResult.data) ? mentorsResult.data.length : 0;
+
     // Calculate member statistics
     const memberStats = {
       total: members.length,
       approved: members.filter(m => m.status === 'approved').length,
       pending: members.filter(m => m.status === 'pending').length,
       rejected: members.filter(m => m.status === 'rejected').length,
-      mentors: members.filter(m => m.applying_for && m.applying_for.toLowerCase().includes('mentor')).length
+      mentors: mentorCount
     };
 
     // Fetch events for this college

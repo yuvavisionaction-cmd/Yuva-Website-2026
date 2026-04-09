@@ -2077,6 +2077,12 @@ class ZoneManager {
             const response = await SupabaseService.getCollegesByZone(zoneId);
             if (response.success) {
                 this.colleges = response.colleges || [];
+                console.log('[ZoneManager] Loaded colleges for zone:', {
+                    zoneId,
+                    zoneName: this.currentZone?.zone_name,
+                    collegeCount: this.colleges.length,
+                    collegeNames: this.colleges.map(c => c.college_name)
+                });
                 // Replace manual total_members with live counts from registrations table
                 try {
                     await Promise.all(this.colleges.map(async (c) => {
@@ -2296,11 +2302,33 @@ class ZoneManager {
         if (!zoneStats) return;
 
         const totalColleges = this.colleges.length;
+        // Count APPROVED members only for consistency with Who Is Who page
         const totalMembers = this.colleges.reduce((sum, college) => sum + (college.total_members || 0), 0);
 
         // --- MODIFIED LINE ---
         // Filters colleges to count only active ones for the 'Active Units' stat.
         const activeUnitsCount = this.colleges.filter(college => college.is_active === true).length;
+
+        const userRole = authManager?.currentUser?.role || 'viewer';
+        const userZone = authManager?.currentUser?.zone || 'Unknown';
+        const currentZoneId = this.currentZone?.id;
+        const currentZoneName = this.currentZone?.zone_name;
+
+        console.log('[ZoneStats] Zone statistics calculated:', {
+            userRole,
+            userAssignedZone: userZone,
+            currentZoneBeingViewed: currentZoneName,
+            currentZoneId,
+            totalColleges,
+            totalApprovedMembers: totalMembers,
+            activeUnitsCount,
+            collegeBreakdown: this.colleges.map(c => ({
+                college_name: c.college_name,
+                college_code: c.college_code,
+                approved_members: c.total_members,
+                is_active: c.is_active
+            }))
+        });
 
         document.getElementById('total-colleges').textContent = totalColleges;
         document.getElementById('total-members').textContent = totalMembers;
@@ -3028,11 +3056,12 @@ const zoneManager = document.getElementById('zone-section') ? new ZoneManager() 
 async function countRegistrations(collegeId) {
     try {
         const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        // count by college_id as per schema
+        // Count APPROVED members only for zone stats (matches Who Is Who page)
         let { count, error } = await supa
             .from('registrations')
             .select('id', { count: 'exact', head: true })
-            .eq('college_id', collegeId);
+            .eq('college_id', collegeId)
+            .eq('status', 'approved');
         if (!error && typeof count === 'number') return count;
     } catch (_) { }
     return 0;
@@ -3206,13 +3235,59 @@ async function loadCollegeMembers(collegeId, contextNames = {}) {
         }));
 
         const normalize = v => (v || '').toLowerCase();
-        const isMentor = p => /\bmentor\b/.test(normalize(p)) && !/co[- ]?mentor/.test(normalize(p));
-        const isCoMentor = p => /co[- ]?mentor/.test(normalize(p));
-        const featured = [];
-        dataMapped.forEach(m => { if (isMentor(m.post) && featured.length < 1) featured.push(m); });
-        dataMapped.forEach(m => { if (isCoMentor(m.post) && featured.length < 2 && !featured.includes(m)) featured.push(m); });
-        const rest = dataMapped.filter(m => !featured.includes(m));
-        const ordered = [...featured, ...rest].slice(0, 12);
+        
+        // ===== SYSTEMATIC SORTING BY VERTICAL & ROLE =====
+        // Define vertical hierarchy and role priorities
+        const verticals = ['YUVA', 'Social Work', 'Cultural', 'Academic', 'Social Media', 'Health and Wellness'];
+        
+        const getSortKey = (member) => {
+            try {
+                const postLower = normalize(member.post || '');
+                const unitLower = normalize(member.unit_name || '');
+                
+                // Determine role (convener, co-convener, or member)
+                let roleRank = 2; // default: member
+                if (/convener/.test(postLower)) {
+                    if (/co[- ]?convener/.test(postLower)) roleRank = 1; // co-convener
+                    else if (/^convener|convener$/.test(postLower)) roleRank = 0; // convener
+                }
+                
+                // Find which vertical this member belongs to
+                let verticalRank = 999; // default: unknown
+                for (let i = 0; i < verticals.length; i++) {
+                    const v = normalize(verticals[i]);
+                    if (postLower.includes(v) || unitLower.includes(v)) {
+                        verticalRank = i;
+                        break;
+                    }
+                }
+                
+                // Return tuple for sorting: (verticalRank, roleRank, name)
+                const memberName = (member.full_name || '').toString();
+                return [verticalRank, roleRank, normalize(memberName)];
+            } catch (e) {
+                console.error('Error in getSortKey:', e, member);
+                return [999, 2, 'z']; // Put problematic members at the end
+            }
+        };
+        
+        try {
+            dataMapped.sort((a, b) => {
+                const keyA = getSortKey(a);
+                const keyB = getSortKey(b);
+                // Compare by vertical first, then by role, then by name
+                if (keyA[0] !== keyB[0]) return keyA[0] - keyB[0];
+                if (keyA[1] !== keyB[1]) return keyA[1] - keyB[1];
+                const nameA = (keyA[2] || '').toString();
+                const nameB = (keyB[2] || '').toString();
+                return nameA.localeCompare(nameB);
+            });
+        } catch (sortError) {
+            console.error('Error sorting members:', sortError);
+            // Continue without sorting if there's an error
+        }
+        
+        const ordered = dataMapped;
 
         container.innerHTML = '';
         container.dataset.collegeId = String(collegeId);
@@ -3225,80 +3300,397 @@ async function loadCollegeMembers(collegeId, contextNames = {}) {
             return;
         }
 
-        const leadsWrap = document.createElement('div');
-        leadsWrap.className = 'cd-leads';
-        const teamWrap = document.createElement('div');
-        teamWrap.className = 'cd-team';
-        container.appendChild(leadsWrap);
-        container.appendChild(teamWrap);
-
-        ordered.forEach((m, idx) => {
-            const card = document.createElement('div');
-            const featuredClass = idx < featured.length ? ' featured' : '';
-            const statusClass = m.status === 'approved' ? ' approved' : (m.status === 'rejected' ? ' rejected' : '');
-            card.className = 'cd-member-card' + featuredClass + statusClass + ' reveal';
-            const dispName = m.full_name || m.name || 'Member';
-            const initials = dispName.split(' ').map(x => x[0]).slice(0, 2).join('').toUpperCase();
-            const hasPhoto = !!(m.avatar_url && String(m.avatar_url).trim());
-            const avatar = hasPhoto ? `<img src="${m.avatar_url}" alt="${dispName}">` : `<span class="cd-ph">${initials}</span>`;
-
-            // Fix #3: Allow Super Admin OR Zone Convener to approve
-            const currentUserRole = (authManager.currentUser && authManager.currentUser.role) || 'viewer';
-            const canApprove = currentUserRole === 'super_admin' || currentUserRole === 'zone_convener';
-
-            card.innerHTML = `<div class="cd-member-avatar${hasPhoto ? '' : ' placeholder'}">${avatar}</div><div class="cd-member-info"><h4>${dispName}</h4><p>${m.email || '—'}<br>${m.post || 'member'}${m.unit_name ? ' · <span class="cd-unit">' + m.unit_name + '</span>' : ''}${m.academic_session ? '<br><span class="cd-session"><i class="fas fa-calendar-alt"></i> ' + m.academic_session + '</span>' : ''}${m.student_year ? ' · <span class="cd-year">Year ' + m.student_year + '</span>' : ''}</p></div><div class="cd-member-actions"><button class=\"cd-action-btn cd-edit\" title=\"Edit\"><i class=\"fas fa-edit\"></i></button><button class=\"cd-action-btn cd-delete\" title=\"Delete\"><i class=\"fas fa-trash\"></i></button><button class=\"cd-action-btn cd-certificate\" title=\"Certificate\"><i class=\"fas fa-certificate\"></i></button>${canApprove ? '<button class=\"cd-action-btn cd-approve\" title=\"Approve\"><i class=\"fas fa-check\"></i></button><button class=\"cd-action-btn cd-reject\" title=\"Reject\"><i class=\"fas fa-times\"></i></button>' : ''}</div>`;
-
-            if (idx < featured.length) {
-                leadsWrap.appendChild(card);
-            } else {
-                teamWrap.appendChild(card);
+        // ===== GROUP BY VERTICAL =====
+        const getVerticalName = (member) => {
+            const postLower = normalize(member.post || '');
+            const unitLower = normalize(member.unit_name || '');
+            for (const v of verticals) {
+                const vLower = normalize(v);
+                if (postLower.includes(vLower) || unitLower.includes(vLower)) {
+                    return v;
+                }
             }
-            setTimeout(() => card.classList.add('show'), 30 + idx * 20);
+            return 'Other';
+        };
 
-            card.querySelector('.cd-edit')?.addEventListener('click', () => {
-                openMemberModal({
-                    id: m.id,
-                    applicant_name: m.full_name,
-                    email: m.email || '',
-                    phone: m.phone || '',
-                    date_of_birth: m.date_of_birth || '',
-                    applying_for: m.post || 'member',
-                    unit_name: m.unit_name || '',
-                    academic_session: m.academic_session || '',
-                    student_year: m.student_year || '',
-                    status: m.status || 'pending',
-                    college_id: collegeId,
-                    college_name: contextNames.collegeName || '',
-                    zone_id: (zoneManager && zoneManager.currentZone ? zoneManager.currentZone.id : null) || contextNames.zoneId,
-                    zone_name: (zoneManager && zoneManager.currentZone ? zoneManager.currentZone.name || zoneManager.currentZone.zone_name : '') || contextNames.zoneName || ''
-                });
-            });
-            card.querySelector('.cd-delete')?.addEventListener('click', async () => {
-                const ok = await showConfirmDialog({
-                    title: 'Delete member',
-                    message: `Are you sure you want to delete ${dispName}? This action cannot be undone.`,
-                    confirmText: 'Delete',
-                    cancelText: 'Cancel',
-                    variant: 'error'
-                });
-                if (!ok) return;
-                await deleteMember(m.id, collegeId);
-            });
-
-            card.querySelector('.cd-certificate')?.addEventListener('click', () => {
-                openTenureCertificateForMember(m, contextNames);
-            });
-
-            // Attach listeners if the user has permission
-            if (canApprove) {
-                card.querySelector('.cd-approve')?.addEventListener('click', async () => {
-                    await approveRegistration(m.id, true, collegeId);
-                });
-                card.querySelector('.cd-reject')?.addEventListener('click', async () => {
-                    await approveRegistration(m.id, false, collegeId);
-                });
+        // Group members by vertical
+        const groupedByVertical = {};
+        ordered.forEach(m => {
+            const vertical = getVerticalName(m);
+            if (!groupedByVertical[vertical]) {
+                groupedByVertical[vertical] = { conveners: [], members: [] };
+            }
+            const postLower = normalize(m.post || '');
+            const isConvener = /convener/.test(postLower);
+            if (isConvener) {
+                groupedByVertical[vertical].conveners.push(m);
+            } else {
+                groupedByVertical[vertical].members.push(m);
             }
         });
+
+        // DEBUG: Log grouped vertical distribution
+        console.log('🔍 Member Vertical Distribution:');
+        Object.entries(groupedByVertical).forEach(([vertical, group]) => {
+            console.log(`  ${vertical}: ${group.conveners.length} conveners + ${group.members.length} members = ${group.conveners.length + group.members.length} total`);
+        });
+
+        // Render grouped sections
+        let cardIndex = 0;
+        
+        // Render predefined verticals first
+        verticals.forEach((vertical) => {
+            if (!groupedByVertical[vertical] || 
+                (groupedByVertical[vertical].conveners.length === 0 && groupedByVertical[vertical].members.length === 0)) {
+                return;
+            }
+
+            const group = groupedByVertical[vertical];
+
+            // Section header
+            const sectionHeader = document.createElement('div');
+            sectionHeader.className = 'cd-vertical-section';
+            sectionHeader.innerHTML = `
+                <div class="cd-vertical-header">
+                    <div class="cd-vertical-title">
+                        <h3>${vertical}</h3>
+                        <span class="cd-member-count">${group.conveners.length + group.members.length} member${group.conveners.length + group.members.length !== 1 ? 's' : ''}</span>
+                    </div>
+                    <div class="cd-vertical-badge">
+                        <i class="fas fa-users"></i> ${group.conveners.length} convener${group.conveners.length !== 1 ? 's' : ''}
+                    </div>
+                </div>
+            `;
+            container.appendChild(sectionHeader);
+
+            // Conveners subsection
+            if (group.conveners.length > 0) {
+                const convenerSubHeader = document.createElement('div');
+                convenerSubHeader.className = 'cd-subsection-header';
+                convenerSubHeader.innerHTML = `<span class="cd-subsection-label"><i class="fas fa-crown"></i> Leadership</span>`;
+                container.appendChild(convenerSubHeader);
+
+                const convenerGrid = document.createElement('div');
+                convenerGrid.className = 'cd-convener-grid';
+                container.appendChild(convenerGrid);
+
+                group.conveners.forEach((m) => {
+                    const card = document.createElement('div');
+                    const postLower = normalize(m.post || '');
+                    const statusClass = m.status === 'approved' ? ' approved' : (m.status === 'rejected' ? ' rejected' : '');
+                    card.className = 'cd-member-card featured' + statusClass + ' reveal';
+
+                    const dispName = m.full_name || m.name || 'Member';
+                    const initials = dispName.split(' ').map(x => x[0]).slice(0, 2).join('').toUpperCase();
+                    const hasPhoto = !!(m.avatar_url && String(m.avatar_url).trim());
+                    const avatar = hasPhoto ? `<img src="${m.avatar_url}" alt="${dispName}">` : `<span class="cd-ph">${initials}</span>`;
+
+                    const currentUserRole = (authManager.currentUser && authManager.currentUser.role) || 'viewer';
+                    const canApprove = currentUserRole === 'super_admin' || currentUserRole === 'zone_convener';
+
+                    card.innerHTML = `<div class="cd-member-avatar${hasPhoto ? '' : ' placeholder'}">${avatar}</div><div class="cd-member-info"><h4>${dispName}</h4><p>${m.email || '—'}<br><strong>${m.post || 'member'}</strong>${m.unit_name ? ' · <span class="cd-unit">' + m.unit_name + '</span>' : ''}${m.academic_session ? '<br><span class="cd-session"><i class="fas fa-calendar-alt"></i> ' + m.academic_session + '</span>' : ''}${m.student_year ? ' · <span class="cd-year">Year ' + m.student_year + '</span>' : ''}</p></div><div class="cd-member-actions"><button class=\"cd-action-btn cd-edit\" title=\"Edit\"><i class=\"fas fa-edit\"></i></button><button class=\"cd-action-btn cd-delete\" title=\"Delete\"><i class=\"fas fa-trash\"></i></button><button class=\"cd-action-btn cd-certificate\" title=\"Certificate\"><i class=\"fas fa-certificate\"></i></button>${canApprove ? '<button class=\"cd-action-btn cd-approve\" title=\"Approve\"><i class=\"fas fa-check\"></i></button><button class=\"cd-action-btn cd-reject\" title=\"Reject\"><i class=\"fas fa-times\"></i></button>' : ''}</div>`;
+
+                    convenerGrid.appendChild(card);
+                    setTimeout(() => card.classList.add('show'), 30 + cardIndex * 20);
+                    cardIndex++;
+
+                    card.querySelector('.cd-edit')?.addEventListener('click', () => {
+                        openMemberModal({
+                            id: m.id,
+                            applicant_name: m.full_name,
+                            email: m.email || '',
+                            phone: m.phone || '',
+                            date_of_birth: m.date_of_birth || '',
+                            applying_for: m.post || 'member',
+                            unit_name: m.unit_name || '',
+                            academic_session: m.academic_session || '',
+                            student_year: m.student_year || '',
+                            status: m.status || 'pending',
+                            college_id: collegeId,
+                            college_name: contextNames.collegeName || '',
+                            zone_id: (zoneManager && zoneManager.currentZone ? zoneManager.currentZone.id : null) || contextNames.zoneId,
+                            zone_name: (zoneManager && zoneManager.currentZone ? zoneManager.currentZone.name || zoneManager.currentZone.zone_name : '') || contextNames.zoneName || ''
+                        });
+                    });
+                    card.querySelector('.cd-delete')?.addEventListener('click', async () => {
+                        const ok = await showConfirmDialog({
+                            title: 'Delete member',
+                            message: `Are you sure you want to delete ${dispName}? This action cannot be undone.`,
+                            confirmText: 'Delete',
+                            cancelText: 'Cancel',
+                            variant: 'error'
+                        });
+                        if (!ok) return;
+                        await deleteMember(m.id, collegeId);
+                    });
+                    card.querySelector('.cd-certificate')?.addEventListener('click', () => {
+                        openTenureCertificateForMember(m, contextNames);
+                    });
+                    if (canApprove) {
+                        card.querySelector('.cd-approve')?.addEventListener('click', async () => {
+                            await approveRegistration(m.id, true, collegeId);
+                        });
+                        card.querySelector('.cd-reject')?.addEventListener('click', async () => {
+                            await approveRegistration(m.id, false, collegeId);
+                        });
+                    }
+                });
+            }
+
+            // Members subsection
+            if (group.members.length > 0) {
+                const memberSubHeader = document.createElement('div');
+                memberSubHeader.className = 'cd-subsection-header';
+                memberSubHeader.innerHTML = `<span class="cd-subsection-label"><i class="fas fa-users"></i> Team Members</span>`;
+                container.appendChild(memberSubHeader);
+
+                const memberGrid = document.createElement('div');
+                memberGrid.className = 'cd-member-grid';
+                container.appendChild(memberGrid);
+
+                group.members.forEach((m) => {
+                    const card = document.createElement('div');
+                    const statusClass = m.status === 'approved' ? ' approved' : (m.status === 'rejected' ? ' rejected' : '');
+                    card.className = 'cd-member-card' + statusClass + ' reveal';
+
+                    const dispName = m.full_name || m.name || 'Member';
+                    const initials = dispName.split(' ').map(x => x[0]).slice(0, 2).join('').toUpperCase();
+                    const hasPhoto = !!(m.avatar_url && String(m.avatar_url).trim());
+                    const avatar = hasPhoto ? `<img src="${m.avatar_url}" alt="${dispName}">` : `<span class="cd-ph">${initials}</span>`;
+
+                    const currentUserRole = (authManager.currentUser && authManager.currentUser.role) || 'viewer';
+                    const canApprove = currentUserRole === 'super_admin' || currentUserRole === 'zone_convener';
+
+                    card.innerHTML = `<div class="cd-member-avatar${hasPhoto ? '' : ' placeholder'}">${avatar}</div><div class="cd-member-info"><h4>${dispName}</h4><p>${m.email || '—'}<br>${m.post || 'member'}${m.unit_name ? ' · <span class="cd-unit">' + m.unit_name + '</span>' : ''}${m.academic_session ? '<br><span class="cd-session"><i class="fas fa-calendar-alt"></i> ' + m.academic_session + '</span>' : ''}${m.student_year ? ' · <span class="cd-year">Year ' + m.student_year + '</span>' : ''}</p></div><div class="cd-member-actions"><button class=\"cd-action-btn cd-edit\" title=\"Edit\"><i class=\"fas fa-edit\"></i></button><button class=\"cd-action-btn cd-delete\" title=\"Delete\"><i class=\"fas fa-trash\"></i></button><button class=\"cd-action-btn cd-certificate\" title=\"Certificate\"><i class=\"fas fa-certificate\"></i></button>${canApprove ? '<button class=\"cd-action-btn cd-approve\" title=\"Approve\"><i class=\"fas fa-check\"></i></button><button class=\"cd-action-btn cd-reject\" title=\"Reject\"><i class=\"fas fa-times\"></i></button>' : ''}</div>`;
+
+                    memberGrid.appendChild(card);
+                    setTimeout(() => card.classList.add('show'), 30 + cardIndex * 20);
+                    cardIndex++;
+
+                    card.querySelector('.cd-edit')?.addEventListener('click', () => {
+                        openMemberModal({
+                            id: m.id,
+                            applicant_name: m.full_name,
+                            email: m.email || '',
+                            phone: m.phone || '',
+                            date_of_birth: m.date_of_birth || '',
+                            applying_for: m.post || 'member',
+                            unit_name: m.unit_name || '',
+                            academic_session: m.academic_session || '',
+                            student_year: m.student_year || '',
+                            status: m.status || 'pending',
+                            college_id: collegeId,
+                            college_name: contextNames.collegeName || '',
+                            zone_id: (zoneManager && zoneManager.currentZone ? zoneManager.currentZone.id : null) || contextNames.zoneId,
+                            zone_name: (zoneManager && zoneManager.currentZone ? zoneManager.currentZone.name || zoneManager.currentZone.zone_name : '') || contextNames.zoneName || ''
+                        });
+                    });
+                    card.querySelector('.cd-delete')?.addEventListener('click', async () => {
+                        const ok = await showConfirmDialog({
+                            title: 'Delete member',
+                            message: `Are you sure you want to delete ${dispName}? This action cannot be undone.`,
+                            confirmText: 'Delete',
+                            cancelText: 'Cancel',
+                            variant: 'error'
+                        });
+                        if (!ok) return;
+                        await deleteMember(m.id, collegeId);
+                    });
+                    card.querySelector('.cd-certificate')?.addEventListener('click', () => {
+                        openTenureCertificateForMember(m, contextNames);
+                    });
+                    if (canApprove) {
+                        card.querySelector('.cd-approve')?.addEventListener('click', async () => {
+                            await approveRegistration(m.id, true, collegeId);
+                        });
+                        card.querySelector('.cd-reject')?.addEventListener('click', async () => {
+                            await approveRegistration(m.id, false, collegeId);
+                        });
+                    }
+                });
+            }
+
+            // Visual separator
+            const separator = document.createElement('div');
+            separator.className = 'cd-vertical-separator';
+            container.appendChild(separator);
+        });
+
+        // **RENDER "OTHER" CATEGORY** - for members not matching any vertical keywords
+        if (groupedByVertical['Other'] && 
+            (groupedByVertical['Other'].conveners.length > 0 || groupedByVertical['Other'].members.length > 0)) {
+            
+            const group = groupedByVertical['Other'];
+
+            // Section header
+            const sectionHeader = document.createElement('div');
+            sectionHeader.className = 'cd-vertical-section';
+            sectionHeader.innerHTML = `
+                <div class="cd-vertical-header">
+                    <div class="cd-vertical-title">
+                        <h3>Other</h3>
+                        <span class="cd-member-count">${group.conveners.length + group.members.length} member${group.conveners.length + group.members.length !== 1 ? 's' : ''}</span>
+                    </div>
+                    <div class="cd-vertical-badge">
+                        <i class="fas fa-users"></i> ${group.conveners.length} convener${group.conveners.length !== 1 ? 's' : ''}
+                    </div>
+                </div>
+            `;
+            container.appendChild(sectionHeader);
+
+            // Conveners subsection
+            if (group.conveners.length > 0) {
+                const convenerSubHeader = document.createElement('div');
+                convenerSubHeader.className = 'cd-subsection-header';
+                convenerSubHeader.innerHTML = `<span class="cd-subsection-label"><i class="fas fa-crown"></i> Leadership</span>`;
+                container.appendChild(convenerSubHeader);
+
+                const convenerGrid = document.createElement('div');
+                convenerGrid.className = 'cd-convener-grid';
+                container.appendChild(convenerGrid);
+
+                group.conveners.forEach((m) => {
+                    const card = document.createElement('div');
+                    const postLower = normalize(m.post || '');
+                    const statusClass = m.status === 'approved' ? ' approved' : (m.status === 'rejected' ? ' rejected' : '');
+                    card.className = 'cd-member-card featured' + statusClass + ' reveal';
+
+                    const dispName = m.full_name || m.name || 'Member';
+                    const initials = dispName.split(' ').map(x => x[0]).slice(0, 2).join('').toUpperCase();
+                    const hasPhoto = !!(m.avatar_url && String(m.avatar_url).trim());
+                    const avatar = hasPhoto ? `<img src="${m.avatar_url}" alt="${dispName}">` : `<span class="cd-ph">${initials}</span>`;
+
+                    const currentUserRole = (authManager.currentUser && authManager.currentUser.role) || 'viewer';
+                    const canApprove = currentUserRole === 'super_admin' || currentUserRole === 'zone_convener';
+
+                    card.innerHTML = `<div class="cd-member-avatar${hasPhoto ? '' : ' placeholder'}">${avatar}</div><div class="cd-member-info"><h4>${dispName}</h4><p>${m.email || '—'}<br><strong>${m.post || 'member'}</strong>${m.unit_name ? ' · <span class="cd-unit">' + m.unit_name + '</span>' : ''}${m.academic_session ? '<br><span class="cd-session"><i class="fas fa-calendar-alt"></i> ' + m.academic_session + '</span>' : ''}${m.student_year ? ' · <span class="cd-year">Year ' + m.student_year + '</span>' : ''}</p></div><div class="cd-member-actions"><button class=\"cd-action-btn cd-edit\" title=\"Edit\"><i class=\"fas fa-edit\"></i></button><button class=\"cd-action-btn cd-delete\" title=\"Delete\"><i class=\"fas fa-trash\"></i></button><button class=\"cd-action-btn cd-certificate\" title=\"Certificate\"><i class=\"fas fa-certificate\"></i></button>${canApprove ? '<button class=\"cd-action-btn cd-approve\" title=\"Approve\"><i class=\"fas fa-check\"></i></button><button class=\"cd-action-btn cd-reject\" title=\"Reject\"><i class=\"fas fa-times\"></i></button>' : ''}</div>`;
+
+                    convenerGrid.appendChild(card);
+                    setTimeout(() => card.classList.add('show'), 30 + cardIndex * 20);
+                    cardIndex++;
+
+                    card.querySelector('.cd-edit')?.addEventListener('click', () => {
+                        openMemberModal({
+                            id: m.id,
+                            applicant_name: m.full_name,
+                            email: m.email || '',
+                            phone: m.phone || '',
+                            date_of_birth: m.date_of_birth || '',
+                            applying_for: m.post || 'member',
+                            unit_name: m.unit_name || '',
+                            academic_session: m.academic_session || '',
+                            student_year: m.student_year || '',
+                            status: m.status || 'pending',
+                            college_id: collegeId,
+                            college_name: contextNames.collegeName || '',
+                            zone_id: (zoneManager && zoneManager.currentZone ? zoneManager.currentZone.id : null) || contextNames.zoneId,
+                            zone_name: (zoneManager && zoneManager.currentZone ? zoneManager.currentZone.name || zoneManager.currentZone.zone_name : '') || contextNames.zoneName || ''
+                        });
+                    });
+                    card.querySelector('.cd-delete')?.addEventListener('click', async () => {
+                        const ok = await showConfirmDialog({
+                            title: 'Delete member',
+                            message: `Are you sure you want to delete ${dispName}? This action cannot be undone.`,
+                            confirmText: 'Delete',
+                            cancelText: 'Cancel',
+                            variant: 'error'
+                        });
+                        if (!ok) return;
+                        await deleteMember(m.id, collegeId);
+                    });
+                    card.querySelector('.cd-certificate')?.addEventListener('click', () => {
+                        openTenureCertificateForMember(m, contextNames);
+                    });
+                    if (canApprove) {
+                        card.querySelector('.cd-approve')?.addEventListener('click', async () => {
+                            await approveRegistration(m.id, true, collegeId);
+                        });
+                        card.querySelector('.cd-reject')?.addEventListener('click', async () => {
+                            await approveRegistration(m.id, false, collegeId);
+                        });
+                    }
+                });
+            }
+
+            // Members subsection
+            if (group.members.length > 0) {
+                const memberSubHeader = document.createElement('div');
+                memberSubHeader.className = 'cd-subsection-header';
+                memberSubHeader.innerHTML = `<span class="cd-subsection-label"><i class="fas fa-users"></i> Team Members</span>`;
+                container.appendChild(memberSubHeader);
+
+                const memberGrid = document.createElement('div');
+                memberGrid.className = 'cd-member-grid';
+                container.appendChild(memberGrid);
+
+                group.members.forEach((m) => {
+                    const card = document.createElement('div');
+                    const statusClass = m.status === 'approved' ? ' approved' : (m.status === 'rejected' ? ' rejected' : '');
+                    card.className = 'cd-member-card' + statusClass + ' reveal';
+
+                    const dispName = m.full_name || m.name || 'Member';
+                    const initials = dispName.split(' ').map(x => x[0]).slice(0, 2).join('').toUpperCase();
+                    const hasPhoto = !!(m.avatar_url && String(m.avatar_url).trim());
+                    const avatar = hasPhoto ? `<img src="${m.avatar_url}" alt="${dispName}">` : `<span class="cd-ph">${initials}</span>`;
+
+                    const currentUserRole = (authManager.currentUser && authManager.currentUser.role) || 'viewer';
+                    const canApprove = currentUserRole === 'super_admin' || currentUserRole === 'zone_convener';
+
+                    card.innerHTML = `<div class="cd-member-avatar${hasPhoto ? '' : ' placeholder'}">${avatar}</div><div class="cd-member-info"><h4>${dispName}</h4><p>${m.email || '—'}<br>${m.post || 'member'}${m.unit_name ? ' · <span class="cd-unit">' + m.unit_name + '</span>' : ''}${m.academic_session ? '<br><span class="cd-session"><i class="fas fa-calendar-alt"></i> ' + m.academic_session + '</span>' : ''}${m.student_year ? ' · <span class="cd-year">Year ' + m.student_year + '</span>' : ''}</p></div><div class="cd-member-actions"><button class=\"cd-action-btn cd-edit\" title=\"Edit\"><i class=\"fas fa-edit\"></i></button><button class=\"cd-action-btn cd-delete\" title=\"Delete\"><i class=\"fas fa-trash\"></i></button><button class=\"cd-action-btn cd-certificate\" title=\"Certificate\"><i class=\"fas fa-certificate\"></i></button>${canApprove ? '<button class=\"cd-action-btn cd-approve\" title=\"Approve\"><i class=\"fas fa-check\"></i></button><button class=\"cd-action-btn cd-reject\" title=\"Reject\"><i class=\"fas fa-times\"></i></button>' : ''}</div>`;
+
+                    memberGrid.appendChild(card);
+                    setTimeout(() => card.classList.add('show'), 30 + cardIndex * 20);
+                    cardIndex++;
+
+                    card.querySelector('.cd-edit')?.addEventListener('click', () => {
+                        openMemberModal({
+                            id: m.id,
+                            applicant_name: m.full_name,
+                            email: m.email || '',
+                            phone: m.phone || '',
+                            date_of_birth: m.date_of_birth || '',
+                            applying_for: m.post || 'member',
+                            unit_name: m.unit_name || '',
+                            academic_session: m.academic_session || '',
+                            student_year: m.student_year || '',
+                            status: m.status || 'pending',
+                            college_id: collegeId,
+                            college_name: contextNames.collegeName || '',
+                            zone_id: (zoneManager && zoneManager.currentZone ? zoneManager.currentZone.id : null) || contextNames.zoneId,
+                            zone_name: (zoneManager && zoneManager.currentZone ? zoneManager.currentZone.name || zoneManager.currentZone.zone_name : '') || contextNames.zoneName || ''
+                        });
+                    });
+                    card.querySelector('.cd-delete')?.addEventListener('click', async () => {
+                        const ok = await showConfirmDialog({
+                            title: 'Delete member',
+                            message: `Are you sure you want to delete ${dispName}? This action cannot be undone.`,
+                            confirmText: 'Delete',
+                            cancelText: 'Cancel',
+                            variant: 'error'
+                        });
+                        if (!ok) return;
+                        await deleteMember(m.id, collegeId);
+                    });
+                    card.querySelector('.cd-certificate')?.addEventListener('click', () => {
+                        openTenureCertificateForMember(m, contextNames);
+                    });
+                    if (canApprove) {
+                        card.querySelector('.cd-approve')?.addEventListener('click', async () => {
+                            await approveRegistration(m.id, true, collegeId);
+                        });
+                        card.querySelector('.cd-reject')?.addEventListener('click', async () => {
+                            await approveRegistration(m.id, false, collegeId);
+                        });
+                    }
+                });
+            }
+        }
+
+        // Remove trailing separator
+        const separators = container.querySelectorAll('.cd-vertical-separator');
+        if (separators.length > 0) {
+            separators[separators.length - 1].style.display = 'none';
+        }
 
     } catch (e) {
         flashNotification.showError('Error', 'Failed to load members');
@@ -5674,6 +6066,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!messages || messages.length === 0) {
                 messagesList.innerHTML = '<div class="empty-messages" style="text-align:center;padding:40px;color:#6b7280;"><i class="fas fa-inbox" style="font-size:48px;margin-bottom:16px;display:block;opacity:0.5;"></i>No messages from mentors yet</div>';
                 if (unreadBadge) unreadBadge.style.display = 'none';
+                flashNotification.showInfo('Refreshed', 'No new messages to display');
                 return;
             }
 
@@ -5734,6 +6127,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
 
+            // Show success notification
+            flashNotification.showSuccess('Refreshed', `${messages.length} message${messages.length !== 1 ? 's' : ''} loaded successfully`);
+
         } catch (error) {
             console.error('Error loading mentor messages:', error);
             console.error('[MentorMessages] Query failed details:', {
@@ -5768,9 +6164,31 @@ document.addEventListener('DOMContentLoaded', () => {
     // Make loadMentorMessages available globally
     window.loadMentorMessages = loadMentorMessages;
 
-    // Refresh button handler
-    document.getElementById('refresh-mentor-messages')?.addEventListener('click', () => {
-        const zoneId = zoneManager?.currentZone?.id || authManager?.currentUser?.zone;
-        loadMentorMessages(zoneId);
+    // Refresh button handler - Use event delegation to handle dynamic button
+    document.addEventListener('click', (e) => {
+        if (e.target?.id === 'refresh-mentor-messages' || e.target?.closest('#refresh-mentor-messages')) {
+            e.preventDefault();
+            const btn = document.getElementById('refresh-mentor-messages');
+            const icon = btn?.querySelector('i');
+            
+            // Start rotation animation
+            if (icon) {
+                icon.classList.add('fa-spin');
+            }
+            
+            const zoneId = zoneManager?.currentZone?.id || authManager?.currentUser?.zone;
+            console.log('[MentorMessages] Refresh clicked with zoneId:', zoneId);
+            if (zoneId) {
+                loadMentorMessages(zoneId).finally(() => {
+                    // Stop rotation animation after loading
+                    if (icon) {
+                        icon.classList.remove('fa-spin');
+                    }
+                });
+            } else {
+                if (icon) icon.classList.remove('fa-spin');
+                flashNotification.showError('Error', 'Zone information not available');
+            }
+        }
     });
 });
