@@ -579,6 +579,7 @@ function getAdminUser(e) {
         role: adminUser.role,
         zone: adminUser.zone,
         college_id: adminUser.college_id,
+        program_type: adminUser.program_type,
         is_verified: adminUser.is_verified // Return actual value: true, false, or null/undefined
       }
     });
@@ -618,7 +619,11 @@ function registerUser(e) {
     return createResponse({ error: 'College ID is required for Mentors' }, 400);
   }
   if (role === 'yuva_student_program' && !program_type) {
-    return createResponse({ error: 'Program Type is required for YUVA Student Program' }, 400);
+    return createResponse({ 
+      error: 'Program Type is required for YUVA Student Program',
+      details: 'You must select a program type (NCWEB, DUSOL, or IGNOU)',
+      received_program_type: program_type
+    }, 400);
   }
   
   const allowedPrograms = ['NCWEB', 'DUSOL', 'IGNOU'];

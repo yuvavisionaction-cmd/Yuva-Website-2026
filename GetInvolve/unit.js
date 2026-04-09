@@ -215,11 +215,16 @@ class SupabaseService {
                 role: userData.role,
                 zone: userData.zone || '',
                 college_id: userData.college_id || '',
+                program_type: userData.program_type || '',
                 origin: window.location.origin
             });
 
+            const fullUrl = `${GAS_WEB_APP_URL}?${params.toString()}`;
+            console.log('Registration URL:', fullUrl);
+            console.log('Program Type being sent:', userData.program_type);
+
             // Using GET as it is more reliable with Google Apps Script
-            const response = await fetch(`${GAS_WEB_APP_URL}?${params.toString()}`);
+            const response = await fetch(fullUrl);
             const result = await response.json(); // We will get JSON for both success and errors
 
             if (response.ok && result.success) {
@@ -494,7 +499,8 @@ class AuthManager {
                         full_name: adminData.full_name || 'User',
                         role: adminData.role || 'viewer',
                         zone: adminData.zone || '',
-                        college_id: adminData.college_id || null
+                        college_id: adminData.college_id || null,
+                        program_type: adminData.program_type || null
                     };
                     localStorage.setItem('yuva_user', JSON.stringify(this.currentUser));
                 }
@@ -609,26 +615,42 @@ class AuthManager {
         const role = document.getElementById('register-role')?.value;
         const zoneGroup = document.getElementById('zone-selector-group');
         const collegeGroup = document.getElementById('college-fields-group');
+        const programTypeGroup = document.getElementById('program-type-group');
         const zoneSelect = document.getElementById('register-zone');
         const collegeCodeInput = document.getElementById('register-college-code');
+        const programTypeSelect = document.getElementById('register-program-type');
 
         if (!zoneGroup || !collegeGroup) return;
 
         if (role === 'mentor') {
             zoneGroup.style.display = 'none';
             collegeGroup.style.display = 'block';
+            if (programTypeGroup) programTypeGroup.style.display = 'none';
             if (zoneSelect) zoneSelect.required = false;
             if (collegeCodeInput) collegeCodeInput.required = true;
+            if (programTypeSelect) programTypeSelect.required = false;
         } else if (role === 'zone_convener') {
             zoneGroup.style.display = 'block';
             collegeGroup.style.display = 'none';
+            if (programTypeGroup) programTypeGroup.style.display = 'none';
             if (zoneSelect) zoneSelect.required = true;
             if (collegeCodeInput) collegeCodeInput.required = false;
+            if (programTypeSelect) programTypeSelect.required = false;
+        } else if (role === 'yuva_student_program') {
+            // YUVA Student Program: Show program type selector, hide zone and college fields
+            zoneGroup.style.display = 'none';
+            collegeGroup.style.display = 'none';
+            if (programTypeGroup) programTypeGroup.style.display = 'block';
+            if (zoneSelect) zoneSelect.required = false;
+            if (collegeCodeInput) collegeCodeInput.required = false;
+            if (programTypeSelect) programTypeSelect.required = true;
         } else { // super_admin
             zoneGroup.style.display = 'none';
             collegeGroup.style.display = 'none';
+            if (programTypeGroup) programTypeGroup.style.display = 'none';
             if (zoneSelect) zoneSelect.required = false;
             if (collegeCodeInput) collegeCodeInput.required = false;
+            if (programTypeSelect) programTypeSelect.required = false;
         }
     }
 
@@ -803,6 +825,8 @@ class AuthManager {
             role: document.getElementById('register-role').value
         };
 
+        console.log('Registration attempt - Role selected:', formData.role);
+
         // Add role-specific fields
         if (formData.role === 'zone_convener') {
             formData.zone = document.getElementById('register-zone').value;
@@ -811,6 +835,16 @@ class AuthManager {
             formData.college_id = document.getElementById('register-college-id').value;
             // For mentors, zone is in the display field, not the select dropdown
             formData.zone = document.getElementById('register-zone-name').value;
+        } else if (formData.role === 'yuva_student_program') {
+            // Students need program type - trim any whitespace
+            const programTypeEl = document.getElementById('register-program-type');
+            if (programTypeEl) {
+                formData.program_type = programTypeEl.value ? programTypeEl.value.trim() : '';
+                console.log('YUVA Student Program - program_type value:', formData.program_type);
+            } else {
+                console.warn('Program Type element not found!');
+                formData.program_type = '';
+            }
         }
 
         if (!formData.email || !formData.password || !formData.full_name) {
@@ -825,6 +859,10 @@ class AuthManager {
         }
         if (formData.role === 'mentor' && !formData.college_id) {
             flashNotification.showError('Error', 'A valid College Code is required for Mentors.');
+            return;
+        }
+        if (formData.role === 'yuva_student_program' && !formData.program_type) {
+            flashNotification.showError('Error', 'A Program Type must be selected for YUVA Student Program.');
             return;
         }
 
@@ -946,6 +984,7 @@ class AuthManager {
                         role: adminData.role || 'viewer',
                         zone: adminData.zone || '',
                         college_id: adminData.college_id || null,
+                        program_type: adminData.program_type || null,
                         is_verified: adminData.is_verified // Store actual value
                     };
                     localStorage.setItem('yuva_user', JSON.stringify(this.currentUser));
@@ -1108,8 +1147,19 @@ class AuthManager {
         if (this.currentUser) {
             const adminNameEl = document.getElementById('admin-name');
             const adminRoleEl = document.getElementById('admin-role');
+            const adminProgramTypeContainer = document.getElementById('admin-program-type');
+            const programTypeValueEl = document.getElementById('program-type-value');
+            
             if (adminNameEl) adminNameEl.textContent = this.currentUser.full_name;
             if (adminRoleEl) adminRoleEl.textContent = this.currentUser.role;
+            
+            // Show program type for YUVA Student Program users
+            if (this.currentUser.role === 'yuva_student_program' && this.currentUser.program_type) {
+                if (adminProgramTypeContainer) adminProgramTypeContainer.style.display = 'inline';
+                if (programTypeValueEl) programTypeValueEl.textContent = this.currentUser.program_type;
+            } else if (adminProgramTypeContainer) {
+                adminProgramTypeContainer.style.display = 'none';
+            }
         }
 
         // Initialize zone management if available

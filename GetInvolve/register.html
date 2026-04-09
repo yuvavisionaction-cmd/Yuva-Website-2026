@@ -1541,7 +1541,7 @@
                         </label>
                         <div class="input-wrapper">
                             <i class="fas fa-graduation-cap input-icon"></i>
-                            <select id="register-program-type">
+                            <select id="register-program-type" required>
                                 <option value="">Select program type</option>
                                 <option value="NCWEB">NCWEB</option>
                                 <option value="DUSOL">DUSOL</option>
@@ -1678,32 +1678,51 @@
             const zoneGroup = document.getElementById('zone-selector-group');
             const collegeTypeGroup = document.getElementById('college-type-group');
             const collegeGroup = document.getElementById('college-fields-group');
+            const programTypeGroup = document.getElementById('program-type-group');
             const collegeType = document.getElementById('register-college-type');
+            const programType = document.getElementById('register-program-type');
 
             if (role === 'mentor') {
                 // Mentor: Show college-type selector
                 if (collegeTypeGroup) collegeTypeGroup.style.display = 'block';
+                if (programTypeGroup) programTypeGroup.style.display = 'none';
                 if (collegeType) collegeType.required = true;
+                if (programType) programType.required = false;
                 // Zone visibility depends on college type
                 updateMentorCollegeFieldsVisibility();
             } else if (role === 'zone_convener') {
                 // Zone convener: Show zone, hide college fields
                 zoneGroup.style.display = 'block';
                 if (collegeTypeGroup) collegeTypeGroup.style.display = 'none';
+                if (programTypeGroup) programTypeGroup.style.display = 'none';
                 collegeGroup.classList.remove('show');
                 if (collegeType) {
                     collegeType.required = false;
                     collegeType.value = '';
                 }
+                if (programType) programType.required = false;
+            } else if (role === 'yuva_student_program') {
+                // YUVA Student Program: Show program type selector
+                if (zoneGroup) zoneGroup.style.display = 'none';
+                if (collegeTypeGroup) collegeTypeGroup.style.display = 'none';
+                if (programTypeGroup) programTypeGroup.style.display = 'block';
+                collegeGroup.classList.remove('show');
+                if (collegeType) {
+                    collegeType.required = false;
+                    collegeType.value = '';
+                }
+                if (programType) programType.required = true;
             } else {
-                // Super admin: Hide both
+                // Super admin: Hide all specialized groups
                 zoneGroup.style.display = 'none';
                 if (collegeTypeGroup) collegeTypeGroup.style.display = 'none';
+                if (programTypeGroup) programTypeGroup.style.display = 'none';
                 collegeGroup.classList.remove('show');
                 if (collegeType) {
                     collegeType.required = false;
                     collegeType.value = '';
                 }
+                if (programType) programType.required = false;
             }
         });
 
