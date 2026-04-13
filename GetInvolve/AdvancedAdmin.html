@@ -69,6 +69,9 @@
                 <a href="#" class="menu-item" onclick="showSection('executive-manager')">
                     <i class="fas fa-user-tie"></i> Executive Members
                 </a>
+                <a href="#" class="menu-item" onclick="showSection('volunteers-manager')">
+                    <i class="fas fa-hands-helping"></i> Volunteers Management
+                </a>
                 <a href="#" class="menu-item" onclick="showSection('counter-admin')">
                     <i class="fas fa-chart-line"></i> Live Counter
                 </a>
@@ -78,7 +81,7 @@
                 <a href="#" class="menu-item" onclick="alert('Coming Soon')">
                     <i class="fas fa-bullhorn"></i> Broadcasts
                 </a>
-                <a href="#" class="menu-item" onclick="alert('Coming Soon')">
+                <a href="#" class="menu-item" onclick="showSection('reports')">
                     <i class="fas fa-file-export"></i> Reports & Data
                 </a>
                 <a href="/GetInvolve/UnitRegistration.html" class="menu-item">
@@ -168,6 +171,13 @@
                                 Members</button>
                         </div>
                         <div class="modern-card">
+                            <div class="card-icon icon-green"><i class="fas fa-hands-helping"></i></div>
+                            <h3>Volunteers Management</h3>
+                            <p id="dashboard-volunteer-count" style="margin-bottom:15px;">Total Volunteers: <strong>0</strong></p>
+                            <p>Manage volunteer registrations, track contributions, and view analytics.</p>
+                            <button class="btn-modern" onclick="showSection('volunteers-manager')">Manage Volunteers</button>
+                        </div>
+                        <div class="modern-card">
                             <div class="card-icon icon-purple"><i class="fas fa-chart-line"></i></div>
                             <h3>Live Counter</h3>
                             <p id="dashboard-counter-status" style="margin-bottom:15px;">Status:
@@ -177,16 +187,10 @@
                             <button class="btn-modern" onclick="showSection('counter-admin')">Open Counter</button>
                         </div>
                         <div class="modern-card">
-                            <div class="card-icon icon-orange"><i class="fas fa-bullhorn"></i></div>
-                            <h3>Global Broadcast</h3>
-                            <p>Send announcements to all volunteers and alumni.</p>
-                            <button class="btn-modern">Open Tool</button>
-                        </div>
-                        <div class="modern-card">
-                            <div class="card-icon icon-green"><i class="fas fa-file-csv"></i></div>
-                            <h3>Data Export</h3>
-                            <p>Download master CSVs for all verticals.</p>
-                            <button class="btn-modern">View Data</button>
+                            <div class="card-icon icon-orange"><i class="fas fa-certificate"></i></div>
+                            <h3>Certificates</h3>
+                            <p>Issue and manage digital certificates for members.</p>
+                            <button class="btn-modern" onclick="showSection('certificates')">Manage Certificates</button>
                         </div>
                     </div>
 
@@ -605,6 +609,74 @@
                     </div>
                 </div>
 
+                <!-- VOLUNTEERS MANAGEMENT VIEW -->
+                <div id="volunteers-manager-view" style="display:none;">
+                    <!-- VOLUNTEER STATS SECTION -->
+                    <div class="stats-grid" style="margin-top:30px;">
+                        <div class="modern-card">
+                            <div class="card-icon icon-blue"><i class="fas fa-users"></i></div>
+                            <h3>Total Applications</h3>
+                            <p id="volunteer-total-count" style="font-size:32px; font-weight:700; color:#1f2937; margin:10px 0;">0</p>
+                        </div>
+                        <div class="modern-card">
+                            <div class="card-icon icon-green"><i class="fas fa-check-circle"></i></div>
+                            <h3>Approved</h3>
+                            <p id="volunteer-active-count" style="font-size:32px; font-weight:700; color:#059669; margin:10px 0;">0</p>
+                        </div>
+                        <div class="modern-card">
+                            <div class="card-icon icon-orange"><i class="fas fa-hourglass-half"></i></div>
+                            <h3>Pending Review</h3>
+                            <p id="volunteer-pending-count" style="font-size:32px; font-weight:700; color:#f97316; margin:10px 0;">0</p>
+                        </div>
+                        <div class="modern-card">
+                            <div class="card-icon icon-purple"><i class="fas fa-map-location-dot"></i></div>
+                            <h3>Cities Covered</h3>
+                            <p id="volunteer-zones-count" style="font-size:32px; font-weight:700; color:#7c3aed; margin:10px 0;">0</p>
+                        </div>
+                    </div>
+                    
+                    <div class="table-card">
+                        <div class="table-header">
+                            <div class="table-title">Volunteer Applications & Management</div>
+                            <div style="display:flex; gap:10px; align-items:center; flex-wrap: wrap; justify-content: flex-end;">
+                                <select id="volunteer-status-filter" class="form-control" style="width: 180px;">
+                                    <option value="">All Status</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="approved">Approved</option>
+                                    <option value="rejected">Rejected</option>
+                                </select>
+                                <input type="text" id="volunteer-search" class="form-control" style="width: 280px;" placeholder="Search name, email, college...">
+                                <button class="btn secondary" onclick="loadVolunteers()">
+                                    <i class="fas fa-sync"></i> Refresh
+                                </button>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="modern-table" id="volunteers-table">
+                                <thead>
+                                    <tr>
+                                        <th>Volunteer Name</th>
+                                        <th>Email</th>
+                                        <th>Phone</th>
+                                        <th>College</th>
+                                        <th>City</th>
+                                        <th>Status</th>
+                                        <th>Applied Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td colspan="8" style="text-align:center; padding:30px;">Loading volunteers...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    
+                </div>
+
                 <!-- COUNTER ADMIN VIEW -->
                 <div id="counter-admin-view" style="display:none;">
                     <div class="stats-grid counter-stats-grid" style="margin-bottom:30px;">
@@ -935,6 +1007,115 @@
                                     </tbody>
                                 </table>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- REPORTS & ANALYTICS VIEW -->
+                <div id="reports-view" class="hidden">
+                    <!-- PAGE HEADER -->
+                    <div style="margin-bottom: 30px;">
+                        <h2 style="font-size: 28px; font-weight: 700; color: #1f2937; margin: 0 0 8px;">
+                            <i class="fas fa-chart-bar" style="color: #ff9933; margin-right: 10px;"></i> Advanced Analytics & Reports
+                        </h2>
+                        <p style="color: #6b7280; margin: 0; font-size: 14px;">Real-time insights and data analytics for YUVA India organization</p>
+                    </div>
+
+                    <!-- KPI METRICS -->
+                    <div class="kpi-metrics-grid">
+                        <div class="kpi-card blue">
+                            <div class="kpi-icon"><i class="fas fa-users"></i></div>
+                            <div class="kpi-label">Total Members</div>
+                            <div class="kpi-value">0</div>
+                        </div>
+                        <div class="kpi-card orange">
+                            <div class="kpi-icon"><i class="fas fa-calendar-check"></i></div>
+                            <div class="kpi-label">Total Events</div>
+                            <div class="kpi-value">0</div>
+                        </div>
+                        <div class="kpi-card green">
+                            <div class="kpi-icon"><i class="fas fa-check-circle"></i></div>
+                            <div class="kpi-label">Approved Members</div>
+                            <div class="kpi-value">0</div>
+                        </div>
+                        <div class="kpi-card red">
+                            <div class="kpi-icon"><i class="fas fa-map-location-dot"></i></div>
+                            <div class="kpi-label">Active Zones</div>
+                            <div class="kpi-value">0</div>
+                        </div>
+                        <div class="kpi-card purple">
+                            <div class="kpi-icon"><i class="fas fa-school"></i></div>
+                            <div class="kpi-label">Colleges</div>
+                            <div class="kpi-value">0</div>
+                        </div>
+                    </div>
+
+                    <!-- SIMPLE FILTER SECTION -->
+                    <div class="filter-section">
+                        <div class="filter-header">
+                            <i class="fas fa-filter"></i> Generate Report
+                        </div>
+                        
+                        <div class="filter-grid">
+                            <div class="filter-group">
+                                <label>Select Zone</label>
+                                <select id="zone-filter" class="form-control">
+                                    <option value="">-- Select Zone --</option>
+                                </select>
+                            </div>
+
+                            <div class="filter-group">
+                                <label>Date Range</label>
+                                <select id="date-range-filter" class="form-control">
+                                    <option value="all">All Time</option>
+                                    <option value="30">Last 30 Days</option>
+                                    <option value="60">Last 60 Days</option>
+                                    <option value="90">Last 90 Days</option>
+                                    <option value="120">Last 120 Days</option>
+                                </select>
+                                <input type="hidden" id="date-from" value="">
+                                <input type="hidden" id="date-to" value="">
+                            </div>
+
+                            <div class="filter-group">
+                                <label>Select College</label>
+                                <select id="college-filter" class="form-control">
+                                    <option value="">-- Select College --</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="filter-actions">
+                            <button id="apply-report-filters" class="btn primary" onclick="ReportingSystem.generateSimpleReport()">
+                                <i class="fas fa-check"></i> Get Report
+                            </button>
+                            <button id="reset-report-filters" class="btn secondary" onclick="ReportingSystem.resetFilters()">
+                                <i class="fas fa-redo"></i> Clear
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- EXPORT SECTION -->
+                    <div class="export-section">
+                        <label><i class="fas fa-download" style="color: #ff9933;"></i> Export Report As:</label>
+                        <div class="export-buttons">
+                            <button id="export-pdf-btn" class="export-btn">
+                                <i class="fas fa-file-pdf"></i> Export PDF
+                            </button>
+                            <button id="export-excel-btn" class="export-btn">
+                                <i class="fas fa-file-excel"></i> Export Excel
+                            </button>
+                            <button class="export-btn export-csv-btn" onclick="ReportingSystem.exportCSV()">
+                                <i class="fas fa-file-csv"></i> Export CSV
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- REPORT DATA CONTAINER -->
+                    <div id="report-data-container" style="min-height: 400px;">
+                        <div class="data-loading">
+                            <i class="fas fa-spinner fa-pulse"></i>
+                            <p style="margin: 10px 0; font-weight: 600;">Loading report data...</p>
                         </div>
                     </div>
                 </div>

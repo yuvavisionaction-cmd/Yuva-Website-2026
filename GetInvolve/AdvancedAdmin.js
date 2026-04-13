@@ -349,9 +349,11 @@ window.showSection = function (sectionId) {
         'verticals-manager': 'Verticals Management',
         'storage-manager': 'Supabase Storage Manager',
         'executive-manager': 'Executive Team Members',
+        'volunteers-manager': 'Volunteers Management',
         'counter-admin': 'Live Counter',
         'certificates': 'Certificates',
-        'vimarsh-certificates': 'Vimarsh Certificates'
+        'vimarsh-certificates': 'Vimarsh Certificates',
+        'reports': 'Advanced Analytics & Reports'
     };
     const pageTitle = document.getElementById('page-title');
     if (pageTitle) pageTitle.textContent = titleMap[sectionId] || 'Dashboard';
@@ -365,17 +367,21 @@ window.showSection = function (sectionId) {
     const storageView = document.getElementById('storage-manager-view');
     const collegesView = document.getElementById('colleges-manager-view');
     const executiveView = document.getElementById('executive-manager-view');
+    const volunteersView = document.getElementById('volunteers-manager-view');
     const counterView = document.getElementById('counter-admin-view');
     const certificatesView = document.getElementById('certificates-view');
     const certificatesSelectorView = document.getElementById('certificates-selector-view');
+    const reportsView = document.getElementById('reports-view');
     if (messagesView) messagesView.style.display = 'none';
     if (eventsView) eventsView.style.display = 'none';
     if (verticalsView) verticalsView.style.display = 'none';
     if (storageView) storageView.style.display = 'none';
     if (collegesView) collegesView.classList.add('hidden');
     if (executiveView) executiveView.style.display = 'none';
+    if (volunteersView) volunteersView.style.display = 'none';
     if (counterView) counterView.style.display = 'none';
     if (certificatesView) certificatesView.style.display = 'none';
+    if (reportsView) reportsView.classList.add('hidden');
 
     if (sectionId === 'dashboard') {
         document.getElementById('dashboard-view').classList.remove('hidden');
@@ -402,6 +408,9 @@ window.showSection = function (sectionId) {
     } else if (sectionId === 'executive-manager') {
         if (executiveView) executiveView.style.display = 'block';
         loadExecutiveMembers();
+    } else if (sectionId === 'volunteers-manager') {
+        if (volunteersView) volunteersView.style.display = 'block';
+        loadVolunteers();
     } else if (sectionId === 'counter-admin') {
         if (counterView) counterView.style.display = 'block';
         loadCounterData();
@@ -410,6 +419,11 @@ window.showSection = function (sectionId) {
         if (certificatesSelectorView) certificatesSelectorView.style.display = 'grid';
         document.getElementById('vimarsh-certificates-view').style.display = 'none';
         document.getElementById('tenure-certificates-view').style.display = 'none';
+    } else if (sectionId === 'reports') {
+        if (reportsView) reportsView.classList.remove('hidden');
+        if (typeof ReportingSystem !== 'undefined' && !ReportingSystem.initialized) {
+            ReportingSystem.init();
+        }
     }
 };
 
@@ -4793,15 +4807,26 @@ function formatNumberIndian(num) {
 async function updateDashboardCounters() {
     try {
         // Get executive members count
-        const { data: executives, error } = await supabaseClient
+        const { count: execCount, error: execError } = await supabaseClient
             .from('executive_members')
-            .select('id', { count: 'exact', head: true });
+            .select('*', { count: 'exact', head: true });
 
-        if (!error) {
-            const execCount = executives?.length || 0;
+        if (!execError && execCount !== null) {
             const countEl = document.getElementById('dashboard-exec-count');
             if (countEl) {
                 countEl.innerHTML = `Total Members: <strong>${execCount}</strong>`;
+            }
+        }
+
+        // Get volunteers count
+        const { count: volCount, error: volError } = await supabaseClient
+            .from('volunteers')
+            .select('*', { count: 'exact', head: true });
+
+        if (!volError && volCount !== null) {
+            const volunteerEl = document.getElementById('dashboard-volunteer-count');
+            if (volunteerEl) {
+                volunteerEl.innerHTML = `Total Volunteers: <strong>${volCount}</strong>`;
             }
         }
 
@@ -5297,4 +5322,1241 @@ document.addEventListener('click', function (e) {
         document.querySelector('.sidebar').classList.remove('open');
         document.body.classList.remove('sidebar-open');
     }
+});
+
+// ============================================
+// SIMPLE REPORTING SYSTEM FOR YUVA ADMIN
+// ============================================
+
+const ReportingSystem = {
+    config: {
+        maxRows: 10000
+    },
+
+    initialized: false,
+
+    cache: {
+        members: [],
+        colleges: [],
+        zones: [],
+        events: []
+    },
+
+    async init() {
+        console.log('📊 Initializing Report System...');
+        if (this.initialized) return;
+
+        try {
+            await this.loadExportLibraries();
+            await this.loadData();
+            this.populateDropdowns();
+            this.setupEventListeners();
+            this.updateKPIMetrics();
+            this.initialized = true;
+            Toast.show('success', 'Report System Ready', 'You can now generate reports');
+            console.log('✅ Report System initialized');
+        } catch (error) {
+            console.error('❌ Error initializing:', error);
+            Toast.show('error', 'Error', error.message);
+        }
+    },
+
+    async loadExportLibraries() {
+        if (!window.XLSX) {
+            await this.loadScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js');
+        }
+        if (!window.html2canvas) {
+            await this.loadScript('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js');
+        }
+        if (!window.jspdf?.jsPDF) {
+            await this.loadScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js');
+        }
+    },
+
+    loadScript(src) {
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = src;
+            script.onload = resolve;
+            script.onerror = () => reject(new Error(`Failed to load ${src}`));
+            document.head.appendChild(script);
+        });
+    },
+
+    async loadData() {
+        try {
+            // Load members (registrations)
+            const { data: members, error: membersError } = await supabaseClient
+                .from('registrations')
+                .select('id, applicant_name, email, college_id, zone_id, status, created_at')
+                .limit(this.config.maxRows);
+            
+            if (membersError) throw membersError;
+
+            // Load colleges
+            const { data: colleges, error: collegesError } = await supabaseClient
+                .from('colleges')
+                .select('id, college_name');
+            
+            if (collegesError) throw collegesError;
+
+            // Load zones
+            const { data: zones, error: zonesError } = await supabaseClient
+                .from('zones')
+                .select('id, zone_name')
+                .order('zone_name', { ascending: true });
+            
+            if (zonesError) throw zonesError;
+
+            // Load events
+            const { data: events, error: eventsError } = await supabaseClient
+                .from('published_events')
+                .select('id, title, start_at, end_at, status')
+                .limit(this.config.maxRows);
+            
+            if (eventsError) throw eventsError;
+
+            // Enrich members with college and zone names
+            const enrichedMembers = members.map(m => ({
+                ...m,
+                college_name: colleges.find(c => c.id === m.college_id)?.college_name || 'N/A',
+                zone_name: zones.find(z => z.id === m.zone_id)?.zone_name || 'N/A'
+            }));
+
+            this.cache.members = enrichedMembers;
+            this.cache.colleges = colleges;
+            this.cache.zones = zones;
+            this.cache.events = events || [];
+
+            console.log('✅ Data loaded:', {
+                members: enrichedMembers.length,
+                colleges: colleges.length,
+                zones: zones.length,
+                events: (events || []).length
+            });
+        } catch (error) {
+            console.error('❌ Error loading data:', error);
+            throw error;
+        }
+    },
+
+    populateDropdowns() {
+        // Populate Zone Filter
+        const zoneFilter = document.getElementById('zone-filter');
+        if (zoneFilter) {
+            zoneFilter.innerHTML = '<option value="">-- Select Zone --</option>';
+            this.cache.zones.forEach(zone => {
+                const option = document.createElement('option');
+                option.value = zone.zone_name;
+                option.textContent = zone.zone_name;
+                zoneFilter.appendChild(option);
+            });
+        }
+
+        // Populate College Filter
+        const collegeFilter = document.getElementById('college-filter');
+        if (collegeFilter) {
+            collegeFilter.innerHTML = '<option value="">-- Select College --</option>';
+            this.cache.colleges.forEach(college => {
+                const option = document.createElement('option');
+                option.value = college.college_name;
+                option.textContent = college.college_name;
+                collegeFilter.appendChild(option);
+            });
+        }
+    },
+
+    setupEventListeners() {
+        // Initialize custom dropdowns for zone and college filters
+        initCustomDropdownForSelect('zone-filter');
+        initCustomDropdownForSelect('date-range-filter');
+        initCustomDropdownForSelect('college-filter');
+
+        // Zone change listener for dynamic college filtering
+        const zoneFilter = document.getElementById('zone-filter');
+        if (zoneFilter) {
+            zoneFilter.addEventListener('change', (e) => {
+                this.onZoneChanged(e.target.value);
+                // Reinitialize college dropdown after zone change
+                setTimeout(() => {
+                    initCustomDropdownForSelect('college-filter');
+                }, 100);
+            });
+        }
+
+        // Date range change listener
+        const dateRangeFilter = document.getElementById('date-range-filter');
+        if (dateRangeFilter) {
+            dateRangeFilter.addEventListener('change', (e) => {
+                this.setDateRange(e.target.value);
+                // Reinitialize date range dropdown
+                setTimeout(() => {
+                    initCustomDropdownForSelect('date-range-filter');
+                }, 100);
+            });
+        }
+
+        // Download buttons
+        const exportPdfBtn = document.getElementById('export-pdf-btn');
+        const exportExcelBtn = document.getElementById('export-excel-btn');
+        const exportCsvBtn = document.getElementById('export-csv-btn');
+
+        if (exportPdfBtn) exportPdfBtn.addEventListener('click', () => this.downloadReportPDF());
+        if (exportExcelBtn) exportExcelBtn.addEventListener('click', () => this.downloadReportExcel());
+        if (exportCsvBtn) exportCsvBtn.addEventListener('click', () => this.downloadReportCSV());
+    },
+
+    onZoneChanged(selectedZone) {
+        // Get colleges that have members in this zone
+        let collegesInZone = [];
+        
+        if (selectedZone) {
+            const membersInZone = this.cache.members.filter(m => m.zone_name === selectedZone);
+            const collegeIds = new Set(membersInZone.map(m => m.college_id));
+            collegesInZone = this.cache.colleges.filter(c => collegeIds.has(c.id));
+            console.log(`📍 Zone "${selectedZone}" has ${collegesInZone.length} colleges`);
+        } else {
+            collegesInZone = this.cache.colleges;
+            console.log('🔄 All colleges shown (no zone selected)');
+        }
+
+        // Update college dropdown with filtered colleges
+        const collegeFilter = document.getElementById('college-filter');
+        if (collegeFilter) {
+            collegeFilter.innerHTML = '<option value="">-- Select College --</option>';
+            collegesInZone.forEach(college => {
+                const option = document.createElement('option');
+                option.value = college.college_name;
+                option.textContent = college.college_name;
+                collegeFilter.appendChild(option);
+            });
+            
+            // Reset selected value
+            collegeFilter.value = '';
+            
+            // Reinitialize custom dropdown styling for college filter
+            const wrapper = collegeFilter.parentNode.querySelector(`.custom-dropdown[data-select-id="college-filter"]`);
+            if (wrapper) {
+                wrapper.remove();
+            }
+            initCustomDropdownForSelect('college-filter');
+            
+            console.log(`✅ College dropdown updated with ${collegesInZone.length} colleges`);
+        }
+    },
+
+    updateKPIMetrics() {
+        const kpiCards = document.querySelectorAll('.kpi-card');
+        const approvedCount = this.cache.members.filter(m => m.status === 'approved').length;
+        const uniqueZones = new Set(this.cache.members.map(m => m.zone_name)).size;
+        const eventCount = (this.cache.events || []).length;
+
+        if (kpiCards.length >= 5) {
+            kpiCards[0].querySelector('.kpi-value').textContent = this.cache.members.length || 0;
+            kpiCards[1].querySelector('.kpi-value').textContent = eventCount || 0;
+            kpiCards[2].querySelector('.kpi-value').textContent = approvedCount || 0;
+            kpiCards[3].querySelector('.kpi-value').textContent = uniqueZones || 0;
+            kpiCards[4].querySelector('.kpi-value').textContent = this.cache.colleges.length || 0;
+        }
+
+        // Clear loading message and show default message
+        const reportContainer = document.getElementById('report-data-container');
+        if (reportContainer) {
+            reportContainer.innerHTML = '<p style="text-align: center; color: #999; padding: 40px;">Select Zone, Date Range, and College, then click "Get Report" to view data</p>';
+        }
+
+        console.log('📊 KPI Metrics Updated:', {
+            totalMembers: this.cache.members.length,
+            totalEvents: eventCount,
+            approvedMembers: approvedCount,
+            activeZones: uniqueZones,
+            colleges: this.cache.colleges.length
+        });
+    },
+
+    generateSimpleReport() {
+        const zone = document.getElementById('zone-filter')?.value || '';
+        const dateFrom = document.getElementById('date-from')?.value || '';
+        const dateTo = document.getElementById('date-to')?.value || '';
+        const college = document.getElementById('college-filter')?.value || '';
+
+        console.log('🎯 Generating report with filters:', { zone, dateFrom, dateTo, college });
+
+        let filtered = this.cache.members;
+
+        // Apply filters
+        if (zone) {
+            filtered = filtered.filter(m => m.zone_name === zone);
+        }
+        if (college) {
+            filtered = filtered.filter(m => m.college_name === college);
+        }
+        if (dateFrom) {
+            const from = new Date(dateFrom).getTime();
+            filtered = filtered.filter(m => new Date(m.created_at).getTime() >= from);
+        }
+        if (dateTo) {
+            const to = new Date(dateTo).getTime() + 86400000; // Include entire day
+            filtered = filtered.filter(m => new Date(m.created_at).getTime() <= to);
+        }
+
+        console.log('📊 Report contains:', filtered.length, 'records');
+        this.displayReport(filtered);
+    },
+
+    displayReport(data) {
+        const container = document.getElementById('report-data-container');
+        if (!container) return;
+
+        if (data.length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: #999; padding: 40px;">No data found for selected filters</p>';
+            return;
+        }
+
+        // Create table
+        let html = '<table style="width: 100%; border-collapse: collapse; margin: 20px 0;">';
+        html += '<thead><tr style="background: #f0f0f0; border-bottom: 2px solid #ddd;">';
+        html += '<th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Name</th>';
+        html += '<th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Email</th>';
+        html += '<th style="padding: 10px; text-align: left; border: 1px solid #ddd;">College</th>';
+        html += '<th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Zone</th>';
+        html += '<th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Status</th>';
+        html += '<th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Date</th>';
+        html += '</tr></thead><tbody>';
+
+        data.forEach((member, idx) => {
+            const bgColor = idx % 2 === 0 ? '#fff' : '#f9f9f9';
+            const date = new Date(member.created_at).toLocaleDateString();
+            html += `<tr style="background: ${bgColor}; border-bottom: 1px solid #eee;">`;
+            html += `<td style="padding: 10px; border: 1px solid #ddd;">${member.applicant_name}</td>`;
+            html += `<td style="padding: 10px; border: 1px solid #ddd;">${member.email}</td>`;
+            html += `<td style="padding: 10px; border: 1px solid #ddd;">${member.college_name}</td>`;
+            html += `<td style="padding: 10px; border: 1px solid #ddd;">${member.zone_name}</td>`;
+            html += `<td style="padding: 10px; border: 1px solid #ddd;"><span class="badge" style="background: ${member.status === 'approved' ? '#10b981' : '#f59e0b'}; color: white; padding: 4px 8px; border-radius: 4px;">${member.status}</span></td>`;
+            html += `<td style="padding: 10px; border: 1px solid #ddd;">${date}</td>`;
+            html += '</tr>';
+        });
+
+        html += '</tbody></table>';
+        html += `<p style="text-align: right; color: #666; margin-top: 10px;"><strong>Total Records: ${data.length}</strong></p>`;
+
+        container.innerHTML = html;
+        this.currentReportData = data; // Save for export
+    },
+
+    resetFilters() {
+        document.getElementById('zone-filter').value = '';
+        document.getElementById('date-range-filter').value = 'all';
+        document.getElementById('college-filter').value = '';
+        document.getElementById('date-from').value = '';
+        document.getElementById('date-to').value = '';
+        
+        // Repopulate all colleges (reset the zone filter effect)
+        this.populateDropdowns();
+        
+        // Reinitialize dropdowns
+        initCustomDropdownForSelect('zone-filter');
+        initCustomDropdownForSelect('date-range-filter');
+        initCustomDropdownForSelect('college-filter');
+        
+        document.getElementById('report-data-container').innerHTML = '<p style="text-align: center; color: #999; padding: 40px;">Select Zone, Date Range, and College, then click "Get Report" to view data</p>';
+        Toast.show('info', 'Filters Reset', 'All filters cleared');
+    },
+
+    setDateRange(value) {
+        const today = new Date();
+        const dateFrom = document.getElementById('date-from');
+        const dateTo = document.getElementById('date-to');
+        const days = value === 'all' ? null : parseInt(value);
+        
+        if (!days) {
+            // All Time
+            dateFrom.value = '';
+            dateTo.value = '';
+            console.log('📅 Date range: All Time');
+        } else {
+            // Calculate date range
+            const fromDate = new Date(today);
+            fromDate.setDate(fromDate.getDate() - days);
+            
+            dateFrom.value = fromDate.toISOString().split('T')[0];
+            dateTo.value = today.toISOString().split('T')[0];
+            
+            console.log(`📅 Date range: Last ${days} days (${dateFrom.value} to ${dateTo.value})`);
+        }
+        
+        Toast.show('info', `Date Range Updated`, `Selected: ${value === 'all' ? 'All Time' : 'Last ' + days + ' Days'}`);
+    },
+
+    async downloadReportPDF() {
+        if (!this.currentReportData || this.currentReportData.length === 0) {
+            Toast.show('warning', 'No Data', 'Generate a report first');
+            return;
+        }
+
+        try {
+            Toast.show('info', 'Generating PDF', 'Loading libraries...');
+            
+            // Ensure libraries are loaded
+            const libsReady = await ensurePdfLibraries();
+            if (!libsReady) {
+                Toast.show('error', 'Download Error', 'PDF libraries could not be loaded. Please check your internet connection.');
+                return;
+            }
+            
+            // Get filter values
+            const zoneFilter = document.getElementById('zone-filter')?.value || 'All Zones';
+            const dateRangeFilter = document.getElementById('date-range-filter')?.value || 'all';
+            const collegeFilter = document.getElementById('college-filter')?.value || 'All Colleges';
+            
+            const zoneLabel = zoneFilter === '' ? 'All Zones' : zoneFilter;
+            const dateLabel = dateRangeFilter === 'all' ? 'All Time' : 
+                            dateRangeFilter === '30' ? 'Last 30 Days' :
+                            dateRangeFilter === '60' ? 'Last 60 Days' :
+                            dateRangeFilter === '90' ? 'Last 90 Days' :
+                            dateRangeFilter === '120' ? 'Last 120 Days' : 'All Time';
+            const collegeLabel = collegeFilter === '' ? 'All Colleges' : collegeFilter;
+
+            // Table rows
+            const tableRows = this.currentReportData.map(m => `
+                <tr>
+                    <td>${m.applicant_name}</td>
+                    <td>${m.email}</td>
+                    <td>${m.college_name}</td>
+                    <td>${m.zone_name}</td>
+                    <td>${m.status}</td>
+                    <td>${new Date(m.created_at).toLocaleDateString('en-IN')}</td>
+                </tr>
+            `).join('');
+
+            // Professional HTML Template
+            const htmlContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <style>
+                        @page { margin: 20mm; }
+                        body { 
+                            font-family: 'Arial', sans-serif; 
+                            color: #333;
+                            line-height: 1.6;
+                        }
+                        .header {
+                            text-align: center;
+                            border-bottom: 3px solid #555879;
+                            padding-bottom: 20px;
+                            margin-bottom: 30px;
+                        }
+                        .logo { 
+                            font-size: 32px; 
+                            font-weight: bold; 
+                            color: #555879; 
+                        }
+                        .org-name { 
+                            font-size: 16px; 
+                            color: #666; 
+                            margin-top: 8px; 
+                        }
+                        .contact-info {
+                            font-size: 11px; 
+                            color: #888; 
+                            margin-top: 8px;
+                        }
+                        .report-title {
+                            background: #555879;
+                            color: white;
+                            padding: 15px;
+                            text-align: center;
+                            font-size: 22px;
+                            font-weight: bold;
+                            margin: 20px 0;
+                            border-radius: 4px;
+                        }
+                        .report-meta {
+                            display: flex;
+                            justify-content: space-between;
+                            margin-bottom: 20px;
+                            font-size: 13px;
+                            color: #555;
+                        }
+                        .meta-item {
+                            background: #f5f5f5;
+                            padding: 10px 15px;
+                            border-radius: 4px;
+                            border-left: 4px solid #555879;
+                        }
+                        .filters-section {
+                            margin: 20px 0;
+                            padding: 15px;
+                            background: #f9f9f9;
+                            border: 1px solid #ddd;
+                            border-radius: 4px;
+                        }
+                        .filters-title {
+                            font-size: 13px;
+                            font-weight: bold;
+                            color: #555879;
+                            margin-bottom: 10px;
+                        }
+                        .filters-grid {
+                            display: grid;
+                            grid-template-columns: 1fr 1fr 1fr;
+                            gap: 10px;
+                        }
+                        .filter-item {
+                            font-size: 12px;
+                        }
+                        .filter-label {
+                            font-weight: bold;
+                            color: #666;
+                        }
+                        .filter-value {
+                            color: #333;
+                            margin-top: 3px;
+                        }
+                        table {
+                            width: 100%;
+                            border-collapse: collapse;
+                            margin: 20px 0;
+                        }
+                        thead {
+                            background: #555879;
+                            color: white;
+                        }
+                        th {
+                            padding: 12px;
+                            text-align: left;
+                            font-size: 12px;
+                            font-weight: bold;
+                        }
+                        td {
+                            padding: 10px 12px;
+                            border-bottom: 1px solid #ddd;
+                            font-size: 11px;
+                        }
+                        tbody tr:nth-child(odd) {
+                            background: #f9f9f9;
+                        }
+                        tbody tr:hover {
+                            background: #f0f0f0;
+                        }
+                        .stats-box {
+                            background: #e8f4f8;
+                            border: 2px solid #059669;
+                            border-radius: 6px;
+                            padding: 15px;
+                            text-align: center;
+                            margin: 20px 0;
+                        }
+                        .stats-label {
+                            font-size: 13px;
+                            color: #666;
+                        }
+                        .stats-value {
+                            font-size: 28px;
+                            font-weight: bold;
+                            color: #059669;
+                            margin: 8px 0;
+                        }
+                        .footer {
+                            margin-top: 40px;
+                            padding-top: 15px;
+                            border-top: 2px solid #555879;
+                            text-align: center;
+                            font-size: 11px;
+                            color: #666;
+                        }
+                        .footer-text {
+                            margin: 5px 0;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <div class="logo">YUVA</div>
+                        <div class="org-name">Youth United For Vision & Action</div>
+                        <div class="contact-info">
+                            Website: https://yuva.ind.in | Email: yuva.vision.action@gmail.com
+                        </div>
+                    </div>
+
+                    <div class="report-title">MEMBER REPORT</div>
+                    
+                    <div class="report-meta">
+                        <div class="meta-item">
+                            <strong>Generated:</strong> ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}
+                        </div>
+                        <div class="meta-item">
+                            <strong>Total Records:</strong> ${this.currentReportData.length}
+                        </div>
+                        <div class="meta-item">
+                            <strong>Report ID:</strong> RPT-${new Date().getTime()}
+                        </div>
+                    </div>
+
+                    <div class="filters-section">
+                        <div class="filters-title">APPLIED FILTERS</div>
+                        <div class="filters-grid">
+                            <div class="filter-item">
+                                <div class="filter-label">Zone</div>
+                                <div class="filter-value">${zoneLabel}</div>
+                            </div>
+                            <div class="filter-item">
+                                <div class="filter-label">Date Range</div>
+                                <div class="filter-value">${dateLabel}</div>
+                            </div>
+                            <div class="filter-item">
+                                <div class="filter-label">College</div>
+                                <div class="filter-value">${collegeLabel}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stats-box">
+                        <div class="stats-label">Total Members in Report</div>
+                        <div class="stats-value">${this.currentReportData.length}</div>
+                    </div>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>College</th>
+                                <th>Zone</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tableRows}
+                        </tbody>
+                    </table>
+
+                    <div class="footer">
+                        <div class="footer-text">This is an official report generated by YUVA India member management system.</div>
+                        <div class="footer-text">For inquiries, contact: yuva.vision.action@gmail.com</div>
+                        <div class="footer-text" style="margin-top: 15px; font-size: 10px; color: #999;">
+                            Generated on ${new Date().toLocaleString('en-IN')}
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `;
+
+            // Create a wrapper for the PDF content
+            const wrapper = document.createElement('div');
+            wrapper.style.position = 'fixed';
+            wrapper.style.left = '-9999px';
+            wrapper.style.top = '-9999px';
+            wrapper.style.width = '210mm';
+            wrapper.style.backgroundColor = '#fff';
+            wrapper.style.padding = '20mm';
+            wrapper.style.boxSizing = 'border-box';
+            
+            // Parse and insert HTML as proper nodes instead of innerHTML
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = htmlContent;
+            const htmlDoc = tempDiv.querySelector('html') || tempDiv.querySelector('body') || tempDiv;
+            
+            // Extract body content only
+            const bodyContent = tempDiv.querySelector('body');
+            if (bodyContent) {
+                wrapper.innerHTML = bodyContent.innerHTML;
+            } else {
+                wrapper.innerHTML = htmlContent;
+            }
+            
+            document.body.appendChild(wrapper);
+
+            try {
+                // Wait for content to render
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                console.log('Canvas dimensions:', wrapper.offsetWidth, 'x', wrapper.offsetHeight);
+                
+                const canvas = await window.html2canvas(wrapper, { 
+                    scale: 2,
+                    logging: true,
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: '#ffffff',
+                    onclone: (clonedDocument) => {
+                        const clonedWrapper = clonedDocument.body.firstChild;
+                        if (clonedWrapper) {
+                            clonedWrapper.style.position = 'relative';
+                            clonedWrapper.style.left = '0';
+                            clonedWrapper.style.top = '0';
+                        }
+                    }
+                });
+
+                if (!canvas) {
+                    throw new Error('Canvas generation failed');
+                }
+
+                const JsPdfCtor = getJsPdfConstructor();
+                const pdf = new JsPdfCtor({
+                    orientation: 'portrait',
+                    unit: 'mm',
+                    format: 'a4'
+                });
+
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+                
+                const imgWidth = pageWidth - 20; // Leave margins
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                
+                let yPosition = 0;
+                let pageIndex = 0;
+
+                // Convert canvas to JPEG for better compatibility
+                const imgData = canvas.toDataURL('image/jpeg', 0.95);
+
+                if (!imgData || imgData.length < 100) {
+                    throw new Error('Image data is empty or too small');
+                }
+
+                // Add first page
+                pdf.addImage(imgData, 'JPEG', 10, 10, imgWidth, imgHeight);
+                let heightLeft = imgHeight - pageHeight + 20;
+
+                // Add additional pages if needed
+                while (heightLeft > 0) {
+                    yPosition = heightLeft - imgHeight;
+                    pdf.addPage();
+                    pdf.addImage(imgData, 'JPEG', 10, yPosition + 10, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+                }
+
+                const fileName = `YUVA_Member_Report_${new Date().toISOString().split('T')[0]}.pdf`;
+                pdf.save(fileName);
+                
+                document.body.removeChild(wrapper);
+                Toast.show('success', 'PDF Downloaded', `${fileName} saved successfully`);
+            } catch (error) {
+                if (wrapper && wrapper.parentNode) {
+                    document.body.removeChild(wrapper);
+                }
+                console.error('PDF Generation Error:', error);
+                console.error('Error stack:', error.stack);
+                Toast.show('error', 'Download Failed', error.message || 'Failed to generate PDF');
+            }
+        } catch (error) {
+            console.error('PDF Download Error:', error);
+            Toast.show('error', 'Download Failed', error.message);
+        }
+    },
+
+    downloadReportExcel() {
+        if (!this.currentReportData || this.currentReportData.length === 0) {
+            Toast.show('warning', 'No Data', 'Generate a report first');
+            return;
+        }
+
+        try {
+            Toast.show('info', 'Generating Excel', 'Please wait...');
+            const XLSX = window.XLSX;
+            
+            // Convert data to Excel format
+            const excelData = this.currentReportData.map(m => ({
+                'Name': m.applicant_name,
+                'Email': m.email,
+                'College': m.college_name,
+                'Zone': m.zone_name,
+                'Status': m.status,
+                'Applied Date': new Date(m.created_at).toLocaleDateString()
+            }));
+
+            const worksheet = XLSX.utils.json_to_sheet(excelData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Members');
+
+            // Set column widths
+            worksheet['!cols'] = [
+                { wch: 20 },
+                { wch: 25 },
+                { wch: 20 },
+                { wch: 15 },
+                { wch: 12 },
+                { wch: 15 }
+            ];
+
+            XLSX.writeFile(workbook, `YUVA_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+            Toast.show('success', 'Excel Downloaded', 'Report saved successfully');
+        } catch (error) {
+            console.error('Excel Download Error:', error);
+            Toast.show('error', 'Download Failed', error.message);
+        }
+    },
+
+    downloadReportCSV() {
+        if (!this.currentReportData || this.currentReportData.length === 0) {
+            Toast.show('warning', 'No Data', 'Generate a report first');
+            return;
+        }
+
+        try {
+            Toast.show('info', 'Generating CSV', 'Please wait...');
+            
+            const headers = ['Name', 'Email', 'College', 'Zone', 'Status', 'Applied Date'];
+            let csv = headers.join(',') + '\n';
+
+            this.currentReportData.forEach(m => {
+                const row = [
+                    `"${m.applicant_name}"`,
+                    `"${m.email}"`,
+                    `"${m.college_name}"`,
+                    `"${m.zone_name}"`,
+                    `"${m.status}"`,
+                    `"${new Date(m.created_at).toLocaleDateString()}"`
+                ];
+                csv += row.join(',') + '\n';
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `YUVA_Report_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            Toast.show('success', 'CSV Downloaded', 'Report saved successfully');
+        } catch (error) {
+            console.error('CSV Download Error:', error);
+            Toast.show('error', 'Download Failed', error.message);
+        }
+    },
+
+    exportPDF() {
+        if (!this.currentReportData || this.currentReportData.length === 0) {
+            Toast.show('warning', 'No Data', 'Generate a report first');
+            return;
+        }
+
+        try {
+            const jsPDF = window.jspdf?.jsPDF || window.jsPDF;
+            const doc = new jsPDF();
+            
+            doc.setFontSize(18);
+            doc.text('YUVA India Report', 20, 20);
+            doc.setFontSize(10);
+            doc.text(`Generated: ${new Date().toLocaleString()}`, 20, 30);
+
+            const columns = ['Name', 'Email', 'College', 'Zone', 'Status', 'Date'];
+            const rows = this.currentReportData.map(m => [
+                m.applicant_name,
+                m.email,
+                m.college_name,
+                m.zone_name,
+                m.status,
+                new Date(m.created_at).toLocaleDateString()
+            ]);
+
+            doc.autoTable({
+                head: [columns],
+                body: rows,
+                startY: 40,
+                margin: 10,
+                theme: 'grid'
+            });
+
+            doc.save('YUVA_Report_' + new Date().getTime() + '.pdf');
+            Toast.show('success', 'PDF Exported', 'Report saved successfully');
+        } catch (error) {
+            console.error('Error exporting PDF:', error);
+            Toast.show('error', 'Export Error', error.message);
+        }
+    },
+
+    exportExcel() {
+        if (!this.currentReportData || this.currentReportData.length === 0) {
+            Toast.show('warning', 'No Data', 'Generate a report first');
+            return;
+        }
+
+        try {
+            const XLSX = window.XLSX;
+            const worksheet = XLSX.utils.json_to_sheet(this.currentReportData.map(m => ({
+                'Name': m.applicant_name,
+                'Email': m.email,
+                'College': m.college_name,
+                'Zone': m.zone_name,
+                'Status': m.status,
+                'Applied Date': new Date(m.created_at).toLocaleDateString()
+            })));
+
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Report');
+            XLSX.writeFile(workbook, 'YUVA_Report_' + new Date().getTime() + '.xlsx');
+            Toast.show('success', 'Excel Exported', 'Report saved successfully');
+        } catch (error) {
+            console.error('Error exporting Excel:', error);
+            Toast.show('error', 'Export Error', error.message);
+        }
+    },
+
+    exportCSV() {
+        if (!this.currentReportData || this.currentReportData.length === 0) {
+            Toast.show('warning', 'No Data', 'Generate a report first');
+            return;
+        }
+
+        try {
+            const headers = ['Name', 'Email', 'College', 'Zone', 'Status', 'Applied Date'];
+            const rows = this.currentReportData.map(m => [
+                m.applicant_name,
+                m.email,
+                m.college_name,
+                m.zone_name,
+                m.status,
+                new Date(m.created_at).toLocaleDateString()
+            ]);
+
+            let csv = headers.join(',') + '\n';
+            rows.forEach(row => {
+                csv += row.map(cell => '"' + String(cell).replace(/"/g, '""') + '"').join(',') + '\n';
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'YUVA_Report_' + new Date().getTime() + '.csv';
+            a.click();
+            window.URL.revokeObjectURL(url);
+            Toast.show('success', 'CSV Exported', 'Report saved successfully');
+        } catch (error) {
+            console.error('Error exporting CSV:', error);
+            Toast.show('error', 'Export Error', error.message);
+        }
+    },
+
+    currentReportData: []
+};
+
+// ===== VOLUNTEERS MANAGEMENT MODULE =====
+window.loadVolunteers = async function () {
+    const tbody = document.querySelector('#volunteers-table tbody');
+    if (!tbody) return;
+
+    try {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px;"><i class="fas fa-spinner fa-spin"></i> Loading volunteers...</td></tr>';
+
+        // Fetch all volunteers from volunteers table
+        const { data, error } = await supabaseClient
+            .from('volunteers')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        renderVolunteersTable(data || []);
+        updateVolunteerStats(data || []);
+    } catch (error) {
+        console.error('Error loading volunteers:', error);
+        Toast.show('error', 'Load Failed', error.message);
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px; color:#c00;">Failed to load volunteers</td></tr>';
+    }
+};
+
+function renderVolunteersTable(volunteers) {
+    const tbody = document.querySelector('#volunteers-table tbody');
+    if (!tbody) return;
+
+    // Get filter values
+    const searchInput = document.querySelector('#volunteer-search');
+    const statusFilter = document.querySelector('#volunteer-status-filter');
+
+    const searchTerm = (searchInput?.value || '').toLowerCase();
+    const statusValue = statusFilter?.value || '';
+
+    // Apply filters
+    let filtered = volunteers.filter(vol => {
+        let matchesSearch = !searchTerm || 
+            (vol.full_name || '').toLowerCase().includes(searchTerm) ||
+            (vol.email || '').toLowerCase().includes(searchTerm) ||
+            (vol.college || '').toLowerCase().includes(searchTerm);
+        
+        let matchesStatus = !statusValue || vol.status === statusValue;
+
+        return matchesSearch && matchesStatus;
+    });
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px; color:#666;">No volunteers found</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = filtered.map((vol, index) => `
+        <tr>
+            <td><strong>${escapeHtml(vol.full_name || 'N/A')}</strong></td>
+            <td>${escapeHtml(vol.email || 'N/A')}</td>
+            <td>${escapeHtml(vol.phone || 'N/A')}</td>
+            <td>${escapeHtml(vol.college || 'N/A')}</td>
+            <td>${escapeHtml(vol.city || 'N/A')}</td>
+            <td>
+                <span class="status-badge ${vol.status === 'approved' ? 'status-active' : vol.status === 'pending' ? 'status-pending' : 'status-inactive'}">
+                    ${vol.status.charAt(0).toUpperCase() + vol.status.slice(1)}
+                </span>
+            </td>
+            <td>${new Date(vol.created_at).toLocaleDateString('en-IN')}</td>
+            <td>
+                <div style="display:flex; gap:5px; flex-wrap:wrap;">
+                    <button class="btn-icon" title="View Details" onclick="viewVolunteerDetails('${vol.id}')">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    ${vol.status === 'pending' ? `
+                        <button class="btn-icon" title="Approve" onclick="approveVolunteer('${vol.id}', '${escapeHtml(vol.full_name)}', '${escapeHtml(vol.email)}')">
+                            <i class="fas fa-check" style="color:#059669;"></i>
+                        </button>
+                        <button class="btn-icon" title="Reject" onclick="rejectVolunteer('${vol.id}', '${escapeHtml(vol.full_name)}', '${escapeHtml(vol.email)}')">
+                            <i class="fas fa-times" style="color:#dc2626;"></i>
+                        </button>
+                    ` : ''}
+                    <button class="btn-icon" title="Delete" onclick="deleteVolunteer('${vol.id}', '${escapeHtml(vol.full_name)}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function updateVolunteerStats(volunteers) {
+    const totalEl = document.querySelector('#volunteer-total-count');
+    const activeEl = document.querySelector('#volunteer-active-count');
+    const pendingEl = document.querySelector('#volunteer-pending-count');
+    const zonesEl = document.querySelector('#volunteer-zones-count');
+
+    if (totalEl) totalEl.textContent = volunteers.length;
+    if (activeEl) activeEl.textContent = volunteers.filter(v => v.status === 'approved').length;
+    if (pendingEl) pendingEl.textContent = volunteers.filter(v => v.status === 'pending').length;
+    
+    // Count unique cities/states
+    const uniqueCities = new Set(volunteers.map(v => v.city).filter(Boolean)).size;
+    if (zonesEl) zonesEl.textContent = uniqueCities || '0';
+}
+
+window.viewVolunteerDetails = async function (volunteerId) {
+    try {
+        const { data, error } = await supabaseClient
+            .from('volunteers')
+            .select('*')
+            .eq('id', volunteerId)
+            .single();
+
+        if (error) throw error;
+
+        // Create detailed view modal
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-content" style="width: 700px; max-width: 95%; max-height: 85vh; overflow-y: auto;">
+                <div class="modal-header">
+                    <h3>Volunteer Application Details</h3>
+                    <button class="modal-close" onclick="this.closest('.modal-overlay').remove()"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="modal-body">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                        <div>
+                            <label style="font-weight: 600; color: #666;">Full Name</label>
+                            <p style="margin: 5px 0 0;">${escapeHtml(data.full_name || 'N/A')}</p>
+                        </div>
+                        <div>
+                            <label style="font-weight: 600; color: #666;">Email</label>
+                            <p style="margin: 5px 0 0;"><a href="mailto:${escapeHtml(data.email)}">${escapeHtml(data.email)}</a></p>
+                        </div>
+                        <div>
+                            <label style="font-weight: 600; color: #666;">Phone</label>
+                            <p style="margin: 5px 0 0;"><a href="tel:${escapeHtml(data.phone)}">${escapeHtml(data.phone)}</a></p>
+                        </div>
+                        <div>
+                            <label style="font-weight: 600; color: #666;">Age</label>
+                            <p style="margin: 5px 0 0;">${data.age || 'N/A'} years</p>
+                        </div>
+                        <div>
+                            <label style="font-weight: 600; color: #666;">Gender</label>
+                            <p style="margin: 5px 0 0;">${escapeHtml(data.gender || 'N/A')}</p>
+                        </div>
+                        <div>
+                            <label style="font-weight: 600; color: #666;">City</label>
+                            <p style="margin: 5px 0 0;">${escapeHtml(data.city || 'N/A')}</p>
+                        </div>
+                        <div>
+                            <label style="font-weight: 600; color: #666;">Occupation</label>
+                            <p style="margin: 5px 0 0;">${escapeHtml(data.occupation || 'N/A')}</p>
+                        </div>
+                        <div>
+                            <label style="font-weight: 600; color: #666;">College</label>
+                            <p style="margin: 5px 0 0;">${escapeHtml(data.college || 'N/A')}</p>
+                        </div>
+                        <div>
+                            <label style="font-weight: 600; color: #666;">Involvement Area</label>
+                            <p style="margin: 5px 0 0;">${escapeHtml(data.involvement || 'N/A')}</p>
+                        </div>
+                        <div>
+                            <label style="font-weight: 600; color: #666;">Available Time</label>
+                            <p style="margin: 5px 0 0;">${escapeHtml(data.available_time || 'N/A')}</p>
+                        </div>
+                        <div>
+                            <label style="font-weight: 600; color: #666;">Skills</label>
+                            <p style="margin: 5px 0 0;">${escapeHtml(data.skills || 'N/A')}</p>
+                        </div>
+                        <div>
+                            <label style="font-weight: 600; color: #666;">Causes</label>
+                            <p style="margin: 5px 0 0;">${escapeHtml(data.causes || 'N/A')}</p>
+                        </div>
+                    </div>
+
+                    <div style="background: #f9f9f9; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+                        <label style="font-weight: 600; color: #666; display: block; margin-bottom: 8px;">Why Join YUVA?</label>
+                        <p style="margin: 0; white-space: pre-wrap; line-height: 1.6;">${escapeHtml(data.why_join || 'N/A')}</p>
+                    </div>
+
+                    <div style="background: #f9f9f9; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+                        <label style="font-weight: 600; color: #666; display: block; margin-bottom: 8px;">What Hope to Achieve</label>
+                        <p style="margin: 0; white-space: pre-wrap; line-height: 1.6;">${escapeHtml(data.hope_to_achieve || 'N/A')}</p>
+                    </div>
+
+                    ${data.comments ? `
+                        <div style="background: #f9f9f9; padding: 15px; border-radius: 6px;">
+                            <label style="font-weight: 600; color: #666; display: block; margin-bottom: 8px;">Additional Comments</label>
+                            <p style="margin: 0; white-space: pre-wrap; line-height: 1.6;">${escapeHtml(data.comments)}</p>
+                        </div>
+                    ` : ''}
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee;">
+                        <div>
+                            <label style="font-weight: 600; color: #666;">Registration Date</label>
+                            <p style="margin: 5px 0 0;">${new Date(data.created_at).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                        </div>
+                        <div>
+                            <label style="font-weight: 600; color: #666;">Status</label>
+                            <p style="margin: 5px 0 0;">
+                                <span class="status-badge ${data.status === 'approved' ? 'status-active' : data.status === 'pending' ? 'status-pending' : 'status-inactive'}">
+                                    ${data.status.charAt(0).toUpperCase() + data.status.slice(1)}
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        modal.onclick = (e) => e.target === modal && modal.remove();
+    } catch (error) {
+        console.error('Error loading volunteer details:', error);
+        Toast.show('error', 'Load Failed', error.message);
+    }
+};
+
+window.approveVolunteer = async function (volunteerId, volunteerName, volunteerEmail) {
+    if (!confirm(`Approve ${volunteerName}? They will receive a confirmation email.`)) {
+        return;
+    }
+
+    try {
+        const { error } = await supabaseClient
+            .from('volunteers')
+            .update({ status: 'approved' })
+            .eq('id', volunteerId);
+
+        if (error) throw error;
+
+        // Send approval email via GAS
+        await sendVolunteerEmail(volunteerId, 'approved', volunteerName, volunteerEmail);
+
+        Toast.show('success', 'Approved', `${volunteerName} has been approved!`);
+        loadVolunteers();
+    } catch (error) {
+        console.error('Error approving volunteer:', error);
+        Toast.show('error', 'Approval Failed', error.message);
+    }
+};
+
+window.rejectVolunteer = async function (volunteerId, volunteerName, volunteerEmail) {
+    if (!confirm(`Reject ${volunteerName}? They will receive a rejection email.`)) {
+        return;
+    }
+
+    try {
+        const { error } = await supabaseClient
+            .from('volunteers')
+            .update({ status: 'rejected' })
+            .eq('id', volunteerId);
+
+        if (error) throw error;
+
+        // Send rejection email via GAS
+        await sendVolunteerEmail(volunteerId, 'rejected', volunteerName, volunteerEmail);
+
+        Toast.show('success', 'Rejected', `${volunteerName} has been rejected.`);
+        loadVolunteers();
+    } catch (error) {
+        console.error('Error rejecting volunteer:', error);
+        Toast.show('error', 'Rejection Failed', error.message);
+    }
+};
+
+window.deleteVolunteer = async function (volunteerId, volunteerName) {
+    if (!confirm(`Are you sure you want to delete ${volunteerName}? This action cannot be undone.`)) {
+        return;
+    }
+
+    try {
+        const { error } = await supabaseClient
+            .from('volunteers')
+            .delete()
+            .eq('id', volunteerId);
+
+        if (error) throw error;
+
+        Toast.show('success', 'Deleted', `${volunteerName} has been removed`);
+        loadVolunteers();
+    } catch (error) {
+        console.error('Error deleting volunteer:', error);
+        Toast.show('error', 'Delete Failed', error.message);
+    }
+};
+
+async function sendVolunteerEmail(volunteerId, status, volunteerName, volunteerEmail) {
+    try {
+        // Call GAS endpoint to send email
+        const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbz7DVZe6kw__rabGKRXWMJ0ssRE2vwOf47EyLX_Q2vQZ5aTNIRogwcfu0-agf8NqM1l/exec';
+        
+        const response = await fetch(GAS_ENDPOINT, {
+            method: 'POST',
+            body: new URLSearchParams({
+                action: 'send-approval-email',
+                volunteerId: volunteerId,
+                status: status,
+                volunteerName: volunteerName,
+                volunteerEmail: volunteerEmail
+            })
+        });
+
+        const result = await response.json();
+        if (!result.success) {
+            console.warn('Email send failed:', result.error);
+        }
+    } catch (error) {
+        console.warn('Error sending email:', error);
+        // Don't throw error, as status update already succeeded
+    }
+}
+
+// Add event listeners for volunteer filters
+document.addEventListener('DOMContentLoaded', function () {
+    const searchInput = document.querySelector('#volunteer-search');
+    const statusFilter = document.querySelector('#volunteer-status-filter');
+
+    if (searchInput) searchInput.addEventListener('keyup', () => loadVolunteers());
+    if (statusFilter) statusFilter.addEventListener('change', () => loadVolunteers());
 });

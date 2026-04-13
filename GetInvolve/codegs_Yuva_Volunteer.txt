@@ -22,26 +22,29 @@ const ADMIN_EMAIL = 'yuva.vision.action@gmail.com';
 // ============================================
 
 /**
- * Handles POST requests from the volunteer form
+ * Handles POST requests from the volunteer form and admin actions
  */
 function doPost(e) {
   try {
-    // Parse form data
-    const formData = parseFormData(e);
+    const action = e.parameter.action;
     
-    // Validate required fields
+    // Handle admin approval/rejection emails
+    if (action === 'send-approval-email') {
+      return handleApprovalEmail(e);
+    }
+    
+    // Handle volunteer registration (original flow)
+    const formData = parseFormData(e);
     const validation = validateFormData(formData);
     if (!validation.valid) {
       return createResponse(false, validation.error);
     }
     
-    // Check for duplicate email
     const duplicate = checkDuplicateEmail(formData.email);
     if (duplicate) {
       return createResponse(false, 'This email is already registered. Please use a different email.');
     }
     
-    // Prepare volunteer data for Supabase
     const volunteerData = {
       full_name: formData.fullName,
       age: parseInt(formData.age) || null,
@@ -67,16 +70,13 @@ function doPost(e) {
       status: 'pending'
     };
     
-    // Insert into Supabase
     const result = insertVolunteerToSupabase(volunteerData);
     
     if (result.success) {
-      // Send confirmation email
       if (SEND_CONFIRMATION_EMAIL) {
         sendConfirmationEmail(volunteerData);
         notifyAdmin(volunteerData);
       }
-      
       return createResponse(true, 'Application submitted successfully! We will contact you soon.', result.data);
     } else {
       throw new Error(result.error || 'Failed to save volunteer data');
@@ -249,51 +249,51 @@ function insertVolunteerToSupabase(data) {
  */
 function sendConfirmationEmail(data) {
   try {
-    const subject = '🎉 Thank You for Applying to YUVA!';
+    const subject = 'Thank You for Applying to YUVA!';
     const body = `
 Dear ${data.full_name},
 
-🎊 Thank you for your interest in volunteering with YUVA!
+Thank you for your interest in volunteering with YUVA!
 
 We have received your application and are excited to review it. Here's what happens next:
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📝 YOUR APPLICATION DETAILS
+YOUR APPLICATION DETAILS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-📧 Email: ${data.email}
-📱 Phone: ${data.phone}
-🏢 College: ${data.college}
-💼 Occupation: ${data.occupation}
-🎯 Interested in: ${data.involvement}
-⭐ Skills: ${data.skills}
-❤️ Passionate about: ${data.causes}
-⏰ Available: ${data.available_time} per week
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📋 NEXT STEPS:
-
-1️⃣ Our team will review your application within 3-5 business days
-2️⃣ We'll reach out to you via email or phone for next steps
-3️⃣ You may be invited for a brief orientation session
-4️⃣ Once onboarded, you'll start making an impact!
+Email: ${data.email}
+Phone: ${data.phone}
+College: ${data.college}
+Occupation: ${data.occupation}
+Interested in: ${data.involvement}
+Skills: ${data.skills}
+Passionate about: ${data.causes}
+Available: ${data.available_time} per week
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🌟 WHAT YOU CAN DO WHILE WAITING:
+NEXT STEPS:
 
-✅ Follow us on social media to stay updated
-✅ Check out our ongoing initiatives
-✅ Join our WhatsApp community
-✅ Attend our upcoming events
+1. Our team will review your application within 3-5 business days
+2. We'll reach out to you via email or phone for next steps
+3. You may be invited for a brief orientation session
+4. Once onboarded, you'll start making an impact!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+WHAT YOU CAN DO WHILE WAITING:
+
+- Follow us on social media to stay updated
+- Check out our ongoing initiatives
+- Join our WhatsApp community
+- Attend our upcoming events
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Stay connected with us:
-🌐 Website: https://yuva.ind.in
-💼 LinkedIn: https://www.linkedin.com/company/youthunitedforvisionandaction
-💬 WhatsApp: https://whatsapp.com/channel/0029Vb6mApvDzgTCSKtAAb2y
+Website: https://yuva.ind.in
+LinkedIn: https://www.linkedin.com/company/youthunitedforvisionandaction
+WhatsApp: https://whatsapp.com/channel/0029Vb6mApvDzgTCSKtAAb2y
 
 We're thrilled to have you join our mission of youth empowerment!
 
@@ -316,12 +316,12 @@ P.S. If you have any questions, feel free to reply to this email!
  */
 function notifyAdmin(data) {
   try {
-    const subject = '🆕 New Volunteer Application Received';
+    const subject = 'New Volunteer Application Received';
     const body = `
 New volunteer application submitted!
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-👤 APPLICANT DETAILS
+APPLICANT DETAILS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Name: ${data.full_name}
@@ -334,7 +334,7 @@ Occupation: ${data.occupation}
 College: ${data.college}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🎯 VOLUNTEER PREFERENCES
+VOLUNTEER PREFERENCES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Involvement: ${data.involvement}
@@ -343,7 +343,7 @@ Causes: ${data.causes}
 Available Time: ${data.available_time}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-💭 MOTIVATION
+MOTIVATION
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Why Join: ${data.why_join}
@@ -366,11 +366,6 @@ ${data.comments ? 'Additional Comments: ' + data.comments : ''}
 
 Email Updates: ${data.email_updates ? 'Yes' : 'No'}
 Status: Pending Review
-
-View in Supabase: ${SUPABASE_URL}/project/default/editor/${SUPABASE_TABLE}
-
-To approve this volunteer:
-UPDATE volunteers SET status = 'approved' WHERE email = '${data.email}';
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -400,6 +395,159 @@ function createResponse(success, message, data = null) {
   return ContentService
     .createTextOutput(JSON.stringify(response))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * Handle approval/rejection email sending from admin panel
+ */
+function handleApprovalEmail(e) {
+  try {
+    const status = e.parameter.status;
+    const volunteerName = e.parameter.volunteerName;
+    const volunteerEmail = e.parameter.volunteerEmail;
+    const volunteerId = e.parameter.volunteerId;
+    
+    if (status === 'approved') {
+      sendApprovalEmail(volunteerName, volunteerEmail);
+    } else if (status === 'rejected') {
+      sendRejectionEmail(volunteerName, volunteerEmail);
+    }
+    
+    return createResponse(true, `Email sent to ${volunteerEmail}`);
+  } catch (error) {
+    Logger.log('Email send error: ' + error.toString());
+    return createResponse(false, 'Failed to send email: ' + error.toString());
+  }
+}
+
+/**
+ * Send approval email to volunteer
+ */
+function sendApprovalEmail(volunteerName, volunteerEmail) {
+  try {
+    const subject = 'Congratulations! Your YUVA Application Has Been Approved!';
+    const body = `
+Dear ${volunteerName},
+
+Wonderful news! Your volunteer application with YUVA has been APPROVED!
+
+We are thrilled to have you join our mission of youth empowerment. Your passion, skills, and commitment align perfectly with YUVA's vision, and we can't wait to work with you!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WHAT'S NEXT?
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+You are now part of the YUVA volunteer community!
+
+Next Steps:
+   1. Check your email for the orientation session details
+   2. Join our WhatsApp volunteer group
+   3. Connect with other volunteers and mentors
+   4. Start contributing to our ongoing initiatives
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+VOLUNTEER PORTAL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Access the volunteer portal to:
+- View available projects and opportunities
+- Track your hours and contributions
+- Connect with other volunteers
+- Stay updated on events and initiatives
+
+Portal Link: https://yuva.ind.in/GetInvolve/
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+QUICK LINKS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Website: https://yuva.ind.in
+LinkedIn: https://www.linkedin.com/company/youthunitedforvisionandaction
+WhatsApp Channel: https://whatsapp.com/channel/0029Vb6mApvDzgTCSKtAAb2y
+Email: yuva.vision.action@gmail.com
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+MAKE AN IMPACT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+As a YUVA volunteer, you'll be:
+- Driving social change and community development
+- Collaborating with like-minded young leaders
+- Developing new skills and gaining experience
+- Making a real difference in society's future
+
+We're genuinely excited to have you on board!
+
+If you have any questions or need assistance, feel free to reach out to us directly.
+
+Warmly,
+
+The YUVA Team
+Youth United for Vision and Action
+
+"Together, we create the future we envision!"
+
+P.S. Don't forget to follow us on social media and share your volunteer journey with us!
+    `;
+    
+    MailApp.sendEmail(volunteerEmail, subject, body);
+    Logger.log('Approval email sent to: ' + volunteerEmail);
+    
+  } catch (error) {
+    Logger.log('Approval email error: ' + error.toString());
+  }
+}
+
+/**
+ * Send rejection email to volunteer (professional and encouraging)
+ */
+function sendRejectionEmail(volunteerName, volunteerEmail) {
+  try {
+    const subject = 'Your YUVA Volunteer Application - An Update';
+    const body = `
+Dear ${volunteerName},
+
+Thank you so much for your interest in volunteering with YUVA!
+
+We have carefully reviewed your application, and while we were impressed by your enthusiasm and background, we are unable to move forward with your application at this time. This decision was not easy, as we received many qualified candidates.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WE ENCOURAGE YOU TO:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+- Stay connected with YUVA through social media
+- Apply again in the future - we're always looking for passionate individuals
+- Attend our public events and initiatives
+- Join our community updates channel
+- Reach out if your circumstances change and you'd like to reapply
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STAY IN TOUCH
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Website: https://yuva.ind.in
+LinkedIn: https://www.linkedin.com/company/youthunitedforvisionandaction
+WhatsApp: https://whatsapp.com/channel/0029Vb6mApvDzgTCSKtAAb2y
+Email: yuva.vision.action@gmail.com
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+We genuinely appreciate your interest in making a difference and contributing to youth empowerment. We hope our paths cross again in the future!
+
+Best wishes,
+
+The YUVA Team
+Youth United for Vision and Action
+
+"Every voice matters. Keep making an impact!"
+    `;
+    
+    MailApp.sendEmail(volunteerEmail, subject, body);
+    Logger.log('Rejection email sent to: ' + volunteerEmail);
+    
+  } catch (error) {
+    Logger.log('Rejection email error: ' + error.toString());
+  }
 }
 
 // ============================================
