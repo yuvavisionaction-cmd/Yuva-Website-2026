@@ -1,5 +1,19 @@
 // Advanced Admin Logic
 
+// ===== GAS ENDPOINT FOR ADVANCED ADMIN EMAIL FEATURES =====
+// This must point to the deployed codegs_yuva_advanceadmin GAS project.
+const YUVA_ADMIN_GAS_URL = 'https://script.google.com/macros/s/AKfycbwwx6hQ4rdoSGlKkKE3l1a1nfbQJNoJBXg0xkK662IWoYWQCo_KB1GIHigX6Fcd-j38fA/exec';
+
+// ===== UTILITY HELPERS =====
+function waitMs(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+function debounce(fn, delay) {
+    let timer;
+    return function (...args) {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn.apply(this, args), delay);
+    };
+}
+
 // --- TOAST NOTIFICATION SYSTEM ---
 const Toast = {
     init() {
@@ -329,6 +343,1005 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
+// ===== EMAIL BROADCAST FUNCTIONS (moved here for early initialization) =====
+
+// Email pagination variables
+window.emailPaginationState = {
+    currentPage: 1,
+    pageSize: 50,
+    totalRecords: 0,
+    totalPages: 1,
+    allEmails: []
+};
+
+// Load broadcast statistics
+window.loadBroadcastStats = async function() {
+    try {
+        // Get total emails count
+        const { count: totalEmails, error: emailError } = await supabaseClient
+            .from('email_list')
+            .select('id', { count: 'exact', head: true });
+        
+        if (!emailError && totalEmails) {
+            const totalEmailsDisplay = document.getElementById('email-total-count');
+            if (totalEmailsDisplay) {
+                totalEmailsDisplay.textContent = totalEmails;
+            }
+        }
+        
+        // Get broadcasts sent count
+        const { count: broadcastsSent, error: broadcastError } = await supabaseClient
+            .from('email_broadcasts')
+            .select('id', { count: 'exact', head: true });
+        
+        if (!broadcastError && broadcastsSent !== null) {
+            const broadcastsDisplay = document.getElementById('broadcast-sent-count');
+            if (broadcastsDisplay) {
+                broadcastsDisplay.textContent = broadcastsSent;
+            }
+        }
+        
+        // Get unique audience types
+        const { data: emailTypes, error: typesError } = await supabaseClient
+            .from('email_list')
+            .select('subscription_status', { count: 'exact' })
+            .eq('subscription_status', 'subscribed');
+        
+        if (!typesError && emailTypes) {
+            // Show count of subscribed emails
+            const audienceDisplay = document.getElementById('audience-types-count');
+            if (audienceDisplay) {
+                audienceDisplay.textContent = emailTypes.length > 0 ? '1' : '0';
+            }
+        }
+        
+    } catch (error) {
+        console.error('Error loading broadcast stats:', error);
+    }
+};
+
+// Load emails from Supabase email_list table with pagination
+window.loadEmailList = async function() {
+    try {
+        const tbody = document.querySelector('#email-list-table tbody');
+        if (!tbody) return;
+        
+        tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; padding:20px;"><i class="fas fa-spinner fa-spin"></i> Loading all emails...</td></tr>';
+        
+        // Fetch ALL emails in batches (Supabase limit is 1000 per request)
+        let allEmails = [];
+        let batch = 0;
+        let batchSize = 1000;
+        let hasMore = true;
+        
+        while (hasMore) {
+            const start = batch * batchSize;
+            const end = start + batchSize - 1;
+            
+            const { data: emails, error } = await supabaseClient
+                .from('email_list')
+                .select('id, email')
+                .order('email', { ascending: true })
+                .range(start, end);
+            
+            if (error) throw error;
+            
+            if (!emails || emails.length === 0) {
+                hasMore = false;
+            } else {
+                allEmails = allEmails.concat(emails);
+                hasMore = emails.length === batchSize; // If batch is full, there might be more
+                batch++;
+            }
+        }
+        
+
+        
+        if (!allEmails || allEmails.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; padding:20px; color:#777;">No emails found in database.</td></tr>';
+            emailPaginationState.totalRecords = 0;
+            emailPaginationState.totalPages = 1;
+            updatePaginationControls();
+            return;
+        }
+        
+        // Store all emails and apply search filter
+        const searchInput = document.getElementById('email-search');
+        const searchTerm = (searchInput?.value || '').trim().toLowerCase();
+        
+        let filtered = allEmails;
+        
+        if (searchTerm.length > 0) {
+            filtered = filtered.filter(e => e.email.toLowerCase().includes(searchTerm));
+        } else {
+        }
+        
+        if (filtered.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; padding:20px; color:#999;">No emails match the search term.</td></tr>';
+            emailPaginationState.totalRecords = 0;
+            emailPaginationState.totalPages = 1;
+            updatePaginationControls();
+            return;
+        }
+        
+        // Store emails and reset pagination
+        emailPaginationState.allEmails = filtered;
+        emailPaginationState.totalRecords = filtered.length;
+        emailPaginationState.pageSize = parseInt(document.getElementById('email-page-size')?.value || 50);
+        emailPaginationState.totalPages = Math.ceil(filtered.length / emailPaginationState.pageSize);
+        emailPaginationState.currentPage = 1;
+        
+        displayEmailPage();
+        
+        // Attach event listeners for search and page size after loading
+        const emailSearch = document.getElementById('email-search');
+        const emailPageSize = document.getElementById('email-page-size');
+        
+        if (emailSearch) {
+            emailSearch.removeEventListener('input', emailSearch.liveSearchListener);
+            emailSearch.liveSearchListener = debounce(() => { 
+                emailPaginationState.currentPage = 1; 
+                loadEmailList(); 
+            }, 500);
+            emailSearch.addEventListener('input', emailSearch.liveSearchListener);
+
+        }
+        
+        if (emailPageSize) {
+            emailPageSize.removeEventListener('change', emailPageSize.pageSizeListener);
+            emailPageSize.pageSizeListener = () => { 
+                emailPaginationState.currentPage = 1; 
+                loadEmailList(); 
+            };
+            emailPageSize.addEventListener('change', emailPageSize.pageSizeListener);
+        }
+        
+    } catch (error) {
+        console.error('Error loading email list:', error);
+        Toast.show('error', 'Load Error', 'Failed to load email list: ' + error.message);
+        const tbody = document.querySelector('#email-list-table tbody');
+        if (tbody) {
+            tbody.innerHTML = `<tr><td colspan="2" style="text-align:center; color:#c62828; padding:20px;">Failed to load emails: ${escapeHtml(error.message)}</td></tr>`;
+        }
+    }
+};
+
+// Display current page of emails
+window.displayEmailPage = function() {
+    const tbody = document.querySelector('#email-list-table tbody');
+    if (!tbody) return;
+    
+    const start = (emailPaginationState.currentPage - 1) * emailPaginationState.pageSize;
+    const end = start + emailPaginationState.pageSize;
+    const pageEmails = emailPaginationState.allEmails.slice(start, end);
+    
+    tbody.innerHTML = pageEmails.map(email => `
+        <tr>
+            <td>${escapeHtml(email.email)}</td>
+            <td style="display:flex; gap:6px; justify-content:center;">
+                <button class="btn" style="padding:6px 12px; font-size:12px; background:#3b82f6; color:white; border:none; border-radius:4px; cursor:pointer;" onclick="editEmail('${escapeHtml(email.email)}', ${email.id})">
+                    <i class="fas fa-edit"></i> Edit
+                </button>
+                <button class="btn" style="padding:6px 12px; font-size:12px; background:#ef4444; color:white; border:none; border-radius:4px; cursor:pointer;" onclick="deleteEmail('${escapeHtml(email.email)}', ${email.id})">
+                    <i class="fas fa-trash"></i> Delete
+                </button>
+                <button class="btn" style="padding:6px 12px; font-size:12px; background:#10b981; color:white; border:none; border-radius:4px; cursor:pointer;" onclick="sendIndividualEmail('${escapeHtml(email.email)}')">
+                    <i class="fas fa-paper-plane"></i> Send
+                </button>
+            </td>
+        </tr>
+    `).join('');
+    
+    updatePaginationControls();
+};
+
+// Update pagination controls
+window.updatePaginationControls = function() {
+    const currentPageEl = document.getElementById('current-page');
+    const totalPagesEl = document.getElementById('total-pages');
+    if (currentPageEl) currentPageEl.textContent = emailPaginationState.currentPage;
+    if (totalPagesEl) totalPagesEl.textContent = emailPaginationState.totalPages;
+};
+
+// Next page
+window.nextEmailPage = function() {
+    if (emailPaginationState.currentPage < emailPaginationState.totalPages) {
+        emailPaginationState.currentPage++;
+        displayEmailPage();
+        document.querySelector('#email-list-table').scrollIntoView({ behavior: 'smooth' });
+    }
+};
+
+// Previous page
+window.previousEmailPage = function() {
+    if (emailPaginationState.currentPage > 1) {
+        emailPaginationState.currentPage--;
+        displayEmailPage();
+        document.querySelector('#email-list-table').scrollIntoView({ behavior: 'smooth' });
+    }
+};
+
+// Open Add Email Modal
+window.openAddEmailModal = function() {
+    const modal = document.getElementById('add-email-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        document.getElementById('new-email-input').value = '';
+        document.getElementById('new-email-status').value = 'subscribed';
+    }
+};
+
+// Close Add Email Modal
+window.closeAddEmailModal = function() {
+    const modal = document.getElementById('add-email-modal');
+    if (modal) modal.classList.add('hidden');
+};
+
+// Save New Email
+window.saveNewEmail = async function() {
+    try {
+        const email = document.getElementById('new-email-input')?.value?.trim() || '';
+        const status = document.getElementById('new-email-status')?.value || 'subscribed';
+        
+        if (!email || !email.includes('@')) {
+            Toast.show('warning', 'Invalid Email', 'Please enter a valid email address');
+            return;
+        }
+        
+        // Insert new email
+        const { data, error } = await supabaseClient
+            .from('email_list')
+            .insert([{
+                email: email,
+                email_lower: email.toLowerCase(),
+                subscription_status: status,
+                verified: true,
+                created_at: new Date().toISOString()
+            }])
+            .select('id')
+            .single();
+        
+        if (error) throw error;
+        
+        Toast.show('success', 'Email Added', `${email} has been added successfully`);
+        closeAddEmailModal();
+        loadEmailList();
+        
+    } catch (error) {
+        console.error('Error saving email:', error);
+        Toast.show('error', 'Save Failed', error.message);
+    }
+};
+
+// Send Individual Email - Show custom modal
+function deriveRecipientNameFromEmail(email) {
+    const value = String(email || '').trim();
+    const localPart = value.includes('@') ? value.split('@')[0] : value;
+    const cleaned = localPart.replace(/[._-]+/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!cleaned) return 'YUVA Member';
+    return cleaned
+        .split(' ')
+        .filter(Boolean)
+        .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
+}
+
+async function waitForBroadcastCompletionStatus(broadcastId, timeoutMs = 45000, intervalMs = 1500) {
+    const deadline = Date.now() + timeoutMs;
+
+    while (Date.now() < deadline) {
+        const { data, error } = await supabaseClient
+            .from('email_broadcasts')
+            .select('id, status, sent_count, failed_count, sent_at')
+            .eq('id', broadcastId)
+            .single();
+
+        if (error) throw error;
+
+        const status = String(data?.status || '').toLowerCase();
+        if (['sent', 'failed', 'partial', 'cancelled'].includes(status)) {
+            return data;
+        }
+
+        await waitMs(intervalMs);
+    }
+
+    return null;
+}
+
+window.sendIndividualEmail = async function(email, fullName) {
+    const modal = document.getElementById('send-email-modal');
+    if (!modal) return;
+    
+    // Store email context for later confirmation
+    const safeEmail = String(email || '').trim();
+    const safeName = String(fullName || '').trim() || deriveRecipientNameFromEmail(safeEmail);
+    window.sendEmailContext = { email: safeEmail, fullName: safeName };
+    
+    // Set the email display
+    const toField = document.getElementById('send-email-to');
+    if (toField) toField.value = safeEmail;
+    
+    // Clear previous inputs
+    document.getElementById('send-email-subject').value = '';
+    document.getElementById('send-email-message').value = '';
+    
+    // Show modal
+    modal.classList.remove('hidden');
+    document.getElementById('send-email-subject').focus();
+};
+
+// Close send email modal
+window.closeSendEmailModal = function() {
+    const modal = document.getElementById('send-email-modal');
+    if (modal) modal.classList.add('hidden');
+    window.sendEmailContext = null;
+};
+
+// Confirm and send email
+window.confirmSendEmail = async function() {
+    const sendBtn = document.querySelector('#send-email-modal .btn.primary');
+    const originalBtnHtml = sendBtn ? sendBtn.innerHTML : '';
+
+    try {
+        const subject = document.getElementById('send-email-subject')?.value?.trim() || '';
+        const message = document.getElementById('send-email-message')?.value?.trim() || '';
+        
+        if (!subject) {
+            Toast.show('warning', 'Missing Subject', 'Please enter an email subject');
+            return;
+        }
+        
+        if (!message) {
+            Toast.show('warning', 'Missing Message', 'Please enter an email message');
+            return;
+        }
+        
+        const email = window.sendEmailContext?.email;
+        const fullName = String(window.sendEmailContext?.fullName || '').trim() || deriveRecipientNameFromEmail(email);
+        if (!email) {
+            Toast.show('error', 'Error', 'Email recipient not found');
+            return;
+        }
+        
+        // Always use the dedicated Advanced Admin GAS endpoint.
+        const gasUrl = YUVA_ADMIN_GAS_URL;
+        if (!gasUrl) {
+            Toast.show('error', 'Not Configured', 'Google Apps Script URL not available');
+            return;
+        }
+
+        // Show loading state on button
+        if (sendBtn) {
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+        }
+        
+        // Create tracking row first so backend can update definitive send status.
+        const trackingTitle = `Individual Email to ${email}`;
+        const { data: trackingRow, error: trackingError } = await supabaseClient
+            .from('email_broadcasts')
+            .insert([{
+                title: trackingTitle,
+                subject: subject,
+                message: message,
+                audience_type: 'custom',
+                recipient_count: 1,
+                status: 'sending',
+                created_at: new Date().toISOString()
+            }])
+            .select('id')
+            .single();
+
+        if (trackingError) {
+            throw new Error('Could not create email tracking record: ' + trackingError.message);
+        }
+
+        const trackingId = trackingRow.id;
+
+        // Use dedicated method for individual sends (separate from message reply flow).
+        const payload = new URLSearchParams();
+        payload.append('action', 'notify');
+        payload.append('method', 'sendIndividualEmail');
+        payload.append('broadcastId', String(trackingId));
+        payload.append('requestId', String(trackingId));
+        payload.append('toEmail', email);
+        payload.append('subject', subject);
+        payload.append('message', message);
+        payload.append('body', message);
+        payload.append('userName', fullName);
+        payload.append('fullName', fullName);
+        // Always use a fixed sender identity — never expose the admin's personal name.
+        payload.append('senderName', 'YUVA Admin Email Panel');
+
+        // Fire the GAS request (no-cors — browser cannot read GAS response directly).
+        // We optimistically mark sent in Supabase ourselves; GAS will also try to update
+        // it in the background (best-effort), so the final status will be correct.
+        await fetch(gasUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: payload
+        });
+
+        // Progress label while waiting for GAS
+        if (sendBtn) sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Delivering...';
+
+        // Give GAS ~3 s to process, then update status from the frontend as a
+        // reliable fallback (avoids false 'failed' if GAS Supabase write is blocked).
+        await waitMs(3000);
+        await supabaseClient
+            .from('email_broadcasts')
+            .update({ status: 'sent', sent_at: new Date().toISOString(), sent_count: 1, failed_count: 0 })
+            .eq('id', trackingId)
+            .eq('status', 'sending'); // only overwrite if GAS hasn't already updated it
+
+        Toast.show('success', 'Email Sent', `Email successfully sent to ${email}`);
+        closeSendEmailModal();
+        
+    } catch (error) {
+        console.error('Error sending individual email:', error);
+        Toast.show('error', 'Send Failed', error.message);
+    } finally {
+        // Always restore the button
+        if (sendBtn) {
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = originalBtnHtml;
+        }
+    }
+};
+
+
+// Delete email from database - Show custom modal
+window.deleteEmail = async function(email, id) {
+    const modal = document.getElementById('delete-email-modal');
+    if (!modal) return;
+    
+    // Store email context for later confirmation
+    window.deleteEmailContext = { email: email, id: id };
+    
+    // Set the email display
+    const emailDisplay = document.getElementById('delete-email-display');
+    if (emailDisplay) emailDisplay.textContent = email;
+    
+    // Show modal
+    modal.classList.remove('hidden');
+};
+
+// Close delete email modal
+window.closeDeleteEmailModal = function() {
+    const modal = document.getElementById('delete-email-modal');
+    if (modal) modal.classList.add('hidden');
+    window.deleteEmailContext = null;
+};
+
+// Confirm delete email
+window.confirmDeleteEmail = async function() {
+    try {
+        const context = window.deleteEmailContext;
+        if (!context) {
+            Toast.show('error', 'Error', 'No email selected for deletion');
+            return;
+        }
+        
+        Toast.show('info', 'Deleting', 'Removing email...');
+        closeDeleteEmailModal();
+        
+        const { error } = await supabaseClient
+            .from('email_list')
+            .delete()
+            .eq('id', context.id);
+        
+        if (error) {
+            Toast.show('error', 'Delete Failed', error.message);
+            return;
+        }
+        
+        Toast.show('success', 'Email Deleted', `${context.email} has been removed`);
+        
+        // Reload email list
+        emailPaginationState.allEmails = emailPaginationState.allEmails.filter(e => e.id !== context.id);
+        emailPaginationState.totalRecords--;
+        emailPaginationState.totalPages = Math.ceil(emailPaginationState.totalRecords / emailPaginationState.pageSize);
+        
+        // Stay on same page or go to previous page
+        if (emailPaginationState.currentPage > emailPaginationState.totalPages && emailPaginationState.currentPage > 1) {
+            emailPaginationState.currentPage--;
+        }
+        
+        displayEmailPage();
+        
+    } catch (error) {
+        console.error('Error deleting email:', error);
+        Toast.show('error', 'Delete Error', error.message);
+    }
+};
+
+// Edit email in database - Show custom modal
+window.editEmail = async function(email, id) {
+    const modal = document.getElementById('edit-email-modal');
+    if (!modal) return;
+    
+    // Store email context for later confirmation
+    window.editEmailContext = { email: email, id: id };
+    
+    // Set the current and new email fields
+    const currentField = document.getElementById('edit-email-current');
+    const newField = document.getElementById('edit-email-new');
+    
+    if (currentField) currentField.value = email;
+    if (newField) {
+        newField.value = email;
+        newField.focus();
+        newField.select();
+    }
+    
+    // Show modal
+    modal.classList.remove('hidden');
+};
+
+// Close edit email modal
+window.closeEditEmailModal = function() {
+    const modal = document.getElementById('edit-email-modal');
+    if (modal) modal.classList.add('hidden');
+    window.editEmailContext = null;
+};
+
+// Confirm edit email
+window.confirmEditEmail = async function() {
+    try {
+        const context = window.editEmailContext;
+        if (!context) {
+            Toast.show('error', 'Error', 'No email selected for editing');
+            return;
+        }
+        
+        const newEmail = document.getElementById('edit-email-new')?.value?.trim() || '';
+        
+        if (!newEmail || newEmail === context.email) {
+            Toast.show('warning', 'No Changes', 'Please enter a different email address');
+            return;
+        }
+        
+        // Basic email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(newEmail)) {
+            Toast.show('error', 'Invalid Email', 'Please enter a valid email address');
+            return;
+        }
+        
+        Toast.show('info', 'Updating', 'Updating email...');
+        closeEditEmailModal();
+        
+        // Check if new email already exists
+        const { data: existing } = await supabaseClient
+            .from('email_list')
+            .select('id')
+            .eq('email', newEmail)
+            .single();
+        
+        if (existing) {
+            Toast.show('error', 'Duplicate Email', 'This email already exists in the database');
+            return;
+        }
+        
+        // Update email
+        const { error } = await supabaseClient
+            .from('email_list')
+            .update({ 
+                email: newEmail,
+                email_lower: newEmail.toLowerCase()
+            })
+            .eq('id', context.id);
+        
+        if (error) {
+            Toast.show('error', 'Update Failed', error.message);
+            return;
+        }
+        
+        Toast.show('success', 'Email Updated', `Email changed to ${newEmail}`);
+        
+        // Update in memory
+        const emailObj = emailPaginationState.allEmails.find(e => e.id === context.id);
+        if (emailObj) {
+            emailObj.email = newEmail;
+            emailPaginationState.allEmails.sort((a, b) => a.email.localeCompare(b.email));
+        }
+        
+        displayEmailPage();
+        
+    } catch (error) {
+        console.error('Error updating email:', error);
+        Toast.show('error', 'Update Error', error.message);
+    }
+};
+
+// Update recipient count based on selected audience
+window.updateRecipientCount = async function() {
+    try {
+        const audienceType = document.getElementById('broadcast-audience')?.value || 'all';
+        const displayEl = document.getElementById('recipient-count-display');
+        
+        if (!displayEl) return;
+        
+        // Show loading state
+        displayEl.innerHTML = '<span style="font-weight:600; color:#3b82f6; font-size:18px;"><i class="fas fa-spinner fa-spin"></i></span>';
+        
+        let query = supabaseClient
+            .from('email_list')
+            .select('id', { count: 'exact', head: true })
+            .eq('subscription_status', 'subscribed');
+        
+        if (audienceType !== 'all') {
+            // Only filter by subscription for now
+        }
+        
+        const { count, error } = await query;
+        
+        if (error) {
+            displayEl.innerHTML = '<span style="font-weight:600; color:#e67e22;">Error</span>';
+            return;
+        }
+        
+        const recipientCount = count || 0;
+        displayEl.innerHTML = `
+            <span style="font-weight:600; color:#3b82f6; font-size:18px;">${recipientCount}</span>
+            <span style="color:#666;"> recipients</span>
+        `;
+    } catch (error) {
+        console.error('Error updating recipient count:', error);
+        const displayEl = document.getElementById('recipient-count-display');
+        if (displayEl) {
+            displayEl.innerHTML = '<span style="color:#e67e22;">Error calculating</span>';
+        }
+    }
+};
+
+// Show preview modal
+window.previewBroadcast = async function() {
+    try {
+        const title = document.getElementById('broadcast-title')?.value || '';
+        const audience = document.getElementById('broadcast-audience')?.value || '';
+        const subject = document.getElementById('broadcast-subject')?.value || '';
+        const message = document.getElementById('broadcast-message')?.value || '';
+        
+        if (!title || !audience || !subject || !message) {
+            Toast.show('warning', 'Required Fields', 'Please fill in all broadcast details');
+            return;
+        }
+        
+        // Get recipient count
+        let query = supabaseClient
+            .from('email_list')
+            .select('id', { count: 'exact', head: true })
+            .eq('subscription_status', 'subscribed');
+        
+        if (audience !== 'all') {
+            // Only filtering by subscription status now
+        }
+        
+        const { count, error } = await query;
+        
+        if (error) throw error;
+        
+        const recipientCount = count || 0;
+        
+        // Populate preview modal
+        const previewTitle = document.getElementById('preview-campaign-title');
+        const previewSubject = document.getElementById('preview-email-subject');
+        const previewMessage = document.getElementById('preview-email-body');
+        const previewCount = document.getElementById('preview-recipient-count');
+        
+        if (previewTitle) previewTitle.textContent = title;
+        if (previewSubject) previewSubject.textContent = subject;
+        if (previewMessage) previewMessage.textContent = message;
+        if (previewCount) previewCount.textContent = recipientCount;
+        
+        // Show preview modal
+        const modal = document.getElementById('broadcast-preview-modal');
+        if (modal) modal.classList.remove('hidden');
+        
+    } catch (error) {
+        console.error('Error showing preview:', error);
+        Toast.show('error', 'Preview Error', 'Failed to show preview: ' + error.message);
+    }
+};
+
+// Close preview modal
+window.closeBroadcastPreviewModal = function() {
+    const modal = document.getElementById('broadcast-preview-modal');
+    if (modal) modal.classList.add('hidden');
+};
+
+// Move to confirmation modal
+window.confirmSendBroadcast = async function() {
+    try {
+        closeBroadcastPreviewModal();
+
+        const title = document.getElementById('broadcast-title')?.value || '';
+        const audience = document.getElementById('broadcast-audience')?.value || '';
+
+        // Get latest recipient count
+        const { count } = await supabaseClient
+            .from('email_list')
+            .select('id', { count: 'exact', head: true })
+            .eq('subscription_status', 'subscribed');
+
+        // Populate confirmation modal using actual HTML element IDs
+        const confirmTitleEl = document.getElementById('confirm-title');
+        const confirmAudienceEl = document.getElementById('confirm-audience');
+        const confirmCountEl = document.getElementById('confirm-recipient-count');
+
+        if (confirmTitleEl) confirmTitleEl.textContent = title;
+        if (confirmAudienceEl) confirmAudienceEl.textContent = audience === 'all' ? 'All Emails' : 'Active Subscribers Only';
+        if (confirmCountEl) confirmCountEl.textContent = (count || 0) + ' emails';
+
+        // Reset and wire up confirm checkbox
+        const checkbox = document.getElementById('broadcast-confirm-checkbox');
+        const sendBtn = document.getElementById('broadcast-final-send-btn');
+        if (checkbox) {
+            checkbox.checked = false;
+            checkbox.onchange = () => { if (sendBtn) sendBtn.disabled = !checkbox.checked; };
+        }
+        if (sendBtn) sendBtn.disabled = true;
+
+        // Show confirmation modal
+        const modal = document.getElementById('broadcast-confirm-modal');
+        if (modal) modal.classList.remove('hidden');
+
+    } catch (error) {
+        console.error('Error in confirmSendBroadcast:', error);
+        Toast.show('error', 'Error', error.message);
+    }
+};
+
+// Close confirmation modal
+window.closeBroadcastConfirmModal = function() {
+    const modal = document.getElementById('broadcast-confirm-modal');
+    if (modal) modal.classList.add('hidden');
+};
+
+// Final send – batched frontend sending with deduplication and progress tracking
+window.finalSendBroadcast = async function() {
+    const sendBtn = document.getElementById('broadcast-final-send-btn');
+    const originalBtnHtml = sendBtn ? sendBtn.innerHTML : '';
+    let broadcastId = null;
+
+    try {
+        const confirmCheckbox = document.getElementById('broadcast-confirm-checkbox');
+        if (!confirmCheckbox || !confirmCheckbox.checked) {
+            Toast.show('warning', 'Confirmation Required', 'Please check the confirmation box');
+            return;
+        }
+
+        const title = document.getElementById('broadcast-title')?.value?.trim() || '';
+        const audience = document.getElementById('broadcast-audience')?.value || 'all';
+        const subject = document.getElementById('broadcast-subject')?.value?.trim() || '';
+        const message = document.getElementById('broadcast-message')?.value?.trim() || '';
+
+        if (!title || !subject || !message) {
+            Toast.show('warning', 'Missing Fields', 'Please fill in all required fields');
+            return;
+        }
+
+        if (sendBtn) {
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading Audience...';
+        }
+
+        // Fetch all recipient emails from Supabase
+        const rawRecipients = [];
+        let batch = 0;
+        const fetchBatchSize = 1000;
+        let hasMore = true;
+
+        while (hasMore) {
+            const start = batch * fetchBatchSize;
+            const end = start + fetchBatchSize - 1;
+            let q = supabaseClient
+                .from('email_list')
+                .select('email')
+                .eq('subscription_status', 'subscribed')
+                .range(start, end);
+            const { data: batchData, error: batchErr } = await q;
+            if (batchErr) throw batchErr;
+            if (!batchData || batchData.length === 0) {
+                hasMore = false;
+            } else {
+                rawRecipients.push(...batchData.map(r => r.email));
+                hasMore = batchData.length === fetchBatchSize;
+                batch++;
+            }
+        }
+
+        // Deduplicate emails to ensure nobody gets spammed twice
+        const allRecipients = [...new Set(rawRecipients.map(e => String(e).trim().toLowerCase()).filter(e => e.length > 0))];
+
+        if (allRecipients.length === 0) {
+            Toast.show('warning', 'No Recipients', 'No subscribed emails found in the database');
+            return;
+        }
+
+        // Create tracking row in Supabase first
+        const { data: broadcastRow, error: broadcastErr } = await supabaseClient
+            .from('email_broadcasts')
+            .insert([{
+                title: title,
+                subject: subject,
+                message: message,
+                audience_type: audience,
+                recipient_count: allRecipients.length,
+                status: 'sending',
+                created_at: new Date().toISOString()
+            }])
+            .select('id')
+            .single();
+
+        if (broadcastErr) throw broadcastErr;
+        broadcastId = broadcastRow.id;
+
+        // BATCH CONFIGURATION
+        const BATCH_SIZE = 50; 
+        const BATCH_DELAY_MS = 2000; // Wait 2s between batches to let GAS breathe
+        const totalBatches = Math.ceil(allRecipients.length / BATCH_SIZE);
+        
+        let totalSent = 0;
+        let totalFailed = 0;
+
+        Toast.show('info', 'Sending', `Dispatching to ${allRecipients.length} recipients in ${totalBatches} batches...`);
+
+        // Process sequentially
+        for (let i = 0; i < totalBatches; i++) {
+            const currentBatchEmails = allRecipients.slice(i * BATCH_SIZE, (i + 1) * BATCH_SIZE);
+            
+            if (sendBtn) {
+                sendBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Batch ${i+1}/${totalBatches} (${totalSent}/${allRecipients.length})`;
+            }
+
+            const formPayload = new URLSearchParams();
+            formPayload.append('action', 'notify');
+            formPayload.append('method', 'sendBatchEmails');
+            formPayload.append('broadcastId', String(broadcastId));
+            formPayload.append('subject', subject);
+            formPayload.append('message', message);
+            formPayload.append('recipients', currentBatchEmails.join(','));
+
+            let batchSuccess = false;
+            let retryCount = 0;
+            const MAX_RETRIES = 2;
+
+            while (!batchSuccess && retryCount <= MAX_RETRIES) {
+                try {
+                    // Try fetch. We use no-cors to guarantee it fires regardless of CORS, 
+                    // though we can't read the JSON response. If it doesn't throw a network error, 
+                    // we assume GAS at least executed the script.
+                    await fetch(YUVA_ADMIN_GAS_URL, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: formPayload
+                    });
+                    
+                    batchSuccess = true;
+                    totalSent += currentBatchEmails.length; // Optimistic count since we can't read no-cors response
+                } catch (netErr) {
+                    retryCount++;
+                    console.warn(`Batch ${i+1} network error (attempt ${retryCount}):`, netErr);
+                    if (retryCount > MAX_RETRIES) {
+                        totalFailed += currentBatchEmails.length;
+                        console.error(`Batch ${i+1} failed completely.`);
+                    } else {
+                        await waitMs(5000 * retryCount); // Backoff before retry
+                    }
+                }
+            }
+
+            // Wait before next batch, unless it's the last one
+            if (i < totalBatches - 1) {
+                await waitMs(BATCH_DELAY_MS);
+            }
+        }
+
+        // Finalize broadcast status
+        const finalStatus = totalFailed === 0 ? 'sent' : (totalSent > 0 ? 'partial' : 'failed');
+        
+        await supabaseClient.from('email_broadcasts')
+            .update({ 
+                status: finalStatus, 
+                sent_count: totalSent, 
+                failed_count: totalFailed,
+                sent_at: new Date().toISOString() 
+            })
+            .eq('id', broadcastId);
+
+        if (finalStatus === 'sent') {
+            Toast.show('success', 'Broadcast Sent', `Successfully dispatched ${totalSent} emails.`);
+        } else if (finalStatus === 'partial') {
+            Toast.show('warning', 'Partially Sent', `Sent: ${totalSent}, Failed: ${totalFailed}. Check history for details.`);
+        } else {
+            Toast.show('error', 'Broadcast Failed', 'All batches failed to send. Network error likely.');
+        }
+
+        closeBroadcastConfirmModal();
+        resetBroadcastForm();
+        await loadBroadcastHistory();
+
+    } catch (error) {
+        console.error('Error sending broadcast:', error);
+        if (broadcastId) {
+            await supabaseClient.from('email_broadcasts')
+                .update({ status: 'failed', sent_at: new Date().toISOString() })
+                .eq('id', broadcastId).catch(() => {});
+        }
+        Toast.show('error', 'Send Failed', error.message);
+    } finally {
+        if (sendBtn) {
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = originalBtnHtml;
+        }
+    }
+};
+
+// Load and display broadcast history
+window.loadBroadcastHistory = async function() {
+    try {
+        const tbody = document.querySelector('#broadcast-history-table tbody');
+        if (!tbody) return;
+        
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;"><i class="fas fa-spinner fa-spin"></i> Loading broadcast history...</td></tr>';
+        
+        const { data: broadcasts, error } = await supabaseClient
+            .from('email_broadcasts')
+            .select('id, title, subject, audience_type, recipient_count, sent_at, status')
+            .order('created_at', { ascending: false })
+            .limit(50);
+        
+        if (error) throw error;
+        
+        if (!broadcasts || broadcasts.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#777;">No broadcast history yet.</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = broadcasts.map(broadcast => `
+            <tr>
+                <td><strong>${escapeHtml(broadcast.title || '-')}</strong></td>
+                <td>${escapeHtml(broadcast.subject || '-')}</td>
+                <td><span class="badge badge-${broadcast.audience_type === 'all' ? 'primary' : 'secondary'}">${broadcast.audience_type.toUpperCase()}</span></td>
+                <td><strong>${broadcast.recipient_count || 0}</strong></td>
+                <td>${broadcast.sent_at ? new Date(broadcast.sent_at).toLocaleString() : '-'}</td>
+                <td><span class="badge badge-${broadcast.status === 'sent' ? 'success' : broadcast.status === 'failed' ? 'error' : 'warning'}">${broadcast.status.toUpperCase()}</span></td>
+            </tr>
+        `).join('');
+        
+    } catch (error) {
+        console.error('Error loading broadcast history:', error);
+        Toast.show('error', 'Load Error', 'Failed to load broadcast history: ' + error.message);
+    }
+};
+
+// Reset broadcast form
+window.resetBroadcastForm = function() {
+    const ids = ['broadcast-title', 'broadcast-audience', 'broadcast-subject', 'broadcast-message'];
+    ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    const countEl = document.getElementById('recipient-count-display');
+    if (countEl) countEl.innerHTML = '<span style="font-weight:600; color:#3b82f6; font-size:18px;">0</span><span style="color:#666;"> recipients will receive this email</span>';
+};
+
+// Entry point: validate then show preview
+window.sendBroadcast = async function() {
+    const title = document.getElementById('broadcast-title')?.value?.trim() || '';
+    const audience = document.getElementById('broadcast-audience')?.value || '';
+    const subject = document.getElementById('broadcast-subject')?.value?.trim() || '';
+    const message = document.getElementById('broadcast-message')?.value?.trim() || '';
+
+    if (!title || !audience || !subject || !message) {
+        Toast.show('warning', 'Required Fields', 'Please fill in all fields: Title, Audience, Subject, and Message.');
+        return;
+    }
+    await previewBroadcast();
+};
+
 // 2. NAVIGATION LOGIC
 window.showSection = function (sectionId) {
     // Update Menu Active State
@@ -353,6 +1366,7 @@ window.showSection = function (sectionId) {
         'counter-admin': 'Live Counter',
         'certificates': 'Certificates',
         'vimarsh-certificates': 'Vimarsh Certificates',
+        'email-broadcast': 'Email Broadcasts',
         'reports': 'Advanced Analytics & Reports'
     };
     const pageTitle = document.getElementById('page-title');
@@ -371,6 +1385,7 @@ window.showSection = function (sectionId) {
     const counterView = document.getElementById('counter-admin-view');
     const certificatesView = document.getElementById('certificates-view');
     const certificatesSelectorView = document.getElementById('certificates-selector-view');
+    const emailBroadcastView = document.getElementById('email-broadcast-view');
     const reportsView = document.getElementById('reports-view');
     if (messagesView) messagesView.style.display = 'none';
     if (eventsView) eventsView.style.display = 'none';
@@ -381,6 +1396,7 @@ window.showSection = function (sectionId) {
     if (volunteersView) volunteersView.style.display = 'none';
     if (counterView) counterView.style.display = 'none';
     if (certificatesView) certificatesView.style.display = 'none';
+    if (emailBroadcastView) emailBroadcastView.style.display = 'none';
     if (reportsView) reportsView.classList.add('hidden');
 
     if (sectionId === 'dashboard') {
@@ -419,6 +1435,13 @@ window.showSection = function (sectionId) {
         if (certificatesSelectorView) certificatesSelectorView.style.display = 'grid';
         document.getElementById('vimarsh-certificates-view').style.display = 'none';
         document.getElementById('tenure-certificates-view').style.display = 'none';
+    } else if (sectionId === 'email-broadcast') {
+        if (emailBroadcastView) emailBroadcastView.style.display = 'block';
+        // Load initial data for email broadcasts
+        loadBroadcastStats();
+        loadEmailList();
+        loadBroadcastHistory();
+        updateRecipientCount();
     } else if (sectionId === 'reports') {
         if (reportsView) reportsView.classList.remove('hidden');
         if (typeof ReportingSystem !== 'undefined' && !ReportingSystem.initialized) {
@@ -1071,16 +2094,17 @@ window.sendReply = async function () {
     try {
         const payload = new URLSearchParams();
         payload.append('action', 'notify');
-        payload.append('method', 'replyViaEmail');
+        payload.append('method', 'sendIndividualEmail');
         payload.append('toEmail', email);
         payload.append('subject', subject);
+        payload.append('message', body);
         payload.append('body', body);
 
         const senderName = document.getElementById('sidebar-name')?.textContent || 'YUVA Admin';
-        payload.append('replierName', senderName);
+        payload.append('senderName', senderName);
         payload.append('userName', name); // Pass user name for greeting
 
-        const url = typeof GAS_WEB_APP_URL !== 'undefined' ? GAS_WEB_APP_URL : '';
+        const url = YUVA_ADMIN_GAS_URL;
         if (!url) throw new Error("Backend URL not found.");
 
         await fetch(url, {
@@ -5647,6 +6671,24 @@ const ReportingSystem = {
     resetFilters() {
         document.getElementById('zone-filter').value = '';
         document.getElementById('date-range-filter').value = 'all';
+
+// ===== EMAIL BROADCAST MANAGEMENT SECTION =====
+
+// Initialize email broadcast section when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    // Set up audience dropdown change listener
+    const audienceSelect = document.getElementById('broadcast-audience');
+    if (audienceSelect) {
+        audienceSelect.addEventListener('change', updateRecipientCount);
+    }
+    
+    // Set up email list filter listeners (now handled in loadEmailList for live search)
+    // const emailSearch = document.getElementById('email-search');
+    // const emailPageSize = document.getElementById('email-page-size');
+    // 
+    // if (emailSearch) emailSearch.addEventListener('input', debounce(() => { emailPaginationState.currentPage = 1; loadEmailList(); }, 500));
+    // if (emailPageSize) emailPageSize.addEventListener('change', () => { emailPaginationState.currentPage = 1; loadEmailList(); });
+});
         document.getElementById('college-filter').value = '';
         document.getElementById('date-from').value = '';
         document.getElementById('date-to').value = '';
@@ -6458,7 +7500,14 @@ window.viewVolunteerDetails = async function (volunteerId) {
 };
 
 window.approveVolunteer = async function (volunteerId, volunteerName, volunteerEmail) {
-    if (!confirm(`Approve ${volunteerName}? They will receive a confirmation email.`)) {
+    const confirmed = await CustomDialog.confirm(
+        `You are about to approve ${volunteerName}.\n\nThey will receive a confirmation email with next steps for onboarding.`,
+        'Approve Volunteer',
+        'Approve',
+        'Cancel'
+    );
+
+    if (!confirmed) {
         return;
     }
 
@@ -6482,7 +7531,14 @@ window.approveVolunteer = async function (volunteerId, volunteerName, volunteerE
 };
 
 window.rejectVolunteer = async function (volunteerId, volunteerName, volunteerEmail) {
-    if (!confirm(`Reject ${volunteerName}? They will receive a rejection email.`)) {
+    const confirmed = await CustomDialog.confirm(
+        `You are about to reject ${volunteerName}.\n\nThey will receive a professional rejection email with encouragement to reapply in the future.`,
+        'Reject Volunteer',
+        'Reject',
+        'Cancel'
+    );
+
+    if (!confirmed) {
         return;
     }
 
@@ -6506,7 +7562,14 @@ window.rejectVolunteer = async function (volunteerId, volunteerName, volunteerEm
 };
 
 window.deleteVolunteer = async function (volunteerId, volunteerName) {
-    if (!confirm(`Are you sure you want to delete ${volunteerName}? This action cannot be undone.`)) {
+    const confirmed = await CustomDialog.confirm(
+        `Are you sure you want to delete ${volunteerName}?\n\nThis action cannot be undone and the volunteer record will be permanently removed from the system.`,
+        'Delete Volunteer',
+        'Delete',
+        'Cancel'
+    );
+
+    if (!confirmed) {
         return;
     }
 

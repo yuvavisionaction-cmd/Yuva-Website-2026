@@ -78,8 +78,8 @@
                 <a href="#" class="menu-item" onclick="showSection('certificates')">
                     <i class="fas fa-certificate"></i> Certificates
                 </a>
-                <a href="#" class="menu-item" onclick="alert('Coming Soon')">
-                    <i class="fas fa-bullhorn"></i> Broadcasts
+                <a href="#" class="menu-item" onclick="showSection('email-broadcast')">
+                    <i class="fas fa-bullhorn"></i> Email Broadcasts
                 </a>
                 <a href="#" class="menu-item" onclick="showSection('reports')">
                     <i class="fas fa-file-export"></i> Reports & Data
@@ -1011,6 +1011,181 @@
                     </div>
                 </div>
 
+                <!-- EMAIL BROADCAST MANAGEMENT VIEW -->
+                <div id="email-broadcast-view" style="display:none;">
+                    <!-- STATS SECTION -->
+                    <div class="stats-grid" style="margin-bottom:30px;">
+                        <div class="modern-card">
+                            <div class="card-icon icon-blue"><i class="fas fa-envelope"></i></div>
+                            <h3>Total Emails</h3>
+                            <p style="font-size:32px; font-weight:700; color:#1f2937; margin:10px 0;" id="email-total-count">0</p>
+                            <p style="color:#999; margin:5px 0 0; font-size:13px;">In database</p>
+                        </div>
+                        <div class="modern-card">
+                            <div class="card-icon icon-green"><i class="fas fa-check-circle"></i></div>
+                            <h3>Broadcasts Sent</h3>
+                            <p style="font-size:32px; font-weight:700; color:#1f2937; margin:10px 0;" id="broadcast-sent-count">0</p>
+                            <p style="color:#999; margin:5px 0 0; font-size:13px;">Total campaigns</p>
+                        </div>
+                        <div class="modern-card">
+                            <div class="card-icon icon-orange"><i class="fas fa-paper-plane"></i></div>
+                            <h3>Active Campaign</h3>
+                            <p style="font-size:32px; font-weight:700; color:#1f2937; margin:10px 0;" id="broadcast-active-status">Ready</p>
+                            <p style="color:#999; margin:5px 0 0; font-size:13px;">Status</p>
+                        </div>
+                        <div class="modern-card">
+                            <div class="card-icon icon-purple"><i class="fas fa-users"></i></div>
+                            <h3>Audience Types</h3>
+                            <p style="font-size:32px; font-weight:700; color:#1f2937; margin:10px 0;" id="audience-types-count">0</p>
+                            <p style="color:#999; margin:5px 0 0; font-size:13px;">Available segments</p>
+                        </div>
+                    </div>
+
+                    <!-- EMAIL LIST MANAGEMENT TAB -->
+                    <div class="table-card" style="margin-bottom:30px;">
+                        <div class="table-header">
+                            <div class="table-title">Email Database Management</div>
+                            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
+                                <input type="text" id="email-search" class="form-control" style="width: 280px;" placeholder="Search email address...">
+                                <button class="btn primary" onclick="openAddEmailModal()">
+                                    <i class="fas fa-plus"></i> Add Email
+                                </button>
+                                <button class="btn primary" onclick="loadEmailList()">
+                                    <i class="fas fa-sync"></i> Refresh
+                                </button>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="modern-table" id="email-list-table">
+                                <thead>
+                                    <tr>
+                                        <th>Email Address</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td colspan="2" style="text-align:center; padding:30px;">Loading email list...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <!-- PAGINATION CONTROLS -->
+                        <div style="padding:16px; display:flex; gap:10px; align-items:center; justify-content:space-between; border-top:1px solid #e5e7eb;">
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <button class="btn secondary" onclick="previousEmailPage()"><i class="fas fa-chevron-left"></i> Previous</button>
+                                <span id="email-pagination-info" style="color:#666; font-size:14px;">Page <strong id="current-page">1</strong> of <strong id="total-pages">1</strong></span>
+                                <button class="btn secondary" onclick="nextEmailPage()">Next <i class="fas fa-chevron-right"></i></button>
+                            </div>
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <label style="color:#666; font-size:13px;">Records per page:</label>
+                                <select id="email-page-size" class="form-control" style="width:80px; padding:6px;" onchange="loadEmailList()">
+                                    <option value="10">10</option>
+                                    <option value="25">25</option>
+                                    <option value="50" selected>50</option>
+                                    <option value="100">100</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- EMAIL BROADCAST COMPOSER -->
+                    <div class="table-card">
+                        <div class="table-header">
+                            <div class="table-title">Create Email Broadcast</div>
+                            <button class="btn secondary" onclick="resetBroadcastForm()">
+                                <i class="fas fa-redo"></i> Clear Form
+                            </button>
+                        </div>
+                        <div class="table-body" style="padding:24px;">
+                            <div class="form-row">
+                                <div class="form-group" style="flex:1;">
+                                    <label>Campaign Title *</label>
+                                    <input type="text" id="broadcast-title" class="form-control" placeholder="e.g., Event Announcement 2026">
+                                </div>
+                                <div class="form-group" style="flex:1;">
+                                    <label>Target Audience *</label>
+                                    <select id="broadcast-audience" class="form-control" onchange="updateRecipientCount()">
+                                        <option value="">Select audience...</option>
+                                        <option value="all">All Emails (5,548)</option>
+                                        <option value="subscribed">Active Subscribers Only</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Email Subject *</label>
+                                    <input type="text" id="broadcast-subject" class="form-control" placeholder="Subject line for the email">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Email Body *</label>
+                                <textarea id="broadcast-message" class="form-control" rows="8" placeholder="Write your email message here..."></textarea>
+                                <small style="color:#666; display:block; margin-top:8px;">
+                                    <i class="fas fa-info-circle"></i> Tip: Use clear, concise language. Recipients will see this in their inbox.
+                                </small>
+                            </div>
+
+                            <div class="form-row" style="background:#f0f9ff; padding:16px; border-radius:8px; border-left:4px solid #3b82f6; margin-bottom:20px;">
+                                <div style="flex:1;">
+                                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+                                        <i class="fas fa-users" style="font-size:20px; color:#3b82f6;"></i>
+                                        <div>
+                                            <div style="font-weight:600; color:#1f2937;">Estimated Recipients</div>
+                                            <div style="color:#666; font-size:14px;">Preview how many people will receive this email</div>
+                                        </div>
+                                    </div>
+                                    <div id="recipient-count-display" style="background:white; padding:12px 16px; border-radius:6px; border:1px solid #e5e7eb;">
+                                        <span style="font-weight:600; color:#3b82f6; font-size:18px;">0</span>
+                                        <span style="color:#666;"> recipients will receive this email</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-row" style="display:flex; gap:10px;">
+                                <button class="btn secondary" onclick="previewBroadcast()">
+                                    <i class="fas fa-eye"></i> Preview
+                                </button>
+                                <button class="btn primary" onclick="sendBroadcast()" style="flex:1;">
+                                    <i class="fas fa-paper-plane"></i> Send Broadcast
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- BROADCAST HISTORY -->
+                    <div class="table-card" style="margin-top:30px;">
+                        <div class="table-header">
+                            <div class="table-title">Email Campaign History</div>
+                            <button class="btn secondary" onclick="loadBroadcastHistory()">
+                                <i class="fas fa-sync"></i> Refresh
+                            </button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="modern-table" id="broadcast-history-table">
+                                <thead>
+                                    <tr>
+                                        <th>Campaign Title</th>
+                                        <th>Subject</th>
+                                        <th>Audience</th>
+                                        <th>Recipient Count</th>
+                                        <th>Sent Date</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td colspan="7" style="text-align:center; padding:30px;">No campaigns yet. Create one above.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- REPORTS & ANALYTICS VIEW -->
                 <div id="reports-view" class="hidden">
                     <!-- PAGE HEADER -->
@@ -1621,6 +1796,199 @@
             window.addEventListener('resize', applyDesktopPillTargets);
         })();
     </script>
+
+
+    <!-- ADD EMAIL MODAL -->
+    <div id="add-email-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="width: 500px; max-width: 90%;">
+            <div class="modal-header">
+                <h3>Add New Email</h3>
+                <button class="modal-close" onclick="closeAddEmailModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Email Address *</label>
+                    <input type="email" id="new-email-input" class="form-control" placeholder="example@gmail.com">
+                </div>
+                <div class="form-group">
+                    <label>Subscription Status</label>
+                    <select id="new-email-status" class="form-control">
+                        <option value="subscribed">Active (Subscribed)</option>
+                        <option value="unsubscribed">Unsubscribed</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn secondary" onclick="closeAddEmailModal()">Cancel</button>
+                <button class="btn primary" onclick="saveNewEmail()">
+                    <i class="fas fa-plus"></i> Add Email
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- EDIT EMAIL MODAL -->
+    <div id="edit-email-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="width: 500px; max-width: 90%;">
+            <div class="modal-header">
+                <h3>Edit Email Address</h3>
+                <button class="modal-close" onclick="closeEditEmailModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Current Email</label>
+                    <input type="text" id="edit-email-current" class="form-control" disabled style="background:#f3f4f6; cursor:not-allowed;">
+                </div>
+                <div class="form-group">
+                    <label>New Email Address *</label>
+                    <input type="email" id="edit-email-new" class="form-control" placeholder="new-email@example.com">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn secondary" onclick="closeEditEmailModal()">Cancel</button>
+                <button class="btn primary" onclick="confirmEditEmail()">
+                    <i class="fas fa-save"></i> Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DELETE EMAIL CONFIRMATION MODAL -->
+    <div id="delete-email-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="width: 450px; max-width: 90%;">
+            <div class="modal-header">
+                <h3>Delete Email</h3>
+                <button class="modal-close" onclick="closeDeleteEmailModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div style="padding:16px; background:#fef2f2; border-left:4px solid #ef4444; border-radius:6px; margin-bottom:16px;">
+                    <p style="margin:0; color:#b91c1c; font-size:14px;">
+                        <i class="fas fa-exclamation-circle"></i> <strong>Warning:</strong> This action cannot be undone.
+                    </p>
+                </div>
+                <p style="margin:0; color:#374151; font-size:14px; line-height:1.5;">
+                    Are you sure you want to delete this email?<br><br>
+                    <strong style="color:#1f2937;" id="delete-email-display"></strong>
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn secondary" onclick="closeDeleteEmailModal()">Cancel</button>
+                <button class="btn" style="background:#ef4444; color:white; border:none;" onclick="confirmDeleteEmail()">
+                    <i class="fas fa-trash"></i> Delete
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SEND EMAIL MODAL -->
+    <div id="send-email-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="width: 600px; max-width: 95%;">
+            <div class="modal-header">
+                <h3>Send Email</h3>
+                <button class="modal-close" onclick="closeSendEmailModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>To</label>
+                    <input type="text" id="send-email-to" class="form-control" disabled style="background:#f3f4f6; cursor:not-allowed;">
+                </div>
+                <div class="form-group">
+                    <label>Subject *</label>
+                    <input type="text" id="send-email-subject" class="form-control" placeholder="Email subject...">
+                </div>
+                <div class="form-group">
+                    <label>Message *</label>
+                    <textarea id="send-email-message" class="form-control" placeholder="Write your message here..." rows="6" style="resize:vertical;"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn secondary" onclick="closeSendEmailModal()">Cancel</button>
+                <button class="btn primary" onclick="confirmSendEmail()">
+                    <i class="fas fa-paper-plane"></i> Send Email
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- EMAIL BROADCAST PREVIEW MODAL -->
+    <div id="broadcast-preview-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="width: 720px; max-width: 95%; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h3>Email Preview</h3>
+                <button class="modal-close" onclick="closeBroadcastPreviewModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div style="background:#f9fafb; padding:20px; border:1px solid #e5e7eb; border-radius:8px;">
+                    <div style="background:white; padding:24px; border-radius:6px;">
+                        <div style="margin-bottom:20px; padding-bottom:20px; border-bottom:1px solid #e5e7eb;">
+                            <div style="font-size:12px; color:#667085; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">From</div>
+                            <div style="font-weight:600; color:#1f2937;">YUVA India</div>
+                            <div id="preview-subject-line" style="font-size:14px; color:#667085; margin-top:8px;"></div>
+                        </div>
+                        <div id="preview-message" style="color:#374151; line-height:1.6; font-size:14px;"></div>
+                    </div>
+                </div>
+                <div style="margin-top:16px; padding:16px; background:#ecfdf5; border-left:4px solid #10b981; border-radius:6px;">
+                    <p style="margin:0; color:#065f46; font-size:13px;">
+                        <i class="fas fa-check-circle"></i> <strong>Recipients:</strong> <span id="preview-recipient-count">0</span> emails will be sent
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn secondary" onclick="closeBroadcastPreviewModal()">Close</button>
+                <button class="btn primary" onclick="confirmSendBroadcast()">
+                    <i class="fas fa-paper-plane"></i> Send Now
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- EMAIL BROADCAST CONFIRMATION MODAL -->
+    <div id="broadcast-confirm-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="width: 560px; max-width: 95%;">
+            <div class="modal-header">
+                <h3>Confirm Send Broadcast</h3>
+                <button class="modal-close" onclick="closeBroadcastConfirmModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div style="padding:16px; background:#fef2f2; border-left:4px solid #ef4444; border-radius:6px; margin-bottom:20px;">
+                    <p style="margin:0; color:#991b1b; font-size:14px;">
+                        <i class="fas fa-exclamation-triangle"></i> <strong>Important:</strong> This action will send emails to all selected recipients.
+                    </p>
+                </div>
+                <div style="background:#f3f4f6; padding:16px; border-radius:6px; margin-bottom:20px;">
+                    <div style="margin-bottom:12px;">
+                        <span style="color:#666; font-size:13px;">Campaign:</span>
+                        <div id="confirm-title" style="color:#1f2937; font-weight:600;"></div>
+                    </div>
+                    <div style="margin-bottom:12px;">
+                        <span style="color:#666; font-size:13px;">Audience:</span>
+                        <div id="confirm-audience" style="color:#1f2937; font-weight:600;"></div>
+                    </div>
+                    <div>
+                        <span style="color:#666; font-size:13px;">Recipients:</span>
+                        <div id="confirm-recipient-count" style="color:#1f2937; font-weight:600;"></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label style="display:flex; align-items:center; gap:8px;">
+                        <input type="checkbox" id="broadcast-confirm-checkbox">
+                        <span style="margin:0;">I confirm this broadcast is ready to send to all recipients</span>
+                    </label>
+                </div>
+                <p style="color:#667085; font-size:13px; margin-top:16px; line-height:1.5;">
+                    Emails will be sent through Google Apps Script backend. You can monitor progress in the Campaign History table.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn secondary" onclick="closeBroadcastConfirmModal()">Cancel</button>
+                <button class="btn primary" id="broadcast-final-send-btn" onclick="finalSendBroadcast()" disabled>
+                    <i class="fas fa-paper-plane"></i> Send to All Recipients
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="AdvancedAdmin.js?v=20260318j"></script>
 </body>
 

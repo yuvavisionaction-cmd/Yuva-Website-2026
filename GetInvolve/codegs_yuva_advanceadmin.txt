@@ -26,7 +26,20 @@ const TABLE_NAME = 'yuva_live_counters';
  */
 function doPost(e) {
     try {
-        const payload = JSON.parse(e.postData.contents || '{}');
+        let payload = {};
+        
+        // Try to parse form data first (for CORS bypass), then JSON
+        if (e.parameter && Object.keys(e.parameter).length > 0) {
+            // Form-urlencoded data
+            payload = e.parameter;
+            // Parse recipients if it's a comma-separated string
+            if (payload.recipients && typeof payload.recipients === 'string') {
+                payload.recipients = payload.recipients.split(',').map(r => r.trim());
+            }
+        } else {
+            // JSON data
+            payload = JSON.parse(e.postData.contents || '{}');
+        }
 
         // Notification/email methods do not need counter visitor/session fields.
         if (payload.action === 'notify') {
@@ -72,6 +85,12 @@ function handleNotify(payload) {
         switch (method) {
             case 'sendVimarshCertificateEmails':
                 return sendVimarshCertificateEmails(payload);
+            case 'sendBroadcastEmails':
+                return sendBroadcastEmails(payload);
+            case 'sendBatchEmails':
+                return sendBatchEmails(payload);
+            case 'sendIndividualEmail':
+                return sendIndividualEmail(payload);
             default:
                 return createResponse(false, 'Invalid notify method: ' + method, 400);
         }
@@ -206,7 +225,7 @@ function sendVimarshCertificateEmails(payload) {
 }
 
 /**
- * Handle GET requests (optional - for testing)
+ * Handle GET requests (optional - for testing and CORS preflight)
  */
 function doGet(e) {
     const action = e.parameter.action;
@@ -220,6 +239,34 @@ function doGet(e) {
         success: false,
         message: 'Invalid GET request. Use POST for API calls.'
     }));
+}
+
+/**
+ * Handle OPTIONS requests for CORS preflight
+ */
+function doOptions(e) {
+    const output = ContentService.createTextOutput('');
+    output.setMimeType(ContentService.MimeType.TEXT);
+    output.setHeaders({
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Max-Age': '86400'
+    });
+    return output;
+}
+
+/**
+ * Add CORS headers to response
+ */
+function addCorsHeaders(response) {
+    response.setHeaders({
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Max-Age': '86400'
+    });
+    return response;
 }
 
 // ===== REQUEST VALIDATION =====
@@ -611,18 +658,23 @@ function getTodayDateISO() {
 }
 
 /**
- * Create JSON response
+ * Create JSON response - ContentService.TextOutput does NOT support setHeaders().
+ * GAS deployed web apps handle CORS automatically; no manual header setting needed.
  */
 function createResponse(success, message, statusCode, data) {
-    const response = ContentService.createTextOutput(JSON.stringify({
+    const payload = {
         success: success,
-        message: message,
-        data: data || null
-    }));
-
-    response.setMimeType(ContentService.MimeType.JSON);
-    return response;
+        message: message || (success ? 'OK' : 'Error'),
+        statusCode: statusCode || (success ? 200 : 500)
+    };
+    if (data !== undefined && data !== null) {
+        payload.data = data;
+    }
+    return ContentService
+        .createTextOutput(JSON.stringify(payload))
+        .setMimeType(ContentService.MimeType.JSON);
 }
+
 
 // ===== TESTING FUNCTIONS =====
 /**
@@ -663,4 +715,430 @@ function viewCurrentCounters() {
     Logger.log('Refresh Count: ' + (data.refresh_count || 0));
     Logger.log('Unique Count: ' + (data.unique_count || 0));
     Logger.log('Last Update: ' + (data.updated_at || 'Never'));
+}
+
+// ===== EMAIL BROADCAST FUNCTIONS FOR ADVANCED ADMIN =====
+/**
+ * Send broadcast emails to multiple recipients
+ * Called from AdvancedAdmin.js email broadcast feature
+ * @param {Object} payload - { broadcastId, subject, message, recipients: [] }
+ */
+function sendBroadcastEmails(payload) {
+    try {
+        const broadcastId = payload.broadcastId;
+        const subject = String(payload.subject || '').trim();
+        const message = String(payload.message || '').trim();
+        const recipients = Array.isArray(payload.recipients) ? payload.recipients : [];
+        
+        if (!broadcastId || !subject || !message || recipients.length === 0) {
+            return createResponse(false, 'Missing required fields', 400);
+        }
+        
+        let successCount = 0;
+        let failCount = 0;
+        const errors = [];
+        
+        // Create HTML email template
+        const htmlBody = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="margin: 0; padding: 0; background-color: #f5f7fa; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+            <table role="presentation" style="width: 100%; border-collapse: collapse;">
+                <tr>
+                    <td style="padding: 40px 20px;">
+                        <table role="presentation" style="max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.1);">
+                            
+                            <!-- Header with YUVA Branding -->
+                            <tr>
+                                <td style="background: linear-gradient(135deg, #FF9933 0%, #E67300 100%); padding: 30px 40px; text-align: center;">
+                                    <h1 style="margin: 0; color: white; font-size: 28px; font-weight: 700; letter-spacing: 1px;">
+                                        YUVA
+                                    </h1>
+                                    <p style="margin: 8px 0 0 0; color: rgba(255,255,255,0.95); font-size: 14px; font-weight: 500;">
+                                        Youth United for Vision and Action
+                                    </p>
+                                </td>
+                            </tr>
+
+                            <!-- Main Content -->
+                            <tr>
+                                <td style="padding: 40px;">
+                                    <p style="margin: 0 0 24px 0; font-size: 16px; color: #2d3748; font-weight: 600;">
+                                        Hello,
+                                    </p>
+
+                                    <!-- Message Body -->
+                                    <div style="margin: 0 0 32px 0; font-size: 15px; line-height: 1.8; color: #4a5568; white-space: pre-wrap;">
+                                        ` + safeHtml_(message) + `
+                                    </div>
+
+                                    <!-- Call to Action -->
+                                    <div style="margin: 32px 0; text-align: center;">
+                                        <p style="margin: 0; font-size: 14px; color: #718096;">
+                                            Thank you for being part of YUVA community!
+                                        </p>
+                                    </div>
+
+                                    <!-- Signature -->
+                                    <div style="margin-top: 32px; padding-top: 24px; border-top: 2px solid #e2e8f0;">
+                                        <p style="margin: 0; font-size: 14px; color: #2d3748; font-weight: 600;">
+                                            Best regards,
+                                        </p>
+                                        <p style="margin: 4px 0 0 0; font-size: 14px; color: #000080; font-weight: 700;">
+                                            YUVA Team
+                                        </p>
+                                    </div>
+                                </td>
+                            </tr>
+
+                            <!-- Footer -->
+                            <tr>
+                                <td style="background: linear-gradient(to bottom, #f7fafc 0%, #edf2f7 100%); padding: 24px 40px; border-top: 1px solid #e2e8f0; text-align: center;">
+                                    <p style="margin: 0; font-size: 11px; color: #a0aec0;">
+                                        © ` + new Date().getFullYear() + ` YUVA. All rights reserved.<br>
+                                        This is an official communication from YUVA Admin Panel
+                                    </p>
+                                </td>
+                            </tr>
+
+                            <!-- Branding Strip -->
+                            <tr>
+                                <td style="background: linear-gradient(90deg, #FF9933 0%, #FFFFFF 33%, #138808 66%, #000080 100%); height: 4px;">
+                                </td>
+                            </tr>
+
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </body>
+        </html>
+        `;
+        
+        // Send emails in batches (Gmail limit: max 100 emails per day)
+        const BATCH_SIZE = 50;
+        
+        for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
+            const batch = recipients.slice(i, i + BATCH_SIZE);
+            
+            for (let j = 0; j < batch.length; j++) {
+                const email = String(batch[j]).trim();
+                
+                if (!email || email.length === 0) {
+                    failCount++;
+                    continue;
+                }
+                
+                try {
+                    GmailApp.sendEmail(email, subject, message, {
+                        htmlBody: htmlBody,
+                        name: 'YUVA Admin'
+                    });
+                    successCount++;
+                } catch (sendError) {
+                    failCount++;
+                    errors.push(email + ': ' + sendError.message);
+                    logError('Failed to send email to ' + email + ': ' + sendError.toString());
+                }
+            }
+            
+            // Small delay between batches to avoid rate limiting
+            Utilities.sleep(500);
+        }
+        
+        // Update broadcast status in Supabase
+        updateBroadcastStatus(broadcastId, successCount, failCount);
+        
+        return createResponse(true, 'Broadcast sent', 200, {
+            sent: successCount,
+            failed: failCount,
+            total: recipients.length,
+            broadcastId: broadcastId
+        });
+        
+    } catch (error) {
+        logError('sendBroadcastEmails error: ' + error.toString());
+        return createResponse(false, 'Failed to send emails: ' + error.toString(), 500);
+    }
+}
+
+/**
+ * Send a specific batch of emails (max 50) synchronously and return results.
+ * Called by frontend iteratively to avoid Apps Script timeouts.
+ */
+function sendBatchEmails(payload) {
+    try {
+        const subject = String(payload.subject || '').trim();
+        const message = String(payload.message || '').trim();
+        let recipients = payload.recipients || [];
+
+        if (typeof recipients === 'string') {
+            recipients = recipients.split(',').map(e => e.trim()).filter(e => e.length > 0);
+        }
+
+        if (!subject || !message || !recipients || recipients.length === 0) {
+            return createResponse(false, 'Missing required fields or recipients', 400);
+        }
+
+        const safeMessage = safeHtml_(message).replace(/\n/g, '<br>');
+        const senderName = 'YUVA Admin';
+
+        const textBody =
+            message + '\n\n' +
+            'Regards,\n' + senderName;
+
+        const htmlBody =
+            '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>' +
+            '<body style="margin:0;padding:0;background:#f3f4f6;font-family:\'Segoe UI\',Arial,sans-serif;">' +
+            '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f4f6;padding:32px 16px;">' +
+            '<tr><td align="center">' +
+            '<table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">' +
+            '<!-- HEADER -->' +
+            '<tr><td style="background:linear-gradient(135deg,#FF9933 0%,#E67300 100%);padding:32px 40px 28px;">' +
+            '<table width="100%" cellspacing="0" cellpadding="0"><tr>' +
+            '<td><div style="display:inline-block;background:rgba(255,255,255,0.18);border-radius:10px;padding:6px 16px 6px 10px;">' +
+            '<span style="font-size:26px;font-weight:900;color:#fff;letter-spacing:2px;">YUVA</span>' +
+            '<span style="display:block;font-size:10px;color:rgba(255,255,255,0.88);letter-spacing:1px;margin-top:-2px;">Youth United for Vision &amp; Action</span>' +
+            '</div></td>' +
+            '<td align="right" style="color:rgba(255,255,255,0.75);font-size:12px;">Official Communication</td>' +
+            '</tr></table>' +
+            '</td></tr>' +
+            '<!-- BODY -->' +
+            '<tr><td style="padding:36px 40px 28px;">' +
+            '<div style="font-size:15px;line-height:1.8;color:#374151;">' + safeMessage + '</div>' +
+            '<table role="presentation" cellspacing="0" cellpadding="0" style="margin-top:36px;border-top:2px solid #f3f4f6;padding-top:24px;width:100%"><tr><td>' +
+            '<p style="margin:0 0 4px;font-size:13px;color:#9ca3af;letter-spacing:0.5px;text-transform:uppercase;">Best regards</p>' +
+            '<p style="margin:0;font-size:16px;font-weight:700;color:#111827;">' + senderName + '</p>' +
+            '<p style="margin:4px 0 0;font-size:12px;color:#6b7280;">YUVA India Admin Panel</p>' +
+            '</td><td align="right" style="vertical-align:bottom;">' +
+            '<div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#FF9933,#E67300);display:flex;align-items:center;justify-content:center;text-align:center;line-height:44px;font-size:18px;font-weight:900;color:#fff;">Y</div>' +
+            '</td></tr></table>' +
+            '</td></tr>' +
+            '<!-- FOOTER -->' +
+            '<tr><td style="background:#f9fafb;padding:18px 40px;border-top:1px solid #e5e7eb;">' +
+            '<p style="margin:0;font-size:11px;color:#9ca3af;text-align:center;line-height:1.7;">This is an official communication from YUVA India Admin Panel.<br>Please do not reply directly to this email.</p>' +
+            '</td></tr>' +
+            '<!-- TRICOLOR STRIPE -->' +
+            '<tr><td>' +
+            '<table width="100%" cellspacing="0" cellpadding="0"><tr>' +
+            '<td width="33%" height="4" style="background:#FF9933;"></td>' +
+            '<td width="34%" height="4" style="background:#ffffff;border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;"></td>' +
+            '<td width="33%" height="4" style="background:#138808;"></td>' +
+            '</tr></table>' +
+            '</td></tr>' +
+            '<tr><td style="padding:14px 40px;text-align:center;background:#fff;">' +
+            '<p style="margin:0;font-size:11px;color:#d1d5db;">&copy; ' + new Date().getFullYear() + ' YUVA India &nbsp;&middot;&nbsp; All rights reserved</p>' +
+            '</td></tr>' +
+            '</table></td></tr></table>' +
+            '</body></html>';
+
+        let successCount = 0;
+        let failCount = 0;
+        const errors = [];
+
+        // Direct sequential send to each in this small batch
+        for (let j = 0; j < recipients.length; j++) {
+            const email = String(recipients[j]).trim();
+            if (!email) continue;
+            
+            try {
+                GmailApp.sendEmail(email, subject, textBody, {
+                    htmlBody: htmlBody,
+                    name: 'YUVA Admin'
+                });
+                successCount++;
+            } catch (sendError) {
+                failCount++;
+                errors.push(`${email}: ${sendError.message}`);
+                logError(`Batch email failed to ${email}: ${sendError.toString()}`);
+            }
+        }
+
+        return createResponse(true, 'Batch processed', 200, {
+            sent: successCount,
+            failed: failCount,
+            total: recipients.length,
+            errors: errors
+        });
+
+    } catch (error) {
+        logError('sendBatchEmails error: ' + error.toString());
+        return createResponse(false, 'Failed to process batch: ' + error.toString(), 500);
+    }
+}
+
+/**
+ * Send one-off individual email from Email Panel and update tracking status.
+ */
+function sendIndividualEmail(payload) {
+    const broadcastIdRaw = payload.broadcastId || payload.requestId || '';
+    const broadcastId = Number(String(broadcastIdRaw || '').trim());
+
+    try {
+        const toEmail = String(payload.toEmail || payload.email || '').trim();
+        const subject = String(payload.subject || '').trim();
+        const message = String(payload.message || payload.body || '').trim();
+        const senderName = String(payload.senderName || payload.replierName || 'YUVA Admin').trim();
+
+        if (!toEmail || !subject || !message) {
+            if (!isNaN(broadcastId) && broadcastId > 0) {
+                updateSingleEmailStatus(broadcastId, false);
+            }
+            return createResponse(false, 'Missing required fields for sendIndividualEmail', 400);
+        }
+
+        const safeMessage = safeHtml_(message).replace(/\n/g, '<br>');
+        const safeSender = safeHtml_(senderName || 'YUVA Admin');
+
+        const textBody =
+            message + '\n\n' +
+            'Regards,\n' + senderName;
+
+        const htmlBody =
+            '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>' +
+            '<body style="margin:0;padding:0;background:#f3f4f6;font-family:\'Segoe UI\',Arial,sans-serif;">' +
+            '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f4f6;padding:32px 16px;">' +
+            '<tr><td align="center">' +
+            '<table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">' +
+
+            '<!-- HEADER -->' +
+            '<tr><td style="background:linear-gradient(135deg,#FF9933 0%,#E67300 100%);padding:32px 40px 28px;">' +
+            '<table width="100%" cellspacing="0" cellpadding="0"><tr>' +
+            '<td><div style="display:inline-block;background:rgba(255,255,255,0.18);border-radius:10px;padding:6px 16px 6px 10px;">' +
+            '<span style="font-size:26px;font-weight:900;color:#fff;letter-spacing:2px;">YUVA</span>' +
+            '<span style="display:block;font-size:10px;color:rgba(255,255,255,0.88);letter-spacing:1px;margin-top:-2px;">Youth United for Vision &amp; Action</span>' +
+            '</div></td>' +
+            '<td align="right" style="color:rgba(255,255,255,0.75);font-size:12px;">Official Communication</td>' +
+            '</tr></table>' +
+            '</td></tr>' +
+
+            '<!-- BODY -->' +
+            '<tr><td style="padding:36px 40px 28px;">' +
+            '<div style="font-size:15px;line-height:1.8;color:#374151;">' + safeMessage + '</div>' +
+            '<table role="presentation" cellspacing="0" cellpadding="0" style="margin-top:36px;border-top:2px solid #f3f4f6;padding-top:24px;width:100%"><tr><td>' +
+            '<p style="margin:0 0 4px;font-size:13px;color:#9ca3af;letter-spacing:0.5px;text-transform:uppercase;">Best regards</p>' +
+            '<p style="margin:0;font-size:16px;font-weight:700;color:#111827;">' + safeSender + '</p>' +
+            '<p style="margin:4px 0 0;font-size:12px;color:#6b7280;">YUVA India Admin Panel</p>' +
+            '</td><td align="right" style="vertical-align:bottom;">' +
+            '<div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#FF9933,#E67300);display:flex;align-items:center;justify-content:center;text-align:center;line-height:44px;font-size:18px;font-weight:900;color:#fff;">Y</div>' +
+            '</td></tr></table>' +
+            '</td></tr>' +
+
+            '<!-- FOOTER -->' +
+            '<tr><td style="background:#f9fafb;padding:18px 40px;border-top:1px solid #e5e7eb;">' +
+            '<p style="margin:0;font-size:11px;color:#9ca3af;text-align:center;line-height:1.7;">' +
+            'This is an official communication from YUVA India Admin Panel.<br>' +
+            'Please do not reply directly to this email.' +
+            '</p>' +
+            '</td></tr>' +
+
+            '<!-- TRICOLOR STRIPE -->' +
+            '<tr><td>' +
+            '<table width="100%" cellspacing="0" cellpadding="0"><tr>' +
+            '<td width="33%" height="4" style="background:#FF9933;"></td>' +
+            '<td width="34%" height="4" style="background:#ffffff;border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;"></td>' +
+            '<td width="33%" height="4" style="background:#138808;"></td>' +
+            '</tr></table>' +
+            '</td></tr>' +
+
+            '<tr><td style="padding:14px 40px;text-align:center;background:#fff;">' +
+            '<p style="margin:0;font-size:11px;color:#d1d5db;">&copy; ' + new Date().getFullYear() + ' YUVA India &nbsp;&middot;&nbsp; All rights reserved</p>' +
+            '</td></tr>' +
+
+            '</table></td></tr></table>' +
+            '</body></html>';
+
+        GmailApp.sendEmail(toEmail, subject, textBody, {
+            htmlBody: htmlBody,
+            name: senderName || 'YUVA Admin'
+        });
+
+        if (!isNaN(broadcastId) && broadcastId > 0) {
+            updateSingleEmailStatus(broadcastId, true);
+        }
+
+        return createResponse(true, 'Individual email sent', 200);
+    } catch (error) {
+        if (!isNaN(broadcastId) && broadcastId > 0) {
+            updateSingleEmailStatus(broadcastId, false);
+        }
+        logError('sendIndividualEmail error: ' + error.toString());
+        return createResponse(false, 'Failed to send individual email: ' + error.toString(), 500);
+    }
+}
+
+function updateSingleEmailStatus(broadcastId, isSent) {
+    try {
+        const url = SUPABASE_URL + '/rest/v1/email_broadcasts?id=eq.' + broadcastId;
+        const payload = {
+            sent_count: isSent ? 1 : 0,
+            failed_count: isSent ? 0 : 1,
+            status: isSent ? 'sent' : 'failed',
+            sent_at: new Date().toISOString()
+        };
+
+        const options = {
+            method: 'PATCH',
+            headers: {
+                'apikey': SUPABASE_API_KEY,
+                'Authorization': 'Bearer ' + SUPABASE_API_KEY,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=representation'
+            },
+            payload: JSON.stringify(payload),
+            muteHttpExceptions: true
+        };
+
+        const response = UrlFetchApp.fetch(url, options);
+        const statusCode = response.getResponseCode();
+        if (statusCode < 200 || statusCode >= 300) {
+            logError('updateSingleEmailStatus failed: HTTP ' + statusCode + ' for broadcastId ' + broadcastId);
+        }
+    } catch (error) {
+        logError('updateSingleEmailStatus error: ' + error.toString());
+    }
+}
+
+/**
+ * Update broadcast status in Supabase after sending
+ * @param {number} broadcastId - The broadcast ID
+ * @param {number} sentCount - Number of emails sent successfully
+ * @param {number} failedCount - Number of emails that failed
+ */
+function updateBroadcastStatus(broadcastId, sentCount, failedCount) {
+    try {
+        const url = SUPABASE_URL + '/rest/v1/email_broadcasts?id=eq.' + broadcastId;
+        
+        const payload = {
+            sent_count: sentCount,
+            failed_count: failedCount,
+            status: failedCount === 0 ? 'sent' : 'partial',
+            sent_at: new Date().toISOString()
+        };
+        
+        const options = {
+            method: 'PATCH',
+            headers: {
+                'apikey': SUPABASE_API_KEY,
+                'Authorization': 'Bearer ' + SUPABASE_API_KEY,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=representation'
+            },
+            payload: JSON.stringify(payload),
+            muteHttpExceptions: true
+        };
+        
+        const response = UrlFetchApp.fetch(url, options);
+        const statusCode = response.getResponseCode();
+        
+        if (statusCode < 200 || statusCode >= 300) {
+            logError('updateBroadcastStatus failed: HTTP ' + statusCode);
+        }
+    } catch (error) {
+        logError('updateBroadcastStatus error: ' + error.toString());
+    }
 }
