@@ -136,7 +136,7 @@
 
 @media (max-width: 480px) {
     .vimarsh-hero {
-        background: url("https://res.cloudinary.com/dnwpgcx7i/image/upload/v1757593238/Collage_photot_for_Mobile_tdlpkx.png") center / cover no-repeat;
+        background: url("https://jgsrsjwmywiirtibofth.supabase.co/storage/v1/object/public/gallery_photos/photos/vimarsh/migrated/Collage_photot_for_Mobile_tdlpkx.png") center / cover no-repeat;
     }
 
     .vimarsh-hero h1 {
@@ -467,7 +467,7 @@
 /* --- MOBILE MEDIA QUERY --- */
 @media (max-width: 768px) {
     .brouchure {
-        background: url('https://res.cloudinary.com/dnwpgcx7i/image/upload/v1757593238/Collage_photot_for_Mobile_tdlpkx.png') center / cover no-repeat;
+        background: url('https://jgsrsjwmywiirtibofth.supabase.co/storage/v1/object/public/gallery_photos/photos/vimarsh/migrated/Collage_photot_for_Mobile_tdlpkx.png') center / cover no-repeat;
     }
 
     .book {
@@ -518,7 +518,7 @@
 
 @media (max-width: 480px) {
     .brouchure {
-        background: url("https://res.cloudinary.com/dnwpgcx7i/image/upload/v1757593238/Collage_photot_for_Mobile_tdlpkx.png") center / cover no-repeat;
+        background: url("https://jgsrsjwmywiirtibofth.supabase.co/storage/v1/object/public/gallery_photos/photos/vimarsh/migrated/Collage_photot_for_Mobile_tdlpkx.png") center / cover no-repeat;
     }
 
     .book {

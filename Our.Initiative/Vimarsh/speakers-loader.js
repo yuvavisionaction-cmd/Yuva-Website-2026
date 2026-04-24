@@ -1,101 +1,166 @@
 /**
  * ================================================
- * VIMARSH SPEAKERS - SUPABASE LOADER
+ * VIMARSH SPEAKERS - DYNAMIC SUPABASE LOADER
  * ================================================
- * 
- * This script handles speaker images from Supabase Storage
- * To use: Upload speaker images to gallery_photos/vimarsh26/speakers/ folder
- * 
- * Name format: speaker_[name].[ext]
- * Example: speaker_manish_tripathi.jpg
+ *
+ * Loads speaker images only from current page year folder:
+ * gallery_photos/photos/vimarsh/{year}/speakers/
  */
 
-// Speaker image mapping
-// If you have speaker images in Supabase, map them here
-// Otherwise, keep using local files or upload to Supabase
-const SPEAKERS_CONFIG = {
-    // Example: Map speaker names to their Supabase Storage filenames
-    // Format: 'Speaker Display Name': 'filename-in-supabase.jpg'
-    
-    // If images are in: gallery_photos/vimarsh26/speakers/
-    // They will be fetched with: https://[PROJECT].supabase.co/storage/v1/object/public/gallery_photos/vimarsh26/speakers/[filename]
-    
-    // Uncomment and configure if you upload speaker images to Supabase:
-    /*
-    'Mr. Manish Tripathi': 'speaker_manish_tripathi.png',
-    'Miss. Nehmat Mongia': 'speaker_nehmat_mongia.jpg',
-    'Mrs. Vinita Sidhartha': 'speaker_vinita_sidhartha.jpg',
-    // Add more speakers as needed...
-    */
+const baseSupabaseConfig = (typeof window !== 'undefined' && window.SUPABASE_CONFIG)
+    ? window.SUPABASE_CONFIG
+    : ((typeof SUPABASE_CONFIG !== 'undefined') ? SUPABASE_CONFIG : null);
+
+const SPEAKER_STORAGE_CONFIG = {
+    PROJECT_URL: baseSupabaseConfig?.PROJECT_URL || '',
+    ANON_KEY: baseSupabaseConfig?.ANON_KEY || '',
+    BUCKET: baseSupabaseConfig?.BUCKET_NAME || '',
+    BASE_FOLDER: 'photos/vimarsh'
 };
 
-// Function to get speaker image URL from Supabase
-function getSpeakerImageUrl(speakerName) {
-    const filename = SPEAKERS_CONFIG[speakerName];
-    
-    if (!filename) {
-        // If not configured, return null (will use existing img src)
-        return null;
-    }
-    
-    // Construct Supabase URL
-    return `${SUPABASE_CONFIG.STORAGE_URL}speakers/${filename}`;
+function isSpeakerImage(fileName) {
+    return /\.(jpg|jpeg|png|webp|gif)$/i.test(fileName || '');
 }
 
-// Initialize speaker images on page load
-function initSpeakerImages() {
-    const speakerCards = document.querySelectorAll('.speaker-card');
-    
-    speakerCards.forEach(card => {
-        const img = card.querySelector('.speaker-front img');
-        const speakerName = card.querySelector('.speaker-back h3')?.textContent.trim();
-        
-        if (img && speakerName) {
-            const supabaseUrl = getSpeakerImageUrl(speakerName);
-            
-            if (supabaseUrl) {
-                // Replace Cloudinary URL with Supabase URL
-                img.src = supabaseUrl;
-                img.setAttribute('data-original-src', img.src);
-                
-                // Handle load error
-                img.onerror = function() {
-                    console.warn(`Failed to load speaker image from Supabase: ${speakerName}`);
-                    // Fallback to data-original-src if available
-                };
-            }
-        }
+function detectVimarshPageYear() {
+    const path = (window.location.pathname || '').toLowerCase();
+    const pathMatch = path.match(/vimarsh(\d{4})\.html$/i);
+    if (pathMatch) return pathMatch[1];
+
+    const heroTitle = document.querySelector('#hero h1')?.textContent || '';
+    const hero2kMatch = heroTitle.match(/2k(\d{2})/i);
+    if (hero2kMatch) return `20${hero2kMatch[1]}`;
+
+    const title = document.title || '';
+    const title2kMatch = title.match(/2k(\d{2})/i);
+    if (title2kMatch) return `20${title2kMatch[1]}`;
+
+    const titleYearMatch = title.match(/(20\d{2})/);
+    if (titleYearMatch) return titleYearMatch[1];
+
+    return null;
+}
+
+function getSpeakerFolder(year) {
+    return `${SPEAKER_STORAGE_CONFIG.BASE_FOLDER}/${year}/speakers`;
+}
+
+function getPublicSpeakerUrl(folderPath, relativeFileName) {
+    return `${SPEAKER_STORAGE_CONFIG.PROJECT_URL}/storage/v1/object/public/${SPEAKER_STORAGE_CONFIG.BUCKET}/${folderPath}/${relativeFileName}`;
+}
+
+function showNoSpeakerPhotos(yearLabel) {
+    const speakersSection = document.getElementById('speakers') || document.querySelector('.speakers');
+    const slider = document.getElementById('speakersSlider');
+    const existingNotice = document.querySelector('.speakers-empty-state');
+
+    if (slider) {
+        slider.style.display = 'none';
+    }
+
+    if (!speakersSection || existingNotice) return;
+
+    const notice = document.createElement('p');
+    notice.className = 'speakers-empty-state';
+    notice.textContent = `No speaker photos available for ${yearLabel}.`;
+    notice.style.textAlign = 'center';
+    notice.style.fontSize = '1.1rem';
+    notice.style.fontWeight = '700';
+    notice.style.color = '#7a0000';
+    notice.style.margin = '20px auto 0';
+    notice.style.maxWidth = '900px';
+    notice.style.padding = '14px 18px';
+    notice.style.border = '1px solid rgba(122, 0, 0, 0.2)';
+    notice.style.borderRadius = '12px';
+    notice.style.background = '#fff7eb';
+    speakersSection.appendChild(notice);
+}
+
+async function fetchSpeakerFiles(folderPath) {
+    const listUrl = `${SPEAKER_STORAGE_CONFIG.PROJECT_URL}/storage/v1/object/list/${SPEAKER_STORAGE_CONFIG.BUCKET}`;
+
+    const response = await fetch(listUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SPEAKER_STORAGE_CONFIG.ANON_KEY}`,
+            'apikey': SPEAKER_STORAGE_CONFIG.ANON_KEY
+        },
+        body: JSON.stringify({
+            prefix: folderPath,
+            limit: 1000,
+            offset: 0,
+            sortBy: { column: 'created_at', order: 'asc' }
+        })
     });
+
+    if (!response.ok) {
+        throw new Error(`Failed to list speaker files: ${response.status}`);
+    }
+
+    const files = await response.json();
+    return files
+        .filter(file => file?.name && isSpeakerImage(file.name))
+        .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 }
 
-// Auto-initialize if SPEAKERS_CONFIG is not empty
-if (Object.keys(SPEAKERS_CONFIG).length > 0) {
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initSpeakerImages);
-    } else {
-        initSpeakerImages();
+async function initSpeakerImages() {
+    try {
+        const cards = Array.from(document.querySelectorAll('.speaker-card'));
+        if (cards.length === 0) return;
+
+        if (!SPEAKER_STORAGE_CONFIG.PROJECT_URL || !SPEAKER_STORAGE_CONFIG.ANON_KEY || !SPEAKER_STORAGE_CONFIG.BUCKET) {
+            const pageYear = detectVimarshPageYear() || 'this year';
+            showNoSpeakerPhotos(pageYear);
+            console.warn('SUPABASE_CONFIG is missing for speaker loader.');
+            return;
+        }
+
+        const pageYear = detectVimarshPageYear();
+        if (!pageYear) {
+            showNoSpeakerPhotos('this year');
+            console.warn('Could not detect Vimarsh page year. Speaker photos hidden by design.');
+            return;
+        }
+
+        const folderPath = getSpeakerFolder(pageYear);
+        const speakerFiles = await fetchSpeakerFiles(folderPath);
+        if (speakerFiles.length === 0) {
+            showNoSpeakerPhotos(pageYear);
+            console.warn(`No speaker images found in ${folderPath}.`);
+            return;
+        }
+
+        cards.forEach((card, index) => {
+            const img = card.querySelector('.speaker-front img');
+            const file = speakerFiles[index];
+
+            if (!img) return;
+
+            if (!file) {
+                card.style.display = 'none';
+                return;
+            }
+
+            img.src = getPublicSpeakerUrl(folderPath, file.name);
+            img.onerror = function () {
+                const parentCard = this.closest('.speaker-card');
+                if (parentCard) {
+                    parentCard.style.display = 'none';
+                }
+            };
+        });
+
+        console.log(`Loaded ${Math.min(cards.length, speakerFiles.length)} speaker images from ${folderPath}`);
+    } catch (error) {
+        const pageYear = detectVimarshPageYear() || 'this year';
+        showNoSpeakerPhotos(pageYear);
+        console.error('Speaker loader failed:', error);
     }
 }
 
-/**
- * ================================================
- * INSTRUCTIONS FOR USING SPEAKER IMAGES
- * ================================================
- * 
- * 1. Upload speaker images to Supabase Storage:
- *    - Bucket: gallery_photos
- *    - Folder: vimarsh26/speakers/
- *    - Make sure bucket is PUBLIC
- * 
- * 2. Name files clearly:
- *    - Example: speaker_manish_tripathi.jpg
- *    - Example: speaker_nehmat_mongia.png
- * 
- * 3. Update SPEAKERS_CONFIG above:
- *    - Add mapping: 'Display Name': 'filename.ext'
- * 
- * 4. Or, manually replace Cloudinary URLs in HTML with:
- *    https://YOUR_PROJECT_ID.supabase.co/storage/v1/object/public/gallery_photos/vimarsh26/speakers/filename.jpg
- * 
- * ================================================
- */
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSpeakerImages);
+} else {
+    initSpeakerImages();
+}

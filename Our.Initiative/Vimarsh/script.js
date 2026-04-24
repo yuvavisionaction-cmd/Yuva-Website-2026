@@ -200,89 +200,228 @@ function initGallerySection() {
 
     ioHeading.observe(heading);
 
-    // ===== NEW JS SLIDER LOGIC FOR GALLERY =====
+    const gallerySection = document.querySelector(".gallery");
     const viewport = document.querySelector(".gallery .slider-container");
-    if (!viewport) return;
-    const track = viewport.querySelector(".slider-track");
-    const images = Array.from(track.querySelectorAll("img"));
-    if (images.length === 0) return;
+    const track = viewport ? viewport.querySelector(".slider-track") : null;
+    const galleryBtn = document.querySelector(".gallery .gallery-btn");
+    if (!gallerySection || !viewport || !track) return;
 
-    // Clone images once
-    const clones = images.map(img => img.cloneNode(true));
-    track.append(...clones);
+    const supabaseConfig = (typeof window !== 'undefined' && window.SUPABASE_CONFIG)
+        ? window.SUPABASE_CONFIG
+        : ((typeof SUPABASE_CONFIG !== 'undefined') ? SUPABASE_CONFIG : null);
 
-    const SPEED_PX_PER_SEC = 50; // Constant speed for gallery
+    function detectVimarshPageYear() {
+        const path = (window.location.pathname || '').toLowerCase();
+        const pathMatch = path.match(/vimarsh(\d{4})\.html$/i);
+        if (pathMatch) return pathMatch[1];
 
-    let animRunning = false;
-    let rafId = null;
-    let lastTs = null;
-    let isAnimatingScroll = false;
-    let scrollTimeout = null;
+        const heroTitle = document.querySelector('#hero h1')?.textContent || '';
+        const hero2kMatch = heroTitle.match(/2k(\d{2})/i);
+        if (hero2kMatch) return `20${hero2kMatch[1]}`;
 
-    // Calculate width of original images + gaps
-    const imgStyle = window.getComputedStyle(images[0]);
-    const imgWidth = images[0].offsetWidth + parseFloat(imgStyle.marginLeft) + parseFloat(imgStyle.marginRight);
-    const imgGap = parseFloat(window.getComputedStyle(track).gap) || 15;
-    const setWidth = images.length * (imgWidth + imgGap) - imgGap; // Total width of one set
+        const title = document.title || '';
+        const titleYearMatch = title.match(/(20\d{2})/);
+        if (titleYearMatch) return titleYearMatch[1];
 
+        return null;
+    }
 
-    function step(ts) {
-        if (!animRunning) { lastTs = null; return; }
-        if (lastTs == null) lastTs = ts;
-        const dt = (ts - lastTs) / 1000;
-        lastTs = ts;
-
-        isAnimatingScroll = true;
-        viewport.scrollLeft += SPEED_PX_PER_SEC * dt;
-
-        if (viewport.scrollLeft >= setWidth) {
-            viewport.scrollLeft -= setWidth;
+    function showNoGalleryPhotos(yearLabel) {
+        viewport.style.display = 'none';
+        if (galleryBtn) {
+            galleryBtn.style.display = 'none';
         }
 
-        requestAnimationFrame(() => { isAnimatingScroll = false; });
+        if (gallerySection.querySelector('.gallery-empty-state-wrap')) return;
 
-        rafId = requestAnimationFrame(step);
+        const emptyWrap = document.createElement('div');
+        emptyWrap.className = 'gallery-empty-state-wrap';
+        emptyWrap.style.display = 'flex';
+        emptyWrap.style.justifyContent = 'center';
+        emptyWrap.style.alignItems = 'center';
+        emptyWrap.style.minHeight = '42vh';
+        emptyWrap.style.width = '100%';
+        emptyWrap.style.padding = '0 16px';
+
+        const empty = document.createElement('p');
+        empty.className = 'gallery-empty-state';
+        empty.textContent = `No gallery photos available for ${yearLabel}.`;
+        empty.style.textAlign = 'center';
+        empty.style.fontSize = '1.1rem';
+        empty.style.fontWeight = '700';
+        empty.style.color = '#7a0000';
+        empty.style.margin = '0 auto';
+        empty.style.maxWidth = '940px';
+        empty.style.width = '100%';
+        empty.style.padding = '12px 16px';
+        empty.style.border = '1px solid rgba(122, 0, 0, 0.2)';
+        empty.style.borderRadius = '12px';
+        empty.style.background = '#fff7eb';
+
+        emptyWrap.appendChild(empty);
+        gallerySection.appendChild(emptyWrap);
     }
 
-    function play() {
-        if (animRunning) return;
-        animRunning = true;
-        rafId = requestAnimationFrame(step);
+    function isImageFile(fileName) {
+        return /\.(jpg|jpeg|png|webp|gif)$/i.test(fileName || '');
     }
 
-    function pause() {
-        animRunning = false;
-        if (rafId) { cancelAnimationFrame(rafId); rafId = null; lastTs = null; }
-    }
+    async function loadYearGalleryImages() {
+        const pageYear = detectVimarshPageYear();
+        if (!pageYear) {
+            showNoGalleryPhotos('this year');
+            return false;
+        }
 
-    // Pause on manual scroll
-    viewport.addEventListener("scroll", () => {
-        if (isAnimatingScroll) return;
-        pause();
-        clearTimeout(scrollTimeout);
-        scrollTimeout = setTimeout(play, 3000);
-    }, { passive: true });
+        if (!supabaseConfig?.PROJECT_URL || !supabaseConfig?.ANON_KEY || !supabaseConfig?.BUCKET_NAME) {
+            showNoGalleryPhotos(pageYear);
+            return false;
+        }
 
-    // Pause on hover
-    viewport.addEventListener("mouseenter", pause, { passive: true });
-    viewport.addEventListener("mouseleave", () => {
-        clearTimeout(scrollTimeout);
-        scrollTimeout = setTimeout(play, 120);
-    }, { passive: true });
+        const listUrl = `${supabaseConfig.PROJECT_URL}/storage/v1/object/list/${supabaseConfig.BUCKET_NAME}`;
 
-    // Pause when not visible
-    const ioSlider = new IntersectionObserver(entries => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) play();
-            else pause();
+        async function listImagesForPrefix(prefix) {
+            const response = await fetch(listUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${supabaseConfig.ANON_KEY}`,
+                    'apikey': supabaseConfig.ANON_KEY
+                },
+                body: JSON.stringify({
+                    prefix,
+                    limit: 1000,
+                    offset: 0,
+                    sortBy: { column: 'created_at', order: 'asc' }
+                })
+            });
+
+            if (!response.ok) {
+                return [];
+            }
+
+            const files = await response.json();
+            return files
+                .filter(file => file?.name && isImageFile(file.name))
+                .map(file => ({ ...file, __prefix: prefix }));
+        }
+
+        const prefixes = [
+            `photos/vimarsh/${pageYear}/gallery`,
+            `photos/vimarsh/${pageYear}`
+        ];
+
+        const allImages = (await Promise.all(prefixes.map(listImagesForPrefix))).flat();
+
+        const uniqueByPath = new Map();
+        allImages.forEach(file => {
+            const key = `${file.__prefix}/${file.name}`;
+            if (!uniqueByPath.has(key)) {
+                uniqueByPath.set(key, file);
+            }
         });
-    }, { threshold: 0.35 });
-    ioSlider.observe(viewport);
 
-    // Start if visible
-    setTimeout(() => {
-        if (viewport.getBoundingClientRect().top < window.innerHeight) play();
-    }, 200);
+        const imageFiles = Array.from(uniqueByPath.values())
+            .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+        if (imageFiles.length === 0) {
+            showNoGalleryPhotos(pageYear);
+            return false;
+        }
+
+        track.innerHTML = imageFiles
+            .map(file => {
+                const src = `${supabaseConfig.PROJECT_URL}/storage/v1/object/public/${supabaseConfig.BUCKET_NAME}/${file.__prefix}/${file.name}`;
+                return `<img src="${src}" alt="Gallery ${pageYear}">`;
+            })
+            .join('');
+
+        return true;
+    }
+
+    function startGallerySlider() {
+        const images = Array.from(track.querySelectorAll("img"));
+        if (images.length === 0) return;
+
+        const clones = images.map(img => img.cloneNode(true));
+        track.append(...clones);
+
+        const SPEED_PX_PER_SEC = 50;
+        let animRunning = false;
+        let rafId = null;
+        let lastTs = null;
+        let isAnimatingScroll = false;
+        let scrollTimeout = null;
+
+        const imgStyle = window.getComputedStyle(images[0]);
+        const imgWidth = images[0].offsetWidth + parseFloat(imgStyle.marginLeft) + parseFloat(imgStyle.marginRight);
+        const imgGap = parseFloat(window.getComputedStyle(track).gap) || 15;
+        const setWidth = images.length * (imgWidth + imgGap) - imgGap;
+
+        function step(ts) {
+            if (!animRunning) { lastTs = null; return; }
+            if (lastTs == null) lastTs = ts;
+            const dt = (ts - lastTs) / 1000;
+            lastTs = ts;
+
+            isAnimatingScroll = true;
+            viewport.scrollLeft += SPEED_PX_PER_SEC * dt;
+
+            if (viewport.scrollLeft >= setWidth) {
+                viewport.scrollLeft -= setWidth;
+            }
+
+            requestAnimationFrame(() => { isAnimatingScroll = false; });
+            rafId = requestAnimationFrame(step);
+        }
+
+        function play() {
+            if (animRunning) return;
+            animRunning = true;
+            rafId = requestAnimationFrame(step);
+        }
+
+        function pause() {
+            animRunning = false;
+            if (rafId) { cancelAnimationFrame(rafId); rafId = null; lastTs = null; }
+        }
+
+        viewport.addEventListener("scroll", () => {
+            if (isAnimatingScroll) return;
+            pause();
+            clearTimeout(scrollTimeout);
+            scrollTimeout = setTimeout(play, 3000);
+        }, { passive: true });
+
+        viewport.addEventListener("mouseenter", pause, { passive: true });
+        viewport.addEventListener("mouseleave", () => {
+            clearTimeout(scrollTimeout);
+            scrollTimeout = setTimeout(play, 120);
+        }, { passive: true });
+
+        const ioSlider = new IntersectionObserver(entries => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) play();
+                else pause();
+            });
+        }, { threshold: 0.35 });
+        ioSlider.observe(viewport);
+
+        setTimeout(() => {
+            if (viewport.getBoundingClientRect().top < window.innerHeight) play();
+        }, 200);
+    }
+
+    loadYearGalleryImages()
+        .then(hasImages => {
+            if (hasImages) {
+                startGallerySlider();
+            }
+        })
+        .catch(() => {
+            const year = detectVimarshPageYear() || 'this year';
+            showNoGalleryPhotos(year);
+        });
 }
 
 
@@ -320,9 +459,9 @@ function initArchiveSection() {
     });
 }
 
-// ✅ Add this entire new function
-// âœ… MOVE this OUTSIDE the function, at the top of your script
-const isScheduleReady = false;
+function getScheduleReadyFlag() {
+    return Boolean(window.VIMARSH_FEATURE_FLAGS && window.VIMARSH_FEATURE_FLAGS.scheduleModal);
+}
 
 function initScheduleButton() {
     // Find all the necessary elements first
@@ -332,7 +471,7 @@ function initScheduleButton() {
 
     if (scheduleButton && scheduleModal && closeModalButton) {
         scheduleButton.addEventListener('click', function (event) {
-            if (!isScheduleReady) {
+            if (!getScheduleReadyFlag()) {
                 event.preventDefault();
                 scheduleModal.style.display = 'flex';
             }
@@ -523,29 +662,6 @@ function initKnowMore() {
     });
 
     // =============================
-    // Custom 2025 Alert
-    // =============================
-    let is2025Ready = false;
-    const nav2025 = document.getElementById("nav2025");
-    const alert2025 = document.getElementById("alert2025");
-    const closeAlert = document.getElementById("closeAlert");
-
-    if (nav2025) {
-        nav2025.addEventListener("click", e => {
-            if (!is2025Ready) {
-                e.preventDefault();
-                alert2025.style.display = "flex";
-            }
-        });
-    }
-
-    if (closeAlert) {
-        closeAlert.addEventListener("click", () => {
-            alert2025.style.display = "none";
-        });
-    }
-
-    // =============================
     // 3D Tilt Image Effect
     // =============================
     document.querySelectorAll('.km-img').forEach(container => {
@@ -588,7 +704,7 @@ function initKnowMore() {
 
     window.addEventListener('resize', () => {
         isMobile = window.innerWidth <= 760;
-        if (!isMobile) {
+        if (!isMobile && yearNav) {
             yearNav.classList.remove('active');
             document.body.style.overflow = '';
         }
@@ -597,6 +713,7 @@ function initKnowMore() {
     if (hamburgerMenu) {
         hamburgerMenu.addEventListener('click', (e) => {
             e.stopPropagation();
+            if (!yearNav) return;
             yearNav.classList.toggle('active');
             document.body.style.overflow = yearNav.classList.contains('active') ? 'hidden' : '';
         });
@@ -622,7 +739,9 @@ function initKnowMore() {
                 e.preventDefault();
                 const target = document.querySelector(href);
                 if (target) {
-                    yearNav.classList.remove('active');
+                    if (yearNav) {
+                        yearNav.classList.remove('active');
+                    }
                     document.body.style.overflow = '';
 
                     setTimeout(() => {

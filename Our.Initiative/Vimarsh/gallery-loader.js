@@ -4,7 +4,7 @@
  * ================================================
  * 
  * This script dynamically loads gallery images from Supabase Storage
- * Replaces Cloudinary with Supabase Storage backend
+ * Uses Supabase Storage backend for dynamic gallery images
  * 
  * Dependencies: supabase-gallery-config.js (must be loaded first)
  */
@@ -231,12 +231,14 @@ class VimarshGalleryManager {
     setupFilters() {
         this.filterButtons.forEach(button => {
             button.addEventListener('click', (e) => {
+                const targetButton = e.currentTarget;
+
                 // Update active state
                 this.filterButtons.forEach(btn => btn.classList.remove('active'));
-                e.target.classList.add('active');
+                targetButton.classList.add('active');
 
                 // Update filter and re-render
-                this.currentFilter = e.target.getAttribute('data-filter');
+                this.currentFilter = targetButton.getAttribute('data-filter');
                 this.renderGallery();
                 
                 // Re-setup lazy loading for new images

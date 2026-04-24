@@ -866,6 +866,15 @@
                         </div>
                     </div>
 
+                    <!-- Vimarsh image type (shown only for Vimarsh + selected year) -->
+                    <div class="form-group" id="vimarshTypeGroup" style="display: none;">
+                        <label for="vimarshType"><i class="fas fa-layer-group"></i> Vimarsh Image Type</label>
+                        <select id="vimarshType">
+                            <option value="gallery">Event</option>
+                            <option value="speakers">Speaker</option>
+                        </select>
+                    </div>
+
                     <!-- File Selection -->
                     <div class="form-group">
                         <label><i class="fas fa-images"></i> Select Photos (Max 500 KB each)</label>
@@ -917,6 +926,15 @@
                     </select>
                 </div>
 
+                <div class="form-group" id="filterVimarshTypeGroup" style="display: none;">
+                    <label for="filterVimarshType"><i class="fas fa-layer-group"></i> Filter Vimarsh Type</label>
+                    <select id="filterVimarshType">
+                        <option value="">All Types</option>
+                        <option value="gallery">Event</option>
+                        <option value="speakers">Speaker</option>
+                    </select>
+                </div>
+
                 <div class="preview-grid" id="previewGrid">
                     <p style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px;">
                         Select filters to view photos
@@ -964,6 +982,8 @@
         const uploadForm = document.getElementById('uploadForm');
         const categorySelect = document.getElementById('category');
         const yearSelect = document.getElementById('year');
+        const vimarshTypeGroup = document.getElementById('vimarshTypeGroup');
+        const vimarshTypeSelect = document.getElementById('vimarshType');
         const imageFiles = document.getElementById('imageFiles');
         const fileLabel = document.getElementById('fileLabel');
         const uploadBtn = document.getElementById('uploadBtn');
@@ -972,6 +992,8 @@
         const progressBarFill = document.getElementById('progressBarFill');
         const filterCategory = document.getElementById('filterCategory');
         const filterYear = document.getElementById('filterYear');
+        const filterVimarshTypeGroup = document.getElementById('filterVimarshTypeGroup');
+        const filterVimarshType = document.getElementById('filterVimarshType');
         const previewGrid = document.getElementById('previewGrid');
 
         let currentUser = null;
@@ -1194,12 +1216,39 @@
             }
         }
 
+        function updateVimarshTypeVisibility() {
+            const isVimarshWithYear = categorySelect.value === 'vimarsh' && !!yearSelect.value;
+            vimarshTypeGroup.style.display = isVimarshWithYear ? 'block' : 'none';
+
+            if (!isVimarshWithYear) {
+                vimarshTypeSelect.value = 'gallery';
+            }
+        }
+
+        function updateFilterVimarshTypeVisibility() {
+            const isVimarshWithYear = filterCategory.value === 'vimarsh' && !!filterYear.value;
+            filterVimarshTypeGroup.style.display = isVimarshWithYear ? 'block' : 'none';
+
+            if (!isVimarshWithYear) {
+                filterVimarshType.value = '';
+            }
+        }
+
+        categorySelect.addEventListener('change', updateVimarshTypeVisibility);
+        yearSelect.addEventListener('change', updateVimarshTypeVisibility);
+        filterCategory.addEventListener('change', updateFilterVimarshTypeVisibility);
+        filterYear.addEventListener('change', updateFilterVimarshTypeVisibility);
+
+        updateVimarshTypeVisibility();
+        updateFilterVimarshTypeVisibility();
+
         // Upload Form
         uploadForm.addEventListener('submit', async (e) => {
             e.preventDefault();
 
             const category = categorySelect.value;
             const year = yearSelect.value;
+            const vimarshType = vimarshTypeSelect.value;
 
             if (!category || !year) {
                 showUploadStatus('error', 'Missing Information', 'Please select both category and year');
@@ -1243,7 +1292,10 @@
 
                 for (const file of selectedFiles) {
                     const fileExt = file.name.split('.').pop();
-                    const fileName = `photos/${category}/${year}/${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+                    const basePath = (category === 'vimarsh')
+                        ? `photos/${category}/${year}/${vimarshType}/`
+                        : `photos/${category}/${year}/`;
+                    const fileName = `${basePath}${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
 
                     const { error: uploadError } = await supabaseClient.storage
                         .from(STORAGE_BUCKET)
@@ -1264,7 +1316,10 @@
 
                 // Show final status
                 if (uploadedCount === totalFiles) {
-                    const message = `Successfully uploaded all ${uploadedCount} photos to ${category}/${year}<br>` +
+                    const targetPath = (category === 'vimarsh')
+                        ? `${category}/${year}/${vimarshType}`
+                        : `${category}/${year}`;
+                    const message = `Successfully uploaded all ${uploadedCount} photos to ${targetPath}<br>` +
                         `<a href="#" onclick="notifyFrontend(); return false;" class="status-action-btn"><i class="fas fa-bell"></i> Notify Frontend</a>`;
                     showUploadStatus('success', 'Upload Complete!', message);
                 } else if (uploadedCount > 0) {
@@ -1280,6 +1335,7 @@
                     uploadForm.reset();
                     selectedFiles = [];
                     updateFileLabel();
+                    updateVimarshTypeVisibility();
 
                     // Reload photos if filters match
                     if (filterCategory.value === category || !filterCategory.value) {
@@ -1343,6 +1399,7 @@
         async function loadPhotos() {
             const category = filterCategory.value;
             const year = filterYear.value;
+            const selectedVimarshType = filterVimarshType.value;
 
             if (!category && !year) {
                 previewGrid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px;">Select filters to view photos</p>';
@@ -1352,22 +1409,51 @@
             previewGrid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px;"><i class="fas fa-spinner fa-spin"></i> Loading photos...</p>';
 
             try {
-                let path = 'photos/';
-                if (category) path += `${category}/`;
-                if (year) path += `${year}/`;
+                let imageFiles = [];
 
-                const { data, error } = await supabaseClient.storage
-                    .from(STORAGE_BUCKET)
-                    .list(path, {
-                        limit: 1000,
-                        sortBy: { column: 'created_at', order: 'desc' }
-                    });
+                if (category === 'vimarsh' && year) {
+                    const basePath = `photos/${category}/${year}/`;
+                    const folders = selectedVimarshType
+                        ? [selectedVimarshType]
+                        : ['gallery', 'speakers'];
 
-                if (error) throw error;
+                    for (const folder of folders) {
+                        const { data, error } = await supabaseClient.storage
+                            .from(STORAGE_BUCKET)
+                            .list(`${basePath}${folder}/`, {
+                                limit: 1000,
+                                sortBy: { column: 'created_at', order: 'desc' }
+                            });
 
-                const imageFiles = data.filter(file =>
-                    file.name.match(/\.(jpg|jpeg|png|webp)$/i)
-                );
+                        if (error) {
+                            console.warn(`Unable to load ${folder} folder:`, error.message);
+                            continue;
+                        }
+
+                        const files = data
+                            .filter(file => file.name.match(/\.(jpg|jpeg|png|webp)$/i))
+                            .map(file => ({ ...file, __folder: folder, __basePath: `${basePath}${folder}/` }));
+
+                        imageFiles.push(...files);
+                    }
+                } else {
+                    let path = 'photos/';
+                    if (category) path += `${category}/`;
+                    if (year) path += `${year}/`;
+
+                    const { data, error } = await supabaseClient.storage
+                        .from(STORAGE_BUCKET)
+                        .list(path, {
+                            limit: 1000,
+                            sortBy: { column: 'created_at', order: 'desc' }
+                        });
+
+                    if (error) throw error;
+
+                    imageFiles = data
+                        .filter(file => file.name.match(/\.(jpg|jpeg|png|webp)$/i))
+                        .map(file => ({ ...file, __basePath: path }));
+                }
 
                 if (imageFiles.length === 0) {
                     previewGrid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px;">No photos found for this selection.</p>';
@@ -1376,10 +1462,14 @@
 
                 previewGrid.innerHTML = '';
                 imageFiles.forEach(file => {
-                    const fullPath = path + file.name;
+                    const fullPath = `${file.__basePath}${file.name}`;
                     const { data: urlData } = supabaseClient.storage
                         .from(STORAGE_BUCKET)
                         .getPublicUrl(fullPath);
+
+                    const typeLabel = file.__folder
+                        ? `<div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Type: ${file.__folder === 'speakers' ? 'Speaker' : 'Event'}</div>`
+                        : '';
 
                     const item = document.createElement('div');
                     item.className = 'preview-item';
@@ -1388,6 +1478,7 @@
                         <div class="preview-item-info">
                             <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">${file.name.substring(0, 20)}...</div>
                             <div>${new Date(file.created_at).toLocaleDateString()}</div>
+                            ${typeLabel}
                         </div>
                         <button class="delete-preview-btn" onclick="deletePhoto('${fullPath}')">
                             <i class="fas fa-trash"></i>
@@ -1463,6 +1554,7 @@
         // Filter Change Handlers
         filterCategory.addEventListener('change', loadPhotos);
         filterYear.addEventListener('change', loadPhotos);
+        filterVimarshType.addEventListener('change', loadPhotos);
 
 
         // Notify Frontend Function

@@ -131,6 +131,8 @@ class SupabaseGalleryClient {
             console.log('✨ Processed files:', processed.length);
             console.log('📅 Years in data:', [...new Set(processed.map(f => f.year))]);
 
+            return processed;
+
         } catch (error) {
             console.error('Error fetching gallery files:', error);
             throw error;
@@ -226,6 +228,12 @@ class SupabaseGalleryClient {
 
 // Initialize the client
 const galleryClient = new SupabaseGalleryClient(SUPABASE_CONFIG);
+
+// Expose shared config/client for browser scripts
+if (typeof window !== 'undefined') {
+    window.SUPABASE_CONFIG = SUPABASE_CONFIG;
+    window.galleryClient = galleryClient;
+}
 
 // Export for use in other scripts
 if (typeof module !== 'undefined' && module.exports) {

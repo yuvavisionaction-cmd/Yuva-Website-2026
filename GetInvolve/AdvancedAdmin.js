@@ -233,6 +233,7 @@ const KNOWN_STORAGE_BUCKETS = ['vertical_images', 'gallery_photos', 'event-banne
 let verticalImageRecords = [];
 let pendingVerticalImageDelete = null;
 let pendingExecutiveDelete = null;
+let executiveReadOnlyMode = false;
 let collegeRecords = [];
 let zoneRecords = [];
 let collegesLoadInFlight = false;
@@ -5882,6 +5883,64 @@ function getInitials(name) {
 
 // --- EXECUTIVE MEMBERS MANAGEMENT ---
 
+function setExecutiveManagerReadOnly(readOnly, reason = '') {
+    executiveReadOnlyMode = !!readOnly;
+
+    const addBtn = document.getElementById('executive-add-btn');
+    if (addBtn) {
+        addBtn.disabled = executiveReadOnlyMode;
+        addBtn.style.opacity = executiveReadOnlyMode ? '0.6' : '';
+        addBtn.style.cursor = executiveReadOnlyMode ? 'not-allowed' : '';
+        addBtn.title = executiveReadOnlyMode
+            ? (reason || 'Write actions are disabled until you log in again')
+            : '';
+    }
+}
+
+async function fetchExecutiveMembersWithFallback() {
+    const { data: sessionResp } = await supabaseClient.auth.getSession();
+    const hasSession = !!sessionResp?.session;
+
+    const baseQuery = supabaseClient
+        .from('executive_members')
+        .select('id, member_name, designation, role, photo_url, contact_email, description, display_order')
+        .order('display_order', { ascending: true });
+
+    const { data: tableData, error: tableError } = await baseQuery;
+    if (tableError) {
+        throw tableError;
+    }
+
+    // On live, localStorage may grant page access while Supabase session is missing.
+    // In that case, RLS can silently return zero rows from executive_members.
+    if (!hasSession && (!tableData || tableData.length === 0)) {
+        const { data: viewData, error: viewError } = await supabaseClient
+            .from('vw_executive_members')
+            .select('id, member_name, designation, role, photo_url, contact_email, description, display_order')
+            .order('display_order', { ascending: true });
+
+        if (viewError) {
+            return {
+                rows: tableData || [],
+                readOnly: true,
+                warning: 'Session missing and fallback view is unavailable. Please log in again.'
+            };
+        }
+
+        return {
+            rows: viewData || [],
+            readOnly: true,
+            warning: 'Showing members in read-only mode. Please log in again to edit.'
+        };
+    }
+
+    return {
+        rows: tableData || [],
+        readOnly: false,
+        warning: ''
+    };
+}
+
 window.loadExecutiveMembers = async function () {
     const tbody = document.querySelector('#executives-table tbody');
     if (!tbody) return;
@@ -5889,17 +5948,17 @@ window.loadExecutiveMembers = async function () {
     try {
         tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px;">Loading executive members...</td></tr>';
 
-        const { data, error } = await supabaseClient
-            .from('executive_members')
-            .select('id, member_name, designation, role, photo_url, contact_email, description, display_order')
-            .order('display_order', { ascending: true });
+        const result = await fetchExecutiveMembersWithFallback();
+        setExecutiveManagerReadOnly(result.readOnly, result.warning);
+        if (result.warning) {
+            Toast.show('info', 'Executive Members', result.warning, 4500);
+        }
 
-        if (error) throw error;
-
-        renderExecutivesTable(data || []);
+        renderExecutivesTable(result.rows || []);
         updateDashboardCounters(); // Update dashboard counter
     } catch (error) {
         console.error('Error loading executives:', error);
+        setExecutiveManagerReadOnly(false);
         Toast.show('error', 'Load Failed', error.message);
         tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px; color:#c00;">Failed to load executive members</td></tr>';
     }
@@ -5942,22 +6001,29 @@ function renderExecutivesTable(executives) {
             <td><small>${escapeHtml(exec.contact_email || '-')}</small></td>
             <td style="text-align:center;">${exec.display_order || 0}</td>
             <td style="text-align:center;">
-                ${index > 0 ? `<button class="btn-icon" title="Move Up" onclick="moveExecutiveMemberUp('${exec.id}')"><i class="fas fa-arrow-up"></i></button>` : '<span style="width:32px; display:inline-block;"></span>'}
-                ${index < filtered.length - 1 ? `<button class="btn-icon" title="Move Down" onclick="moveExecutiveMemberDown('${exec.id}')"><i class="fas fa-arrow-down"></i></button>` : '<span style="width:32px; display:inline-block;"></span>'}
+                ${!executiveReadOnlyMode && index > 0 ? `<button class="btn-icon" title="Move Up" onclick="moveExecutiveMemberUp('${exec.id}')"><i class="fas fa-arrow-up"></i></button>` : '<span style="width:32px; display:inline-block;"></span>'}
+                ${!executiveReadOnlyMode && index < filtered.length - 1 ? `<button class="btn-icon" title="Move Down" onclick="moveExecutiveMemberDown('${exec.id}')"><i class="fas fa-arrow-down"></i></button>` : '<span style="width:32px; display:inline-block;"></span>'}
             </td>
             <td style="text-align:center;">
-                <button class="btn-icon" title="Edit" onclick="openExecutiveMemberModal('${exec.id}')">
+                ${executiveReadOnlyMode
+            ? '<span style="color:#888; font-size:12px;">Read only</span>'
+            : `<button class="btn-icon" title="Edit" onclick="openExecutiveMemberModal('${exec.id}')">
                     <i class="fas fa-edit"></i>
                 </button>
                 <button class="btn-icon delete" title="Delete" onclick="deleteExecutiveMember('${exec.id}')">
                     <i class="fas fa-trash"></i>
-                </button>
+                </button>`}
             </td>
         </tr>
     `).join('');
 }
 
 window.openExecutiveMemberModal = async function (memberId) {
+    if (executiveReadOnlyMode) {
+        Toast.show('warning', 'Read Only', 'Please log in again to add or edit executive members.');
+        return;
+    }
+
     const modal = document.getElementById('executive-member-modal');
     const titleEl = document.getElementById('executive-modal-title');
 
@@ -6044,6 +6110,11 @@ function validateExecutiveMemberFields(name, designation, role, email) {
 }
 
 window.saveExecutiveMember = async function () {
+    if (executiveReadOnlyMode) {
+        Toast.show('warning', 'Read Only', 'Please log in again to update executive members.');
+        return;
+    }
+
     const memberId = document.getElementById('executive-id').value;
     const memberName = document.getElementById('executive-name').value.trim();
     const designation = document.getElementById('executive-designation').value.trim();
@@ -6134,6 +6205,11 @@ window.saveExecutiveMember = async function () {
 };
 
 window.deleteExecutiveMember = async function (memberId) {
+    if (executiveReadOnlyMode) {
+        Toast.show('warning', 'Read Only', 'Please log in again to delete executive members.');
+        return;
+    }
+
     if (!memberId) {
         console.error('No member ID provided');
         return;
@@ -6217,6 +6293,11 @@ window.confirmExecutiveDelete = async function () {
 };
 
 window.moveExecutiveMemberUp = async function (memberId) {
+    if (executiveReadOnlyMode) {
+        Toast.show('warning', 'Read Only', 'Please log in again to reorder executive members.');
+        return;
+    }
+
     try {
         // Get all executives sorted by display_order
         const { data: allExecutives, error: fetchError } = await supabaseClient
@@ -6253,6 +6334,11 @@ window.moveExecutiveMemberUp = async function (memberId) {
 };
 
 window.moveExecutiveMemberDown = async function (memberId) {
+    if (executiveReadOnlyMode) {
+        Toast.show('warning', 'Read Only', 'Please log in again to reorder executive members.');
+        return;
+    }
+
     try {
         // Get all executives sorted by display_order
         const { data: allExecutives, error: fetchError } = await supabaseClient
